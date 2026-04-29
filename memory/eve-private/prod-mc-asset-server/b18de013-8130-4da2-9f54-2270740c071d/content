@@ -1,0 +1,64 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Janean Murphy - LPGA Golf Coach</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+  <header class="bg-green-600 text-white text-center py-8">
+    <h1 class="text-4xl font-bold">Janean Murphy, LPGA</h1>
+    <p class="text-lg mt-2">LPGA / PGA Class A | Teaching Players Since 2004</p>
+  </header>
+
+  <main class="max-w-4xl mx-auto p-6">
+    <section class="flex flex-col md:flex-row items-center bg-white rounded-lg shadow-lg p-6 mb-8">
+      <div class="md:w-1/3">
+        <img src="https://www.janeanmurphy.com/janean-photo.jpg" alt="Janean Murphy" class="w-full rounded-lg">
+      </div>
+      <div class="md:w-2/3 md:pl-6 mt-4 md:mt-0">
+        <h2 class="text-2xl font-semibold text-green-600">About Janean</h2>
+        <p class="mt-2 text-gray-700">
+          I’m passionate about teaching golfers of all skill levels and ages. My love for both the game and people drives me to create a student-centered approach to instruction. I believe in tailoring lessons to each individual, considering their body mechanics, goals, and unique learning style.
+        </p>
+        <p class="mt-2 text-gray-700">
+          Whether you're looking to enjoy a casual 9 holes with family and friends or aiming to compete and win, I’m here to help. I cover all aspects of the game, from full swing and short game to putting, equipment, and on-course strategy. I also emphasize the mental game and, of course, having fun along the way.
+        </p>
+      </div>
+    </section>
+
+    <section class="bg-white rounded-lg shadow-lg p-6 mb-8">
+      <h2 class="text-2xl font-semibold text-green-600">Experience & Achievements</h2>
+      <p class="mt-2 text-gray-700">
+        With over 20 years of experience, I’ve helped golfers of all levels improve their game as the Director of Instruction at Meadowbrook Country Club in Ballwin, Missouri. I develop and lead programs focused on fun, learning, and skill improvement for players at every level.
+      </p>
+      <ul class="mt-4 text-gray-700 list-disc list-inside">
+        <li>2024 LPGA Global Teacher of the Year</li>
+        <li>2024-2025 & 2022-2023 LPGA Top 50 Best Teacher</li>
+        <li>2022 LPGA Midwestern Section Teacher of the Year</li>
+        <li>2021 & 2019 LPGA Central Section Teacher of the Year</li>
+        <li>2023, 2022 & 2021 OP36 Master Top 50 Coach</li>
+        <li>2023, 2022, 2021 & 2020 GRAA Top 100 Growth of the Game Teaching Professional</li>
+        <li>2020 LPGA Central Section Junior Golf Leader</li>
+        <li>2020 & 2019 OP36 Top 50 Coach</li>
+        <li>2019 & 2018 US Kids Top 50 Coach</li>
+        <li>2020 & 2021 US Kids Honorable Mention Top 50 Coach</li>
+      </ul>
+    </section>
+
+    <section class="text-center">
+      <h2 class="text-2xl font-semibold text-green-600">Connect with Janean</h2>
+      <p class="mt-2 text-gray-700">
+        Ready to elevate your golf game? Contact me to schedule a lesson or learn more about my programs at Meadowbrook Country Club.
+      </p>
+      <a href="https://www.janeanmurphy.com/" class="mt-4 inline-block bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700">Visit JaneanMurphy.com</a>
+    </section>
+  </main>
+
+  <footer class="bg-green-600 text-white text-center py-4">
+    <p>&copy; 2025 Janean Murphy. All rights reserved.</p>
+  </footer>
+</body>
+</html>

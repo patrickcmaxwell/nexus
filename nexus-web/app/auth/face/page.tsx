@@ -1,0 +1,291 @@
+"use client"
+
+import { useEffect, useRef, useState, useCallback } from "react"
+import { useRouter } from "next/navigation"
+
+type Stage = "loading_models" | "ready" | "scanning" | "enrolling" | "verifying" | "success" | "failed" | "no_camera"
+
+export default function FacePage() {
+  const router = useRouter()
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const faceapiRef = useRef<any>(null)
+
+  const [stage, setStage] = useState<Stage>("loading_models")
+  const [statusMsg, setStatusMsg] = useState("LOADING BIOMETRIC MODELS...")
+  const [loadProgress, setLoadProgress] = useState(0)
+  const [confidence, setConfidence] = useState(0)
+
+  // Step 1: Load models on mount
+  useEffect(() => {
+    async function loadModels() {
+      try {
+        setStatusMsg("LOADING MODEL 1/3 — FACE DETECTOR...")
+        setLoadProgress(10)
+        const faceapi = await import("@vladmandic/face-api")
+        const MODEL_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model"
+
+        await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL)
+        setLoadProgress(40)
+        setStatusMsg("LOADING MODEL 2/3 — LANDMARKS...")
+
+        await faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL)
+        setLoadProgress(70)
+        setStatusMsg("LOADING MODEL 3/3 — RECOGNITION NET...")
+
+        await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+        setLoadProgress(100)
+
+        faceapiRef.current = faceapi
+
+        // Start camera silently in the background
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "user", width: 640, height: 480 },
+          })
+          streamRef.current = stream
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream
+            await videoRef.current.play()
+          }
+          setStage("ready")
+          setStatusMsg("CAMERA READY — PRESS SCAN TO VERIFY IDENTITY")
+        } catch {
+          setStage("no_camera")
+          setStatusMsg("CAMERA ACCESS DENIED")
+        }
+      } catch {
+        setStage("no_camera")
+        setStatusMsg("FAILED TO LOAD MODELS — CHECK CONNECTION")
+      }
+    }
+    loadModels()
+    return () => { streamRef.current?.getTracks().forEach((t) => t.stop()) }
+  }, [])
+
+  const runScan = useCallback(async () => {
+    if (!faceapiRef.current || !videoRef.current) return
+    setStage("scanning")
+    setStatusMsg("SCANNING — LOOK DIRECTLY AT CAMERA...")
+    setConfidence(0)
+
+    const faceapi = faceapiRef.current
+    const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.45 })
+
+    let result = null
+    for (let attempt = 0; attempt < 6; attempt++) {
+      setStatusMsg(`SCANNING BIOMETRICS... (${attempt + 1}/6)`)
+      await new Promise((r) => setTimeout(r, 1200))
+      result = await faceapi
+        .detectSingleFace(videoRef.current, options)
+        .withFaceLandmarks(true)
+        .withFaceDescriptor()
+      if (result) break
+    }
+
+    if (!result) {
+      setStage("failed")
+      setStatusMsg("NO FACE DETECTED — ENSURE GOOD LIGHTING AND RETRY")
+      return
+    }
+
+    setConfidence(Math.round(result.detection.score * 100))
+    const descriptor = Array.from(result.descriptor) as number[]
+
+    // Try verify first
+    setStage("verifying")
+    setStatusMsg("VERIFYING IDENTITY...")
+    const verifyRes = await fetch("/api/security/face", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "verify", descriptor }),
+    })
+
+    if (verifyRes.ok) {
+      setStage("success")
+      setStatusMsg("IDENTITY CONFIRMED — ACCESS GRANTED")
+      setTimeout(() => { window.location.href = "/dashboard" }, 1500)
+      return
+    }
+
+    if (verifyRes.status === 404) {
+      // No reference stored yet — first login, enroll now
+      setStage("enrolling")
+      setStatusMsg("FIRST LOGIN — ENROLLING YOUR FACE REFERENCE...")
+      const enrollRes = await fetch("/api/security/face", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "enroll", descriptor }),
+      })
+      if (enrollRes.ok) {
+        setStage("success")
+        setStatusMsg("FACE ENROLLED AND CONFIRMED — WELCOME, DIRECTOR")
+        setTimeout(() => { window.location.href = "/dashboard" }, 2000)
+      } else {
+        setStage("failed")
+        setStatusMsg("ENROLLMENT FAILED — TRY AGAIN")
+      }
+      return
+    }
+
+    // Mismatch
+    setStage("failed")
+    setStatusMsg("IDENTITY MISMATCH — ACCESS DENIED")
+  }, [router])
+
+  const handleRetry = () => {
+    setStage("ready")
+    setConfidence(0)
+    setStatusMsg("CAMERA READY — PRESS SCAN TO VERIFY IDENTITY")
+  }
+
+  const statusColor =
+    stage === "success" ? "text-green-400"
+    : stage === "failed" ? "text-hud-red"
+    : stage === "enrolling" ? "text-hud-gold"
+    : "text-hud-gold"
+
+  const scanning = stage === "scanning" || stage === "verifying" || stage === "enrolling"
+
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center scan-line">
+      <div className="w-full max-w-md px-6">
+
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="w-12 h-12 hud-border hud-glow-red mx-auto mb-4 flex items-center justify-center">
+            <span className="text-hud-red font-bold text-sm animate-pulse-glow" style={{ fontFamily: "var(--font-orbitron)" }}>MN</span>
+          </div>
+          <p className="font-mono text-[10px] text-muted-foreground tracking-widest mb-1">MAXWELL NEXUS SECURITY</p>
+          <h1 className="text-hud-gold text-xl font-bold tracking-widest" style={{ fontFamily: "var(--font-orbitron)" }}>
+            BIOMETRIC VERIFICATION
+          </h1>
+          <p className="font-mono text-[10px] text-muted-foreground mt-2 tracking-widest">LAYER 2 OF 2 — REQUIRED ON EVERY ENTRY</p>
+        </div>
+
+        {/* Model loading progress bar */}
+        {stage === "loading_models" && (
+          <div className="mb-6">
+            <div className="h-1 bg-border mb-2">
+              <div
+                className="h-full bg-hud-red transition-all duration-700"
+                style={{ width: `${loadProgress}%` }}
+              />
+            </div>
+            <p className="font-mono text-[9px] text-center text-muted-foreground tracking-widest">{loadProgress}% — MODELS LOADING</p>
+          </div>
+        )}
+
+        {/* Camera frame */}
+        <div className="relative mx-auto mb-6" style={{ width: 280, height: 280 }}>
+          {/* HUD corners */}
+          <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-hud-red z-10" />
+          <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-hud-red z-10" />
+          <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-hud-red z-10" />
+          <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-hud-red z-10" />
+
+          <video
+            ref={videoRef}
+            className="w-full h-full object-cover bg-black"
+            style={{ transform: "scaleX(-1)", filter: "grayscale(20%) contrast(1.1)" }}
+            muted
+            playsInline
+          />
+
+          {/* Scan line while scanning */}
+          {scanning && (
+            <div className="absolute inset-0 overflow-hidden pointer-events-none z-10">
+              <div className="absolute w-full h-0.5 bg-hud-red/80" style={{ animation: "hud-scan 2s linear infinite" }} />
+            </div>
+          )}
+
+          {/* Success overlay */}
+          {stage === "success" && (
+            <div className="absolute inset-0 bg-green-400/10 border-2 border-green-400 flex items-center justify-center z-10">
+              <span className="text-green-400 text-5xl font-bold">✓</span>
+            </div>
+          )}
+
+          {/* Failed overlay */}
+          {stage === "failed" && (
+            <div className="absolute inset-0 bg-hud-red/10 border-2 border-hud-red flex items-center justify-center z-10">
+              <span className="text-hud-red text-5xl font-bold">✗</span>
+            </div>
+          )}
+
+          {/* Loading placeholder */}
+          {stage === "loading_models" && (
+            <div className="absolute inset-0 bg-card flex items-center justify-center z-10">
+              <div className="text-center">
+                <div className="w-8 h-8 border-2 border-hud-red border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                <span className="font-mono text-[9px] text-muted-foreground tracking-widest">LOADING...</span>
+              </div>
+            </div>
+          )}
+
+          {/* No camera */}
+          {stage === "no_camera" && (
+            <div className="absolute inset-0 bg-card border border-hud-red flex items-center justify-center z-10">
+              <span className="font-mono text-[10px] text-hud-red text-center px-4 tracking-widest">CAMERA UNAVAILABLE</span>
+            </div>
+          )}
+        </div>
+
+        {/* Confidence meter */}
+        {confidence > 0 && (
+          <div className="mb-4">
+            <div className="flex justify-between mb-1">
+              <span className="font-mono text-[10px] text-muted-foreground">SCAN CONFIDENCE</span>
+              <span className="font-mono text-[10px] text-hud-gold">{confidence}%</span>
+            </div>
+            <div className="h-1 bg-border">
+              <div className="h-full bg-hud-gold transition-all duration-500" style={{ width: `${confidence}%` }} />
+            </div>
+          </div>
+        )}
+
+        {/* Status line */}
+        <div className="text-center mb-6">
+          <p className={`font-mono text-xs tracking-widest ${scanning ? "animate-pulse-glow" : ""} ${statusColor}`}>
+            {statusMsg}
+          </p>
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex flex-col gap-3">
+          {stage === "ready" && (
+            <button
+              onClick={runScan}
+              className="w-full hud-border hud-glow-gold text-hud-gold font-mono text-sm py-4 hover:bg-[oklch(0.75_0.18_75/0.1)] transition-colors tracking-widest active:scale-95"
+              style={{ fontFamily: "var(--font-orbitron)" }}
+            >
+              INITIATE FACE SCAN
+            </button>
+          )}
+
+          {scanning && (
+            <div className="w-full hud-border text-muted-foreground font-mono text-sm py-4 text-center tracking-widest opacity-50">
+              SCANNING...
+            </div>
+          )}
+
+          {stage === "failed" && (
+            <button
+              onClick={handleRetry}
+              className="w-full hud-border text-hud-gold font-mono text-sm py-4 hover:bg-[oklch(0.75_0.18_75/0.1)] transition-colors tracking-widest active:scale-95"
+              style={{ fontFamily: "var(--font-orbitron)" }}
+            >
+              RETRY SCAN
+            </button>
+          )}
+        </div>
+
+        <div className="mt-6 text-center">
+          <p className="font-mono text-[9px] text-muted-foreground/50 tracking-widest">
+            FACE SCAN REQUIRED ON EVERY ENTRY · CANNOT BE BYPASSED
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}

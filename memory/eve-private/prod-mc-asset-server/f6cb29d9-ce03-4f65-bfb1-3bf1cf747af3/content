@@ -1,0 +1,131 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heather Moyer Wellness</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f8f8f8;
+        }
+        .hero-bg {
+            background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://source.unsplash.com/random/1600x900/?mount-shasta');
+            background-size: cover;
+            background-position: center;
+        }
+        .section-bg {
+            background-color: #e6f0fa;
+        }
+        .card {
+            transition: transform 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .cta-button {
+            background-color: #4a90e2;
+            transition: background-color 0.3s ease;
+        }
+        .cta-button:hover {
+            background-color: #357abd;
+        }
+    </style>
+</head>
+<body>
+    <!-- Hero Section -->
+    <section class="hero-bg text-white text-center py-20">
+        <h1 class="text-5xl font-bold mb-4">Awaken Your Inner Warrior</h1>
+        <p class="text-xl max-w-2xl mx-auto mb-6">Join Heather Moyer in Mt. Shasta to heal, grow, and thrive. Transform your life with grief support, wellness tools, and nature’s magic.</p>
+        <a href="#contact" class="cta-button text-lg px-6 py-3 rounded-full text-white">Start Your Journey</a>
+    </section>
+
+    <!-- About Heather Section -->
+    <section class="py-16 section-bg text-center">
+        <h2 class="text-4xl font-semibold mb-6">Meet Heather</h2>
+        <img src="https://source.unsplash.com/random/300x300/?portrait" alt="Heather Moyer" class="w-48 h-48 rounded-full mx-auto mb-6">
+        <p class="text-lg max-w-3xl mx-auto">A Mt. Shasta native, I’m a grief educator and coach who turned personal loss into purpose. After losing my son in 2022, I created Heather Moyer Wellness to guide you through grief and growth with yoga, nutrition, and mindfulness. Let’s unlock your vibrant self together.</p>
+    </section>
+
+    <!-- Services Section -->
+    <section class="py-16 bg-white">
+        <h2 class="text-4xl font-semibold text-center mb-12">Your Path to Healing</h2>
+        <div class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 px-4">
+            <!-- 1-on-1 Coaching -->
+            <div class="card bg-gray-100 p-6 rounded-lg shadow-lg">
+                <h3 class="text-2xl font-bold mb-4">1-on-1 Coaching</h3>
+                <p class="mb-4">Personalized sessions, online or in-person, to break through grief or life’s challenges. Get tailored tools for mind, body, and spirit.</p>
+                <a href="#contact" class="cta-button text-white px-4 py-2 rounded-full">Book a Session</a>
+            </div>
+            <!-- Retreats -->
+            <div class="card bg-gray-100 p-6 rounded-lg shadow-lg">
+                <h3 class="text-2xl font-bold mb-4">Mt. Shasta Retreats</h3>
+                <p class="mb-4">Monthly escapes in nature with themes like grief and empowerment. Join yoga, mindfulness, and community. 2025 dates: Oct 1-5, Oct 29-Nov 2, Nov 19-23.</p>
+                <a href="#retreats" class="cta-button text-white px-4 py-2 rounded-full">See Retreats</a>
+            </div>
+            <!-- Tribe -->
+            <div class="card bg-gray-100 p-6 rounded-lg shadow-lg">
+                <h3 class="text-2xl font-bold mb-4">Tribe Healing Circles</h3>
+                <p class="mb-4">Weekly online meet-ups for shared healing and yoga. Connect with a supportive community, open to all.</p>
+                <a href="#tribe" class="cta-button text-white px-4 py-2 rounded-full">Join the Tribe</a>
+            </div>
+            <!-- Custom Experiences -->
+            <div class="card bg-gray-100 p-6 rounded-lg shadow-lg">
+                <h3 class="text-2xl font-bold mb-4">Custom Retreats</h3>
+                <p class="mb-4">Design your own healing getaway for you or your group. Pick the place, time, and vibe—perfect for personal or family transformation.</p>
+                <a href="#contact" class="cta-button text-white px-4 py-2 rounded-full">Plan Yours</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Mission Section -->
+    <section class="py-16 section-bg text-center">
+        <h2 class="text-4xl font-semibold mb-6">My Mission</h2>
+        <p class="text-lg max-w-3xl mx-auto mb-6">I’ve been to rock bottom and back, learning tools to thrive at 54. My goal is to guide you to heal holistically—mind, body, spirit—using yoga, nutrition, and mindfulness. Together, we’ll honor your losses, break free from limits, and embrace a hopeful future.</p>
+        <img src="https://source.unsplash.com/random/800x400/?nature" alt="Nature Scene" class="w-full max-w-4xl mx-auto rounded-lg">
+    </section>
+
+    <!-- Testimonials & Featured In -->
+    <section class="py-16 bg-white text-center">
+        <h2 class="text-4xl font-semibold mb-12">What People Say</h2>
+        <div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 px-4">
+            <div class="p-6 bg-gray-100 rounded-lg">
+                <p class="italic mb-4">"Heather’s retreat gave me tools to turn grief into hope. I feel alive again!"</p>
+                <p class="font-bold">– Sarah K.</p>
+            </div>
+            <div class="p-6 bg-gray-100 rounded-lg">
+                <p class="italic mb-4">"The Tribe is my weekly lifeline—connection and yoga keep me grounded."</p>
+                <p class="font-bold">– Alex M.</p>
+            </div>
+        </div>
+        <h3 class="text-2xl font-semibold mt-12 mb-6">Featured In</h3>
+        <div class="flex justify-center gap-8">
+            <img src="https://source.unsplash.com/random/100x50/?logo" alt="Media Logo 1" class="h-12">
+            <img src="https://source.unsplash.com/random/100x50/?logo" alt="Media Logo 2" class="h-12">
+        </div>
+    </section>
+
+    <!-- Contact & Subscribe -->
+    <section id="contact" class="py-16 section-bg text-center">
+        <h2 class="text-4xl font-semibold mb-6">Ready to Transform?</h2>
+        <p class="text-lg max-w-2xl mx-auto mb-6">Sign up for wellness tips, retreat updates, or book a free call to start your journey!</p>
+        <div class="max-w-md mx-auto">
+            <input type="email" placeholder="Enter your email" class="w-full p-3 mb-4 rounded-lg border">
+            <a href="#" class="cta-button text-white px-6 py-3 rounded-full block mb-4">Subscribe</a>
+            <a href="#" class="cta-button text-white px-6 py-3 rounded-full">Book Free Call</a>
+        </div>
+        <p class="mt-6">Contact: info@heathermoyer.co | (555) 123-4567 | Mt. Shasta, CA</p>
+        <div class="flex justify-center gap-4 mt-4">
+            <a href="#"><img src="https://source.unsplash.com/random/30x30/?instagram" alt="Instagram" class="h-8"></a>
+            <a href="#"><img src="https://source.unsplash.com/random/30x30/?facebook" alt="Facebook" class="h-8"></a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-6 bg-gray-800 text-white text-center">
+        <p>© 2025 Heather Moyer Wellness. All rights reserved.</p>
+    </footer>
+</body>
+</html>

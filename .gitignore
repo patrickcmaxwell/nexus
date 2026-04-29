@@ -1,0 +1,28 @@
+# System
+.DS_Store
+.*.swp
+*~
+
+# Env files (global backstop — each subproject also has its own .gitignore)
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
+
+# Xcode user data (machine-specific, binary)
+xcuserdata/
+*.xcuserstate
+*.xcbuilddata
+DerivedData/
+
+# Binary document formats (use PDF or markdown for docs in repo)
+*.pages
+*.numbers
+*.key
+*.docx
+*.xlsx
+
+# Misc
+Everything.base

@@ -1,9 +1,0 @@
-faster-whisper
-sounddevice
-numpy
-pyaudio
-kokoro
-soundfile
-pyautogui
-requests
-openai

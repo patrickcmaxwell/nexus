@@ -1,22 +1,25 @@
 # Nexus
 
-My personal AI operating system built around **Eve**.
+My personal AI operating system. **Lumen** is the underlying brain and compute engine, while **Eve** is the persona and the protector of all systems.
 
 ## Architecture
 
 ```
 You (Patrick)
      ↓ voice
-   Eve  ──────────────────►  Arena
- (Brain)                    (Executor)
-     ↑                           ↑
- The Vault               External Services
- (Obsidian + Memory)     (ClickUp, Payments, Google…)
+   Eve ────────►  Arena
+ (Protector)    (Executor)
+     ↓ uses          ↑
+ Lumen             External Services
+ (Brain)           (ClickUp, Payments, Google…)
+     ↑
+ The Vault
+ (Obsidian + Memory)
 ```
 
 | Component | Folder | Role | Runs on |
 |-----------|--------|------|---------|
-| Eve | `desktop/` + `memory/` | Thinks, talks, predicts, knows me | Mac (primary) + iPhone |
+| Lumen / Eve | `desktop/` + `memory/` | Lumen processes/thinks, Eve talks/protects | Mac (primary) + iPhone |
 | Arena | `arena/` | Executes tasks, moves money, talks to tools | Server / Mac |
 | The Vault | `memory/` + Obsidian | Long-term memory and knowledge base | Local files |
 | iOS App | `nexus-ios/` | Global voice interface from anywhere | iPhone |

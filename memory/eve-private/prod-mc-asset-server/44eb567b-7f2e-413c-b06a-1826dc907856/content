@@ -1,0 +1,82 @@
+
+<?php
+// Add this code to your BuddyBoss child theme's functions.php or a custom plugin
+
+// Register a shortcode to display user achievements and a form to post them
+add_shortcode('gamipress_user_achievements', 'custom_gamipress_user_achievements_shortcode');
+
+function custom_gamipress_user_achievements_shortcode($atts) {
+    // Ensure GamiPress is active
+    if (!function_exists('gamipress_get_user_achievements')) {
+        return '<p>GamiPress plugin is required to display achievements.</p>';
+    }
+
+    // Get the current user ID
+    $user_id = get_current_user_id();
+    if (!$user_id) {
+        return '<p>Please log in to view your achievements.</p>';
+    }
+
+    // Get user achievements
+    $achievements = gamipress_get_user_achievements(array(
+        'user_id' => $user_id,
+        'achievement_types' => gamipress_get_achievement_types_slugs()
+    ));
+
+    ob_start();
+    ?>
+    <div class="user-achievements">
+        <h3>Your Achievements</h3>
+        <?php if (!empty($achievements)) : ?>
+            <ul>
+                <?php foreach ($achievements as $achievement) : 
+                    $achievement_post = get_post($achievement->ID);
+                    if ($achievement_post) :
+                ?>
+                    <li>
+                        <?php echo esc_html($achievement_post->post_title); ?>
+                        <form method="post" action="">
+                            <input type="hidden" name="achievement_id" value="<?php echo esc_attr($achievement->ID); ?>">
+                            <input type="submit" name="post_achievement" value="Share to Activity Feed">
+                            <?php wp_nonce_field('post_achievement_nonce', 'post_achievement_nonce_field'); ?>
+                        </form>
+                    </li>
+                <?php endif; endforeach; ?>
+            </ul>
+        <?php else : ?>
+            <p>No achievements earned yet.</p>
+        <?php endif; ?>
+
+        <?php
+        // Handle form submission to post achievement to activity feed
+        if (isset($_POST['post_achievement']) && isset($_POST['achievement_id']) && isset($_POST['post_achievement_nonce_field']) && wp_verify_nonce($_POST['post_achievement_nonce_field'], 'post_achievement_nonce')) {
+            $achievement_id = intval($_POST['achievement_id']);
+            $achievement_post = get_post($achievement_id);
+            
+            if ($achievement_post && bp_is_active('activity')) {
+                $content = 'I just earned the "' . esc_html($achievement_post->post_title) . '" achievement!';
+                
+                // Post to BuddyBoss activity feed
+                bp_activity_add(array(
+                    'user_id'   => $user_id,
+                    'action'    => sprintf('%s shared an achievement', bp_core_get_user_displayname($user_id)),
+                    'content'   => $content,
+                    'component' => 'activity',
+                    'type'      => 'activity_update',
+                ));
+                
+                echo '<p>Achievement shared to activity feed!</p>';
+            }
+        }
+        ?>
+    </div>
+    <?php
+    return ob_get_clean();
+}
+
+// Add custom CSS for better styling
+add_action('wp_enqueue_scripts', 'custom_achievements_styles');
+function custom_achievements_styles() {
+    wp_enqueue_style('custom-achievements', get_stylesheet_directory_uri() . '/custom-achievements.css', array(), '1.0');
+}
+?>

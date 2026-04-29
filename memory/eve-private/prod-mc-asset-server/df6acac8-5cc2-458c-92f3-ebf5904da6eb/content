@@ -1,0 +1,123 @@
+
+
+\documentclass[a4paper,11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\color{gray} Londynn Metten}
+\fancyhead[R]{\color{gray} Senior Technical Product Manager}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Defining colors
+\definecolor{headingcolor}{RGB}{139,69,19} % Brown color for headings
+
+% Setting up the document
+\begin{document}
+
+% Header with photo placeholder
+\begin{center}
+    {\Large\bfseries\color{headingcolor} Londynn Metten}\\[0.2cm]
+    {\Large\bfseries\color{headingcolor} Senior Technical Product Manager}\\[0.5cm]
+    % Placeholder for photo (replace with actual image path if needed)
+    % \includegraphics[width=3cm]{photo.jpg}
+\end{center}
+
+% Contact Information
+\section*{Contact Information:}
+\begin{itemize}[leftmargin=*]
+    \item +1 (530) 925-5472
+    \item londynnmetten@gmail.com
+    \item linkedin.com/in/londynn-metten
+\end{itemize}
+
+% Professional Summary
+\section*{Professional Summary:}
+Highly skilled Senior Technical Product Manager with over 15 years of experience emphasizing on start-ups guiding complex, high-impact platforms from concept to global scale across cloud services, SaaS, mobile, desktop, and gaming. I bring vast expertise in building cross-functional alignment, scalable backend systems, and launching 0-1 products, most recently driving web platform and live services infrastructure for large-scale MMORPG. I thrive in deep technical environments, connecting engineering, UX, and business teams to deliver clear roadmaps, data-informed decisions, and visionary product strategy. My foundation in computer science and early career in QA roots fueled by a user-first mindset serves a passion for turning ambiguity into executable outcomes. Adept at collaborating with cross-functional teams to deliver high-quality software solutions.
+
+% Technical Skills
+\section*{Technical Skills:}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Professional Skills:} Lean \& Agile Methodologies: Scrum, Kanban. Strong problem-solving and analytical skills. Excellent communication and leadership abilities.
+    \item \textbf{Core Competencies:} SDLC, Product Strategy \& Roadmap, Quality Assurance Test Plans, Team Development, Git, Workflows, Process Documentation, Technical Writing, Stakeholder Management, Partner \& Vendor Collaboration, User Feedback Loop Creation
+    \item \textbf{Programming Languages:} Java, SQL, Swift, C++, HTML, CSS, JSON
+    \item \textbf{Design Tools:} Adobe CC, Sketch, Canva, Figma
+\end{itemize}
+
+% Education
+\section*{Education:}
+\begin{itemize}[leftmargin=*]
+    \item Bachelors of Science in Computer Science, Southern Oregon University, 2018
+\end{itemize}
+
+% References
+\section*{References:}
+Available upon request.
+
+% Work Experience
+\section*{Work Experience:}
+
+\subsection*{Senior Technical Product Manager}
+\textit{Intrepid Studios, San Diego, CA (Remote) | August 2023 - Present}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Achievements:}
+    \begin{itemize}
+        \item Rapidly promoted from Technical Product Manager (Web) to Senior TPM based on leadership impact and technical execution.
+        \item Launched Ashes of Creation Web 2.0 on October 16th, 2024 - from concept to release, integrating backend CRM + Admin Tools, and optimized performance pipelines, developer workflows, and processes.
+        \item Drove Alpha II milestone launches for Ashes of Creation: Phase 1 (Oct 2024), Phase 2 (Mar 2025), and Phase 3 (Aug 2025) - Led launch of scalable live services infrastructure supporting real-time user interactions, continuous uptime, and cross-functional workflow management across engineering, QA, and product teams.
+    \end{itemize}
+    \item \textbf{Responsibilities:}
+    \begin{itemize}
+        \item Collaborate with engineers, designers, QA, producers and stakeholders to define project scopes, roadmaps, prioritize tasks, and ensure timely delivery of features.
+        \item Mentor junior producers, conducting performance reviews, providing technical guidance, and fostering a culture of continuous learning and improvement.
+        \item Engage with users and customer support to define, measure, and iterate on KPIs for engagement, latency, user experience, and operational stability.
+        \item Author and scale company-wide SOPs for planning, incident management, cross-functional collaboration, time management, and team onboard training.
+        \item Direct product delivery across 7 critical teams utilizing OKR methodologies: Web, Cloud Services, DevOps, LiveOps, QA, Tech Art and Build Engineering.
+        \item Increase company productivity by establishing the AI Council to drive the use of AI tools across the SDLC.
+    \end{itemize}
+\end{itemize}
+
+\subsection*{Product Manager | Jira Administrator}
+\textit{Zuri Group, Bend, OR (Hybrid) | October 2020 - August 2023}
+
+\begin{itemize}[leftmargin=*]
+    \item Collaborated with customers, leadership, and engineering to drive product requirements on feature specs, technical documentation, and bug triage.
+    \item Conducted Agile development sprint planning and roadmap, contributing to the successful delivery of software increments on non-profit fundraising product and platform enhancements.
+    \item Led change management and enterprise migration from Zoho Projects to Jira; configured workflows, dashboards, and use of Tempo timesheets + resource capacity planning.
+    \item Created and defined product management SOPs with integrated use of Jira Service Management for customer feedback and support.
+\end{itemize}
+
+\subsection*{Product Manager | Quality Assurance Lead}
+\textit{ThrivSports, San Diego, CA (Remote) | November 2017 - October 2020}
+
+\begin{itemize}[leftmargin=*]
+    \item From concept to launch, managed mobile application and web platform workflow, testing pipelines, owned product scoping, QA coverage, and client communication.
+    \item Bridged business needs with design and engineering teams to align product delivery with client expectations.
+    \item Designed and developed templated websites for over 300 clients.
+\end{itemize}
+
+\subsection*{Founder | Lead Project Manager}
+\textit{Train Light Creative, Mount Shasta, CA (Remote) | November 2015 - October 2020}
+
+\subsection*{Quality Assurance Lead | UI/UX Associate Designer}
+\textit{Ponder, Los Angeles, CA (Remote) | June 2017 - October 2019}
+
+\subsection*{Quality Assurance}
+\textit{Forbes, Los Angeles, CA (Remote) | November 2015 - August 2016}
+
+\subsection*{IT Specialist}
+\textit{Southern Oregon University, Ashland, OR | November 2015 - December 2017}
+
+\subsection*{Quality Assurance | Junior Developer}
+\textit{AppTree Software, Mount Shasta, CA (Hybrid) | June 2013 - November 2015}
+
+\end{document}
+

@@ -1,10 +1,10 @@
 # Arena
 
-The executor layer of Nexus. **Eve thinks. Arena does.**
+The executor layer of Nexus. **Lumen thinks. Eve orchestrates. Arena does.**
 
 ## Purpose
 
-Arena is the middleware that connects Eve to the real world — ClickUp, payments, Google, and any other external service.
+Arena is the middleware that connects Eve (powered by the Lumen brain) to the real world — ClickUp, payments, Google, and any other external service.
 
 ## Setup
 

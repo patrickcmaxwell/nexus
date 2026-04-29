@@ -1,0 +1,502 @@
+
+
+{
+  "title": "Golf Coach Landing Page",
+  "type": "page",
+  "version": "0.4",
+  "page_settings": {
+    "template": "elementor_canvas",
+    "post_title": "Golf Coach Landing Page",
+    "post_status": "publish"
+  },
+  "content": [
+    {
+      "id": "header_section",
+      "elType": "section",
+      "settings": {
+        "background_background": "classic",
+        "background_image": {
+          "url": "https://via.placeholder.com/1920x600?text=Golf+Course+Hero",
+          "id": ""
+        },
+        "background_position": "center center",
+        "background_size": "cover",
+        "padding": {
+          "unit": "px",
+          "top": "100",
+          "right": "20",
+          "bottom": "100",
+          "left": "20"
+        }
+      },
+      "elements": [
+        {
+          "id": "header_inner",
+          "elType": "column",
+          "settings": {
+            "_column_size": 100,
+            "content_position": "center",
+            "text_align": "center"
+          },
+          "elements": [
+            {
+              "id": "headline",
+              "elType": "widget",
+              "settings": {
+                "title": "Elevate Your Golf Game with Expert Coaching",
+                "title_color": "#FFFFFF",
+                "typography_typography": "custom",
+                "typography_font_size": {
+                  "unit": "px",
+                  "size": 48
+                },
+                "typography_font_weight": "700"
+              },
+              "widgetType": "heading"
+            },
+            {
+              "id": "subheadline",
+              "elType": "widget",
+              "settings": {
+                "title": "Personalized lessons to improve your swing, strategy, and confidence.",
+                "title_color": "#FFFFFF",
+                "typography_typography": "custom",
+                "typography_font_size": {
+                  "unit": "px",
+                  "size": 24
+                }
+              },
+              "widgetType": "heading"
+            },
+            {
+              "id": "cta_button",
+              "elType": "widget",
+              "settings": {
+                "text": "Book a Lesson Now",
+                "link": {
+                  "url": "#contact",
+                  "is_external": false
+                },
+                "button_background_color": "#28A745",
+                "button_text_color": "#FFFFFF",
+                "size": "lg"
+              },
+              "widgetType": "button"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "about_section",
+      "elType": "section",
+      "settings": {
+        "padding": {
+          "unit": "px",
+          "top": "50",
+          "right": "20",
+          "bottom": "50",
+          "left": "20"
+        }
+      },
+      "elements": [
+        {
+          "id": "about_column_left",
+          "elType": "column",
+          "settings": {
+            "_column_size": 50
+          },
+          "elements": [
+            {
+              "id": "coach_image",
+              "elType": "widget",
+              "settings": {
+                "image": {
+                  "url": "https://via.placeholder.com/400x400?text=Coach+Photo",
+                  "id": ""
+                },
+                "image_size": "medium_large"
+              },
+              "widgetType": "image"
+            }
+          ]
+        },
+        {
+          "id": "about_column_right",
+          "elType": "column",
+          "settings": {
+            "_column_size": 50
+          },
+          "elements": [
+            {
+              "id": "about_heading",
+              "elType": "widget",
+              "settings": {
+                "title": "Meet Your Golf Coach",
+                "title_color": "#000000",
+                "typography_typography": "custom",
+                "typography_font_size": {
+                  "unit": "px",
+                  "size": 36
+                }
+              },
+              "widgetType": "heading"
+            },
+            {
+              "id": "about_text",
+              "elType": "widget",
+              "settings": {
+                "editor": "<p>With over 15 years of coaching experience, I specialize in helping golfers of all levels improve their game. Certified by the PGA, my approach combines technical expertise with personalized strategies to boost your performance on the course.</p>"
+              },
+              "widgetType": "text-editor"
+            },
+            {
+              "id": "about_cta",
+              "elType": "widget",
+              "settings": {
+                "text": "Learn More About Your Coach",
+                "link": {
+                  "url": "/about",
+                  "is_external": false
+                },
+                "button_background_color": "#28A745",
+                "button_text_color": "#FFFFFF"
+              },
+              "widgetType": "button"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "services_section",
+      "elType": "section",
+      "settings": {
+        "background_background": "classic",
+        "background_color": "#F8F9FA",
+        "padding": {
+          "unit": "px",
+          "top": "50",
+          "right": "20",
+          "bottom": "50",
+          "left": "20"
+        }
+      },
+      "elements": [
+        {
+          "id": "services_column",
+          "elType": "column",
+          "settings": {
+            "_column_size": 100
+          },
+          "elements": [
+            {
+              "id": "services_heading",
+              "elType": "widget",
+              "settings": {
+                "title": "Our Coaching Services",
+                "title_color": "#000000",
+                "typography_typography": "custom",
+                "typography_font_size": {
+                  "unit": "px",
+                  "size": 36
+                },
+                "align": "center"
+              },
+              "widgetType": "heading"
+            },
+            {
+              "id": "services_inner_section",
+              "elType": "section",
+              "settings": {
+                "structure": "30"
+              },
+              "elements": [
+                {
+                  "id": "service_1",
+                  "elType": "column",
+                  "settings": {
+                    "_column_size": 33
+                  },
+                  "elements": [
+                    {
+                      "id": "service_1_icon",
+                      "elType": "widget",
+                      "settings": {
+                        "icon": "fa fa-golf-ball",
+                        "icon_color": "#28A745",
+                        "icon_size": {
+                          "unit": "px",
+                          "size": 50
+                        }
+                      },
+                      "widgetType": "icon"
+                    },
+                    {
+                      "id": "service_1_title",
+                      "elType": "widget",
+                      "settings": {
+                        "title": "Private Lessons",
+                        "title_color": "#000000"
+                      },
+                      "widgetType": "heading"
+                    },
+                    {
+                      "id": "service_1_text",
+                      "elType": "widget",
+                      "settings": {
+                        "editor": "<p>One-on-one coaching tailored to your skill level and goals.</p>"
+                      },
+                      "widgetType": "text-editor"
+                    }
+                  ]
+                },
+                {
+                  "id": "service_2",
+                  "elType": "column",
+                  "settings": {
+                    "_column_size": 33
+                  },
+                  "elements": [
+                    {
+                      "id": "service_2_icon",
+                      "elType": "widget",
+                      "settings": {
+                        "icon": "fa fa-users",
+                        "icon_color": "#28A745",
+                        "icon_size": {
+                          "unit": "px",
+                          "size": 50
+                        }
+                      },
+                      "widgetType": "icon"
+                    },
+                    {
+                      "id": "service_2_title",
+                      "elType": "widget",
+                      "settings": {
+                        "title": "Group Clinics",
+                        "title_color": "#000000"
+                      },
+                      "widgetType": "heading"
+                    },
+                    {
+                      "id": "service_2_text",
+                      "elType": "widget",
+                      "settings": {
+                        "editor": "<p>Learn in a fun, collaborative environment with other golfers.</p>"
+                      },
+                      "widgetType": "text-editor"
+                    }
+                  ]
+                },
+                {
+                  "id": "service_3",
+                  "elType": "column",
+                  "settings": {
+                    "_column_size": 33
+                  },
+                  "elements": [
+                    {
+                      "id": "service_3_icon",
+                      "elType": "widget",
+                      "settings": {
+                        "icon": "fa fa-video",
+                        "icon_color": "#28A745",
+                        "icon_size": {
+                          "unit": "px",
+                          "size": 50
+                        }
+                      },
+                      "widgetType": "icon"
+                    },
+                    {
+                      "id": "service_3_title",
+                      "elType": "widget",
+                      "settings": {
+                        "title": "Video Swing Analysis",
+                        "title_color": "#000000"
+                      },
+                      "widgetType": "heading"
+                    },
+                    {
+                      "id": "service_3_text",
+                      "elType": "widget",
+                      "settings": {
+                        "editor": "<p>Detailed analysis of your swing with actionable feedback.</p>"
+                      },
+                      "widgetType": "text-editor"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "testimonials_section",
+      "elType": "section",
+      "settings": {
+        "padding": {
+          "unit": "px",
+          "top": "50",
+          "right": "20",
+          "bottom": "50",
+          "left": "20"
+        }
+      },
+      "elements": [
+        {
+          "id": "testimonials_column",
+          "elType": "column",
+          "settings": {
+            "_column_size": 100
+          },
+          "elements": [
+            {
+              "id": "testimonials_heading",
+              "elType": "widget",
+              "settings": {
+                "title": "What Our Clients Say",
+                "title_color": "#000000",
+                "typography_typography": "custom",
+                "typography_font_size": {
+                  "unit": "px",
+                  "size": 36
+                },
+                "align": "center"
+              },
+              "widgetType": "heading"
+            },
+            {
+              "id": "testimonial_1",
+              "elType": "widget",
+              "settings": {
+                "editor": "<p>“My swing improved dramatically after just two sessions!” – John D.</p>"
+              },
+              "widgetType": "text-editor"
+            },
+            {
+              "id": "testimonial_2",
+              "elType": "widget",
+              "settings": {
+                "editor": "<p>“The group clinics were a game-changer for my confidence.” – Sarah M.</p>"
+              },
+              "widgetType": "text-editor"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "contact_section",
+      "elType": "section",
+      "settings": {
+        "background_background": "classic",
+        "background_color": "#F8F9FA",
+        "padding": {
+          "unit": "px",
+          "top": "50",
+          "right": "20",
+          "bottom": "50",
+          "left": "20"
+        }
+      },
+      "elements": [
+        {
+          "id": "contact_column",
+          "elType": "column",
+          "settings": {
+            "_column_size": 100
+          },
+          "elements": [
+            {
+              "id": "contact_heading",
+              "elType": "widget",
+              "settings": {
+                "title": "Book Your Lesson Today",
+                "title_color": "#000000",
+                "typography_typography": "custom",
+                "typography_font_size": {
+                  "unit": "px",
+                  "size": 36
+                },
+                "align": "center"
+              },
+              "widgetType": "heading"
+            },
+            {
+              "id": "contact_form",
+              "elType": "widget",
+              "settings": {
+                "form_name": "Contact Form",
+                "form_fields": [
+                  {
+                    "field_type": "text",
+                    "field_label": "Name",
+                    "placeholder": "Enter your name",
+                    "required": true
+                  },
+                  {
+                    "field_type": "email",
+                    "field_label": "Email",
+                    "placeholder": "Enter your email",
+                    "required": true
+                  },
+                  {
+                    "field_type": "textarea",
+                    "field_label": "Message",
+                    "placeholder": "Your message",
+                    "required": true
+                  }
+                ],
+                "button_text": "Submit"
+              },
+              "widgetType": "form"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "footer_section",
+      "elType": "section",
+      "settings": {
+        "background_background": "classic",
+        "background_color": "#343A40",
+        "padding": {
+          "unit": "px",
+          "top": "20",
+          "right": "20",
+          "bottom": "20",
+          "left": "20"
+        }
+      },
+      "elements": [
+        {
+          "id": "footer_column",
+          "elType": "column",
+          "settings": {
+            "_column_size": 100,
+            "content_position": "center",
+            "text_align": "center"
+          },
+          "elements": [
+            {
+              "id": "footer_text",
+              "elType": "widget",
+              "settings": {
+                "editor": "<p>© 2025 Golf Coach. All Rights Reserved. | <a href='/privacy'>Privacy Policy</a></p>",
+                "text_color": "#FFFFFF"
+              },
+              "widgetType": "text-editor"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+

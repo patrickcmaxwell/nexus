@@ -1,0 +1,231 @@
+{
+  "main": {
+    "id": "7d19a3b65b232afc",
+    "type": "split",
+    "children": [
+      {
+        "id": "085a1da339faa412",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "3ff4ada198fb5013",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "Graph view"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "39d331e9cab21b4b",
+    "type": "split",
+    "children": [
+      {
+        "id": "89f8ff1e32a3dec4",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "234fb0bfb726dbba",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "ecf4eae7bd950061",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "d88a939a4967165d",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "fafdeb11994b54c9",
+    "type": "split",
+    "children": [
+      {
+        "id": "375a89ce531e8b4d",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "459efb8a1e7f7725",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "PROJECT-STATUS.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for PROJECT-STATUS"
+            }
+          },
+          {
+            "id": "a0de61b4b0d7f788",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "PROJECT-STATUS.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from PROJECT-STATUS"
+            }
+          },
+          {
+            "id": "68996980919dc7b1",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "6db32fd44b79aae3",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "1eaac0ccfa45932f",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "PROJECT-STATUS.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of PROJECT-STATUS"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "3ff4ada198fb5013",
+  "lastOpenFiles": [
+    "desktop/node_modules/fs-extra/README.md",
+    "arena/node_modules/ms/license.md",
+    "memory/eve-private/eve/history/Master Index.md",
+    "PROJECT-STATUS.md",
+    "desktop/ui/views/HeroDashboard.tsx",
+    "desktop/ui/views",
+    "desktop/ui/components/PanelManager.tsx",
+    "desktop/ui/components/VoiceVisualizer.tsx",
+    "desktop/ui/components",
+    "desktop/ui/App.tsx",
+    "desktop/ui/main.tsx",
+    "desktop/ui/index.css",
+    "desktop/ui",
+    "desktop/index.html",
+    "desktop/node_modules/rolldown/node_modules/@rolldown/pluginutils/README.md",
+    "desktop/node_modules/rolldown/README.md",
+    "desktop/node_modules/chalk/node_modules/escape-string-regexp/readme.md",
+    "desktop/node_modules/chalk/readme.md",
+    "desktop/node_modules/normalize-package-data/node_modules/semver/README.md",
+    "desktop/node_modules/normalize-package-data/README.md",
+    "desktop/node_modules/@oxc-project/types/README.md",
+    "desktop/node_modules/@epic-web/invariant/README.md",
+    "desktop/node_modules/npm-run-all/node_modules/which/README.md",
+    "desktop/node_modules/npm-run-all/node_modules/which/CHANGELOG.md",
+    "desktop/node_modules/npm-run-all/node_modules/shebang-regex/readme.md",
+    "desktop/node_modules/npm-run-all/node_modules/shebang-command/readme.md",
+    "desktop/node_modules/npm-run-all/node_modules/semver/README.md",
+    "desktop/node_modules/npm-run-all/node_modules/path-key/readme.md",
+    "desktop/node_modules/npm-run-all/node_modules/cross-spawn/README.md",
+    "desktop/node_modules/npm-run-all/docs/run-s.md",
+    "desktop/node_modules/npm-run-all/docs/npm-run-all.md",
+    "desktop/node_modules/npm-run-all/docs/node-api.md",
+    "desktop/node_modules/npm-run-all/docs/run-p.md",
+    "desktop/node_modules/npm-run-all/README.md",
+    "desktop/node_modules/@vitejs/plugin-react/README.md",
+    "desktop/node_modules/electron/node_modules/@types/node/README.md",
+    "Untitled 1.canvas",
+    "Untitled 2.canvas",
+    "Untitled 3.canvas",
+    "nexus-web/public/agents/core_red.png",
+    "nexus-web/public/agents/core_purple.png",
+    "nexus-web/public/agents/core_gold.png",
+    "nexus-web/public/agents/core_blue.png",
+    "Untitled.canvas",
+    "memory/Placestogomap.canvas",
+    "memory/eve-private/prod-mc-asset-server/0yb2redeXusKaPjG-profile-picture.webp"
+  ]
+}
