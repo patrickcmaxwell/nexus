@@ -24,5 +24,21 @@ DerivedData/
 *.docx
 *.xlsx
 
+# Auto-generated session log (local only)
+SESSION-LOG.md
+
+# Obsidian local workspace state (per-machine UI, not source)
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/graph.json
+.obsidian/cache
+**/.obsidian/workspace.json
+**/.obsidian/workspace-mobile.json
+**/.obsidian/graph.json
+**/.obsidian/cache
+
+# Claude scheduled-task lock (runtime only)
+.claude/scheduled_tasks.lock
+
 # Misc
 Everything.base
