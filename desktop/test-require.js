@@ -1,0 +1,5 @@
+const e = require('electron')
+console.log('TYPE:', typeof e)
+if (typeof e === 'string') console.log('Got string:', e.slice(0,60))
+else if (typeof e === 'object') console.log('KEYS:', Object.keys(e).slice(0,15).join(', '))
+setTimeout(() => process.exit(0), 500)

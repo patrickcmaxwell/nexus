@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    background: #000;
+    color: #00ff88;
+    font-family: 'SF Mono', 'Courier New', monospace;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+    -webkit-app-region: drag;
+    user-select: none;
+  }
+  .container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 18px;
+  }
+  .wordmark {
+    font-size: 30px;
+    letter-spacing: 14px;
+    font-weight: 200;
+  }
+  .tagline {
+    font-size: 10px;
+    letter-spacing: 5px;
+    color: rgba(0,255,136,0.35);
+    text-transform: uppercase;
+  }
+  .dots {
+    display: flex;
+    gap: 7px;
+    margin-top: 4px;
+  }
+  .dot {
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: #00ff88;
+    animation: blink 1.2s ease-in-out infinite;
+  }
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink {
+    0%, 100% { opacity: 0.15; }
+    50%       { opacity: 1; }
+  }
+  #status {
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: rgba(0,255,136,0.45);
+    text-transform: uppercase;
+  }
+  #sub {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    color: rgba(0,255,136,0.25);
+    text-transform: uppercase;
+    min-height: 13px;
+    text-align: center;
+    padding: 0 32px;
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <div class="wordmark">LUMEN</div>
+    <div class="tagline">Command Center</div>
+    <div class="dots">
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>
+    <div id="status">Initializing Systems</div>
+    <div id="sub"></div>
+  </div>
+</body>
+</html>

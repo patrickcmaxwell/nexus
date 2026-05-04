@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+faster-whisper
+sounddevice
+numpy
+soundfile
+requests
+openai
+pyaudio
+kokoro

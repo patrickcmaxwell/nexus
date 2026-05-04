@@ -1,0 +1,35 @@
+{
+  "name": "lumen-desktop",
+  "version": "0.1.0",
+  "description": "Lumen Desktop — Nexus command center UI",
+  "main": "main.js",
+  "scripts": {
+    "vite": "vite",
+    "dev": "concurrently \"npm:vite\" \"ELECTRON_RUN_AS_NODE= electron . --dev --remote-debugging-port=9222\" --kill-others",
+    "build": "vite build",
+    "preview": "vite preview",
+    "electron": "ELECTRON_RUN_AS_NODE= electron .",
+    "start": "npm run dev"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.2.4",
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "autoprefixer": "^10.5.0",
+    "concurrently": "^9.1.2",
+    "electron": "^41.3.0",
+    "tailwindcss": "^4.2.4",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.10"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.38.0",
+    "lucide-react": "^1.11.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "tailwind-merge": "^3.5.0"
+  }
+}
