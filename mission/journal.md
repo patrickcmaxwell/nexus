@@ -35,7 +35,23 @@ Append-only log of significant changes, decisions, and incidents.
 
 Group D is held until Xcode debug session ends to avoid staging mid-edit content.
 
+**Result — 5 commits landed:**
+- `52a7ffe` chore: gitignore obsidian workspace state and untrack tracked
+- `fb2cf90` nexus-web: Bearer auth, agents pipeline, groups, security flows (38 files)
+- `591f138` desktop: Electron + Vite + React HUD app (32 files)
+- `c4c911e` memory: vault canvases and daily note (5 files)
+- `9dc300c` chore: mission memory + claude config + status doc (8 files)
+
+Total: 88 files committed. Repository went from 2 commits to 7.
+
+**Held intentionally (live edits in progress during cleanup):**
+- Lumen Swift (Xcode debug session active).
+- nexus-ios changes (something else editing).
+- arena/ + new nexus-web/lib/arena, lib/eve, ArenaActivityWidget, DashboardHome modifications, migration 017 (appeared during session — likely cursor/codex editing live).
+
 **Not done (queued):**
+- Push to remote: `git push origin main`. Holding until Patrick confirms — Vercel watches the wrong repo, so push timing matters.
 - Vercel reconnect (Patrick, manual).
 - QStash keys (Patrick, manual).
 - API-key refactor (Xcode active — see pending-changes.md).
+- Commit the held lumen/ios/arena changes when their editors are at a checkpoint.

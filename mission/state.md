@@ -18,9 +18,25 @@
 ## Git state
 
 - Remote: `https://github.com/patrickcmaxwell/nexus.git`
-- Branch: (check with `git branch --show-current`)
-- Last 2 commits: `32cd106 first version`, `8c1ca32 Initial folder structure` (April-ish — way out of date)
+- Branch: `main`
+- Recent commits (newest first):
+  - `9dc300c` mission memory + claude config + status doc
+  - `c4c911e` memory: vault canvases
+  - `591f138` desktop: Electron + Vite + React HUD app
+  - `fb2cf90` nexus-web: Bearer auth, agents, groups, security
+  - `52a7ffe` chore: gitignore obsidian workspace state
+- **Not yet pushed to GitHub** — `git push origin main` when ready.
 - **Vercel watches `patrickcmaxwell/o-nexus`, NOT this repo.** Prod deploys do not pick up changes here.
+
+## Held (uncommitted, intentional)
+
+These were not committed in the 2026-05-03 cleanup pass because their files were under live edit:
+
+- `lumen/lumen-desktop/**` — 10 modified + 3 new Swift files. Xcode debugging active.
+- `nexus-ios/**` — appeared dirty mid-session; something is editing live.
+- `arena/**` and new `nexus-web/lib/arena/`, `nexus-web/lib/eve/`, `nexus-web/components/dashboard/home/ArenaActivityWidget.tsx`, `nexus-web/components/dashboard/DashboardHome.tsx`, `nexus-web/supabase/migrations/017_arena_action_log.sql` — appeared during the cleanup session, source of edits unknown (probably codex/cursor).
+
+To commit these later, see `mission/handoff.md`.
 
 ## Health
 
