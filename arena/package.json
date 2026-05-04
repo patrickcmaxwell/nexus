@@ -4,7 +4,7 @@
   "description": "Nexus middleware executor — Eve tells Arena what to do",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "ts-node src/index.ts",
+    "dev": "node --env-file=.env -r ts-node/register src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js"
   },

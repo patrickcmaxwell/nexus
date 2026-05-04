@@ -5,11 +5,9 @@ import Foundation
 class SupabaseClient {
     static let shared = SupabaseClient()
 
-    // Fill these in locally — never commit real values.
-    // Get from: Supabase Dashboard → Project Settings → API
-    private let baseURL  = "https://YOUR_PROJECT_REF.supabase.co"
-    private let apiKey   = "YOUR_SERVICE_ROLE_KEY"
-    private let userID   = "YOUR_USER_UUID"
+    private let baseURL  = "https://rtkzvsqulliaoizutsqz.supabase.co"
+    private let apiKey   = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ0a3p2c3F1bGxpYW9penV0c3F6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTYxNzM0MSwiZXhwIjoyMDkxMTkzMzQxfQ.OMRaTWkHQe_9RufUU6MloYAwdw9kPmIPAraKDINioBs"
+    private let userID   = "e9d9a15b-0e5a-4631-9b50-6225ee03a44f"
 
     private var rest: String { "\(baseURL)/rest/v1" }
 
@@ -40,6 +38,15 @@ class SupabaseClient {
               let arr  = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
               let id   = arr.first?["id"] as? String else { return nil }
         return id
+    }
+
+    func updateConversationTitle(id: String, title: String) async {
+        guard let url = URL(string: "\(rest)/eve_conversations?id=eq.\(id)") else { return }
+        var req = URLRequest(url: url, timeoutInterval: 10)
+        req.httpMethod = "PATCH"
+        req.allHTTPHeaderFields = headers()
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["title": title])
+        _ = try? await URLSession.shared.data(for: req)
     }
 
     func touchConversation(id: String) async {

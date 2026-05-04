@@ -17,9 +17,7 @@ Mid-cleanup of accumulated drift after weeks of building without committing. PRO
 
 1. **Commits in logical chunks** — see `journal.md` for the grouping plan and what's been done.
 2. **Lumen API key refactor** — see `pending-changes.md`. Cannot apply now because Xcode is mid-debug on those files.
-3. **Vercel rewiring** — needs Patrick to do it from the Vercel dashboard. Either:
-   - Reconnect Vercel project to `patrickcmaxwell/nexus`, or
-   - Add `o-nexus` as a second remote and push there in parallel.
+3. **Vercel / o-nexus situation** — `nexus` and `o-nexus` are separate active repos, not fork/stale. See `blockers.md` #1. This is an architectural decision, not a chore.
 4. **Add `.obsidian/workspace.json` etc. to `.gitignore`** — local-only UI state shouldn't be tracked.
 
 ## How to resume

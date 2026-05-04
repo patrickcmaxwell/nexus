@@ -6,23 +6,88 @@
  * Run: npm run dev
  */
 
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '4mb' }));
 
 const PORT = process.env.PORT || 3001;
 
-// ── Logging ───────────────────────────────────────────────────────────────────
-function log(action: string, payload: object, result: object) {
-  console.log(`[Arena] ${new Date().toISOString()} | ${action}`, { payload, result });
-  // TODO: write to Supabase action_log table
+// ── Auth ──────────────────────────────────────────────────────────────────────
+// Arena trusts a static Bearer secret shared with nexus-web (and Eve tool
+// calls). Set ARENA_SECRET in env. The /health endpoint is open so external
+// monitors can probe it without credentials.
+const ARENA_SECRET = process.env.ARENA_SECRET || 'dev-arena-secret-change-me';
+
+function requireAuth(req: Request, res: Response, next: NextFunction) {
+  const auth = req.header('authorization') || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  if (!token || token !== ARENA_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
 }
 
-// ── Health check ──────────────────────────────────────────────────────────────
+// ── Logging ───────────────────────────────────────────────────────────────────
+// Writes every Arena action to the public.arena_action_log table via Supabase
+// REST. Falls back to console-only when Supabase env is missing — the action
+// always proceeds; logging is best-effort.
+
+const SUPABASE_URL         = process.env.SUPABASE_URL || '';
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+async function writeActionLog(row: {
+  action: string;
+  caller?: string;
+  payload: object;
+  result: object;
+  status?: 'success' | 'error';
+  error_msg?: string;
+}): Promise<void> {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return;
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/arena_action_log`, {
+      method: 'POST',
+      headers: {
+        'apikey':         SUPABASE_SERVICE_KEY,
+        'Authorization':  `Bearer ${SUPABASE_SERVICE_KEY}`,
+        'Content-Type':   'application/json',
+        'Prefer':         'return=minimal',
+      },
+      body: JSON.stringify(row),
+    });
+  } catch (e) {
+    console.error('[Arena] action_log write failed:', e);
+  }
+}
+
+function log(action: string, payload: object, result: object, opts?: { caller?: string; status?: 'success' | 'error'; error?: string }) {
+  console.log(`[Arena] ${new Date().toISOString()} | ${action}`, { payload, result });
+  void writeActionLog({
+    action,
+    caller:    opts?.caller,
+    payload,
+    result,
+    status:    opts?.status ?? 'success',
+    error_msg: opts?.error,
+  });
+}
+
+function callerFromReq(req: Request): string {
+  return (req.header('x-arena-caller') || 'unknown').toString();
+}
+
+// ── Health check (open) ───────────────────────────────────────────────────────
 app.get('/health', (_req: Request, res: Response) => {
-  res.json({ status: 'ok', service: 'Arena' });
+  res.json({
+    status: 'ok',
+    service: 'Arena',
+    auth: ARENA_SECRET === 'dev-arena-secret-change-me' ? 'WARNING: default secret in use — set ARENA_SECRET' : 'configured',
+  });
 });
+
+// All routes below require Bearer auth
+app.use(requireAuth);
 
 // ── ClickUp Integration ───────────────────────────────────────────────────────
 app.post('/task/create', async (req: Request, res: Response) => {
@@ -40,7 +105,7 @@ app.post('/task/create', async (req: Request, res: Response) => {
       message: `Task "${title}" created in ClickUp`
     };
 
-    log('task/create', req.body, result);
+    log('task/create', req.body, result, { caller: callerFromReq(req) });
     res.json(result);
   } catch (error) {
     res.status(500).json({ success: false, error: String(error) });
@@ -53,7 +118,7 @@ app.post('/task/update', async (req: Request, res: Response) => {
   try {
     // TODO: real ClickUp update
     const result = { success: true, task_id, status, message: `Task ${task_id} updated` };
-    log('task/update', req.body, result);
+    log('task/update', req.body, result, { caller: callerFromReq(req) });
     res.json(result);
   } catch (error) {
     res.status(500).json({ success: false, error: String(error) });
@@ -84,7 +149,7 @@ app.post('/payment/route', async (req: Request, res: Response) => {
       message: `$${amount} routed: ${splits?.map((s: any) => `$${s.amount} → ${s.destination}`).join(', ')}`
     };
 
-    log('payment/route', req.body, result);
+    log('payment/route', req.body, result, { caller: callerFromReq(req) });
     res.json(result);
   } catch (error) {
     res.status(500).json({ success: false, error: String(error) });
@@ -102,7 +167,7 @@ app.post('/sync/push', async (req: Request, res: Response) => {
       user_id,
       message: 'Memory package pushed to Supabase — iPhone can now pull'
     };
-    log('sync/push', req.body, result);
+    log('sync/push', req.body, result, { caller: callerFromReq(req) });
     res.json(result);
   } catch (error) {
     res.status(500).json({ success: false, error: String(error) });

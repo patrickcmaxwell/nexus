@@ -6,6 +6,7 @@ import ActiveResearchWidget from "./home/ActiveResearchWidget"
 import PinnedRecordsWidget from "./home/PinnedRecordsWidget"
 import ActionItemsWidget from "./home/ActionItemsWidget"
 import ActivityFeedWidget from "./home/ActivityFeedWidget"
+import ArenaActivityWidget from "./home/ArenaActivityWidget"
 
 export type Overview = {
   greeting: string
@@ -69,6 +70,15 @@ export type Overview = {
     title: string
     messages: Array<{ role: string; content: string; created_at: string }>
   } | null
+  arena?: Array<{
+    id: string
+    action: string
+    caller: string | null
+    payload: Record<string, unknown>
+    result: Record<string, unknown>
+    status: string
+    created_at: string
+  }>
 }
 
 export default function DashboardHome({ initial }: { initial: Overview }) {
@@ -143,6 +153,7 @@ export default function DashboardHome({ initial }: { initial: Overview }) {
           <ActiveResearchWidget jobs={data.activeResearch} />
           <PinnedRecordsWidget records={data.pinnedRecords} />
           <ActionItemsWidget items={data.actionItems} />
+          <ArenaActivityWidget entries={data.arena ?? []} />
           <ActivityFeedWidget activity={data.activity} />
         </div>
       </section>

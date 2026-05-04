@@ -27,6 +27,56 @@ The local-brain swap from LM Studio to Ollama is live across nexus-web, Lumen De
 - `LumenAPIManager.swift` — `localLLMURL` points at `:11434/v1/chat/completions`. `localModel` is now a `var` (was `let`), persisted via UserDefaults under `lumen.localModel`. New methods: `callLocalLLMStreaming(message:history:onChunk:)` (token-by-token via URLSession.bytes), `listLocalModels()`, `setLocalModel(_:)`. Fallback chain: nexus-web Eve (Grok + tools) → Ollama → Claude.
 - `MainView.swift` — settings panel has a `ModelPickerSection` that auto-fetches Ollama's `/api/tags`, shows ACTIVE marker, persists tap selection. `pingLMStudio()` now probes Ollama. New panels: **Directives** (CRUD on `/api/eve/directives`) and **Memory Bank** (CRUD on `/api/eve/memory`). Sidebar wrapped in ScrollView so layout no longer overflows on shorter windows; voice card height reduced.
 
+**Lumen UI sweep — map fix, brief button, input visibility, light-mode contrast (added May 4, 2026 — ninth wave):**
+
+Director feedback: 3D map empty in screenshot, "Eve Brief buttons do nothing", floating chat hangs over panels, light mode unreadable, wasted top space. Each fixed concretely:
+
+- **Nexus Map empty (was rendering nothing) — root cause + fix.** Camera was at `z = 320` while the conversation cluster (268 nodes) had radius `sqrt(268) × 14 ≈ 230` at `z = 20`. Camera was sitting *inside* the cluster, looking at empty space. Now `NexusMap3DScene.buildScene` computes actual scene bounds (min/max of all node positions), places camera at `extent × 1.6` distance and `look(at: sceneCenter)`. Cluster radius capped at 180pt and centers spread wider so types don't overlap. Node radii doubled (operations 4→8, agents 3.5→7, defaults 2.4→4.5) so they're visible at 600+ unit camera distances. Operation/agent/human/directive nodes float labels. Empty/loading state with `RETRY SYNC` button when nodes don't load.
+- **Eve Briefs `GENERATE` button looked enabled but did nothing.** It was disabled-on-records-empty but rendered the same violet as enabled. Now: solid violet + white text when clickable, grey + secondary text + tooltip ("Add at least one record before generating a brief") when not. The disable state is finally visible.
+- **Floating InputBar covered the bottom of every panel.** InputBar now hides whenever `activePanel` is anything other than the live thread or the Nexus Map. MainStage's bottom padding drops `140 → 24pt` correspondingly so panels claim full window height instead of leaving empty floor space. Live conversation + map keep the chat input.
+- **Light-mode contrast — bulk semantic sweep.** `.primary.opacity(N)` where `N ≤ 0.55` → `.secondary` across MainView.swift + NexusMapView.swift. `.secondary` is AppKit-calibrated for both modes; the previous `0.4` form rendered as light grey on white in light mode (the screenshot bug). Section headers, timestamps, status pills, helper text now have proper contrast in either theme.
+- **TopHUD repurposed + slimmed.** Decorative "NEXUS · LUMEN" middle text replaced with live stats: `AGENTS · OPS · MEM · DIR · MAP · SYNCED` (each with accent label + count, plus relative-time-since-sync). Vertical padding 16→8pt, horizontal 28→22pt. Background switched from layered gradient + opaque rectangle to `.ultraThinMaterial`. Top bar is now ~25% shorter and communicates state instead of branding.
+- **Right-click on agent rows** ("Open in New Window" + Activate/Standby + Run Scan) shipped earlier this session — worth confirming it's present after rebuild. Same context-menu pattern as op rows + conversation rows.
+- **`AgentWindow.swift` (new file)** — full per-agent native window opening via `openWindow(id: "agent-detail", value: agentId)`. Reuses `AgentDetailCard` (promoted from `private` to module-internal) so it stays in lockstep with the panel view. Direct comms chat, activity log, run-scan, activate.
+
+`xcodebuild` BUILD SUCCEEDED on every step. Eight Swift files modified this wave; no new schema migrations.
+
+**Lumen adaptive theme + readability rebuild (added May 4, 2026 — eighth wave):**
+
+Direct response to "popout conversations you can't read anything" — the dark palette was hardcoded in too many places, fighting `.primary` text in light mode. Now genuinely adaptive.
+
+- **`enum C` palette refactored** — `bg`, `surface`, `surfaceHi`, `hairline`, `dim` are now AppKit-dynamic colors (`NSColor(name:dynamicProvider:)`) that switch on `NSAppearance.isDark`. Accents (`eve`, `listen`, `think`, `danger`) tuned to read on either surface.
+- **`BackgroundLayer` adaptive** — gradient stops, dot-matrix dot color, and atmospheric Eve glow opacity all branch on `@Environment(\.colorScheme)`. Light mode shows a soft white-blue gradient; dark mode keeps the navy-black look.
+- **Surface RGB sweep** — every hardcoded `Color(red: 0.0X, green: 0.0X, blue: 0.0X)` background fill in `MainView.swift` (8 occurrences in card/sheet/launcher backgrounds) replaced with adaptive `C.surface`. Cards now look like cards in light mode instead of stuck-dark blobs.
+- **Foreground sweep** — bulk-flipped 270 occurrences across MainView + NexusMapView from `.foregroundColor(.white.opacity(N))` to `.foregroundColor(.primary.opacity(N))` so text is white-on-dark and black-on-light automatically. Same for `.tint`.
+- **Material chrome on the 3D map HUD** — search field, type filter chips, and selected-node card now use `.ultraThinMaterial` instead of hardcoded `Color.black.opacity(...)`, so they're translucent over either light or dark space.
+- **Removed forced `.preferredColorScheme(.dark)`** — Lumen now follows the user's macOS Auto/Light/Dark setting end-to-end. Detail windows (Conversation / Agent / Operation) now read correctly in light mode (they were the worst offenders — black text on dark background).
+- **`AgentWindow.swift`** — full per-agent native window mirroring `OperationWindow`. Shows persona/role/status, activity log with relative timestamps, DIRECT COMMS chat, run-scan + activate. New `WindowGroup(id: "agent-detail", for: String.self)` scene. `AgentDetailCard` promoted from `private` to module-internal so the window can reuse it.
+- **Right-click → Open in New Window on agent rows** — agent rows now match operations + conversations: context menu with "Open in New Window", quick toggle, and "Run Scan".
+
+`xcodebuild` reports BUILD SUCCEEDED. After `Cmd+R`, popout conversations should be readable on both light and dark macOS settings.
+
+**Lumen overhaul wave (added May 4, 2026 — seventh wave):**
+
+Direct response to Director's feedback ("chatbar overlapping, scroll cutoff, dim text, dead buttons, want multiple convos at once with a main chat going, 3D nexus map, voice cut-offs, light/dark auto").
+
+- **3D Nexus Map (NexusMapView.swift)** — SceneKit-driven universe view of all 525 nodes / 339 edges from `/api/nexus-map`. Type-clustered (operations, agents, records, conversations, research, directives, topics, humans) with Fibonacci-distributed positions on per-cluster spheres. Edges drawn as glowing cylinders by relation type. Mouse: free orbit/pan/zoom. Click any node → selection card with Open button. Type filter chips, live search, refresh. Background star field for depth. Wired into PanelType `.nexusMap`, sidebar nav button, ⌘⌥0 shortcut, pop-out support.
+- **Per-conversation windows (ConversationWindow.swift)** — every past conversation opens as its own native window (`openWindow(id: "conversation-detail", value: convId)`). Each window has its OWN send loop pinned to that conversationId, so the Director can run several threads side-by-side while the main view keeps doing other things. Right-click any conversation row → "Open in New Window".
+- **Operation detail window** — user-built `OperationWindow` reuses `OpsDetailCard` for full feature parity. Right-click any op row → "Open in New Window" or quick status changes.
+- **Live thread "POP OUT" button** — main `ConversationThread` header now has a button that opens the active conversation in its own window so the main view is freed up for other panels.
+- **Conversation list shows previews** — `/api/eve/conversations` returns `preview` (last assistant line, 220 chars) and `message_count` per row. `ChatRow2` renders preview + count badge + source pill. No need to open a thread to see what's in it.
+- **Backend auth fixes** — `/api/nexus-map`, `/api/operations/agents` migrated from cookie-only to `checkDesktopAuth` (Bearer + cookie).
+- **Voice cut-off fixes (EveVoiceManager.swift)** — pause delays bumped (short 0.55→1.0s, medium 0.85→1.4s, long 1.15→1.9s), new `connectorPauseDelay` 2.4s when last word is "and / but / so / because / for / to / from / which / that / when…". `minSpeakDuration` 0.35→0.5s. Eve now waits when the Director is mid-thought instead of cutting in.
+- **Eve clarifies instead of guessing** — DIRECTIVE 9b added to `/api/eve/route.ts` system prompt: "If ambiguous, ask ONE short clarifying question instead of guessing."
+- **Auto color scheme** — removed `.preferredColorScheme(.dark)` from `MainView`, `AuthWebView`, `DetachedPanelWindow`. Lumen now follows the system setting; palette still designed around dark, but light mode no longer fights the user.
+- **Readability sweep** — bulk-bumped 53 dim text opacities in MainView (0.18 → 0.45, 0.20 → 0.48, 0.22 → 0.50, 0.24 → 0.50, 0.25 → 0.55, 0.28 → 0.55, 0.30 → 0.58, 0.32 → 0.58, 0.35 → 0.60). Section headers, timestamps, secondary labels all readable now.
+- **Chatbar overlap** — MainStage bottom padding bumped 96 → 140 so list rows scroll past the floating InputBar instead of being covered.
+- **LumenSync (LumenSync.swift)** — background polling actor on a 5s tick. Refresh cadences: dashboard 20s · conversations 45s · directives + memory 90s · nexus map 120s (only if visited). On-demand kickers (`kickDashboard`, `kickConversations`, `kickDirectivesAndMemory`, `kickMap`) for after-action refreshes. Initial burst on auth start. ⌘R global "Sync now" button on TopHUD.
+- **Right-click context menus** — op rows ("Open in New Window", quick status), conversation rows ("Open in New Window", "Load in Main Chat"). Sidebar nav already had context menus from the multi-window wave.
+- **Mention chip parser fix** — dropped `underlineColor` (not a SwiftUI AttributedString attribute), kept `underlineStyle = .single`. Build green.
+
+`xcodebuild` reports BUILD SUCCEEDED. Lumen ready for `Cmd+R` rebuild.
+
 **Eve → Arena bridge + audit trail (added May 4, 2026 — sixth wave):**
 
 The brain stack now pipes through to Arena. Eve can fire real-world side effects via tool calls, and every Arena action lands in a Supabase audit table.

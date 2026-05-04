@@ -4,12 +4,22 @@ Things blocking progress, with current workaround and what would unblock them.
 
 ---
 
-## 1. Vercel deploys are stale
+## 1. Two separate repos — Vercel deploys the wrong one for nexus-web work
 
-**What:** Vercel project watches `patrickcmaxwell/o-nexus` instead of `patrickcmaxwell/nexus`. Prod doesn't pick up nexus-web changes.
-**Workaround:** None — prod is detached.
-**Unblock:** Patrick reconnects Vercel project to `patrickcmaxwell/nexus` (Vercel dashboard → Project → Settings → Git).
-**Owner:** Patrick (UI-driven, not scriptable from here).
+**What:** `nexus` (this repo) and `o-nexus` (`/Users/shadow/code/o-nexus`) are **not** fork/stale — they are two active codebases:
+- `github.com/patrickcmaxwell/nexus` — multi-surface canonical (this repo). Vercel does not watch it.
+- `github.com/patrickcmaxwell/o-nexus` — v0.app Next.js app with 70+ merged v0 PRs. **This is what Vercel deploys.**
+
+So nexus-web work in this repo does not reach prod. Naively pushing this repo's history to o-nexus would fail or destroy v0 work — do not do it.
+
+**Workaround:** None automatic. To get nexus-web changes to prod today, you'd have to mirror the relevant files into `/Users/shadow/code/o-nexus`, push from there.
+
+**Unblock — architectural decision Patrick owns:**
+- Option A: Repoint Vercel at `nexus`, accept losing `o-nexus`'s v0-friendly deploy flow.
+- Option B: Keep `o-nexus` as the deployed face; treat `nexus` as the system-of-record and merge web changes into o-nexus periodically.
+- Option C: Retire one entirely.
+
+**Owner:** Patrick.
 
 ## 2. QStash keys not in Vercel env
 

@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "{ printf '\\n## %s\\n' \"$(date '+%Y-%m-%d %H:%M %Z')\"; git log --oneline -5 2>/dev/null | sed 's/^/  /'; printf '\\n'; } >> SESSION-LOG.md 2>/dev/null || true"
+            "command": "{ printf '\\n## %s\\n' \"$(date '+%Y-%m-%d %H:%M %Z')\"; printf -- '- branch: %s\\n' \"$(git branch --show-current 2>/dev/null || echo unknown)\"; dirty=$(git status --porcelain 2>/dev/null | grep -v '^??' | wc -l | tr -d ' '); untracked=$(git status --porcelain 2>/dev/null | grep -c '^??' || true); printf -- '- dirty: %s, untracked: %s\\n' \"$dirty\" \"$untracked\"; printf -- '- last commit: '; git log -1 --format='%h %s (%ar)' 2>/dev/null || printf 'none\\n'; printf '\\n'; } >> SESSION-LOG.md 2>/dev/null || true"
           }
         ]
       }

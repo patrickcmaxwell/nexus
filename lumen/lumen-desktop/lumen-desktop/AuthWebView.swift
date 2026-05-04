@@ -29,7 +29,7 @@ struct AuthGate: View {
                 ).transition(.opacity)
             }
         }
-        .preferredColorScheme(.dark)
+        // Adaptive — follows system theme via C palette.
         .animation(.easeInOut(duration: 0.2), value: mode)
     }
 
@@ -106,29 +106,27 @@ struct NativePinView: View {
     @State private var status: PinStatus = .idle
     @State private var errorMsg = ""
     @State private var shakeOffset: CGFloat = 0
+    @FocusState private var fieldFocused: Bool
 
     enum PinStatus { case idle, loading, error }
 
-    private let digits = ["1","2","3","4","5","6","7","8","9","","0","⌫"]
     private let green = Color(red: 0.2, green: 0.9, blue: 0.4)
     private let red   = Color(red: 1.0, green: 0.35, blue: 0.35)
 
     var body: some View {
         VStack(spacing: 0) {
             backRow
-
             Spacer()
-
-            VStack(spacing: 36) {
+            VStack(spacing: 28) {
                 header
                 pinDots
                 statusLine
-                numpad
             }
-
             Spacer()
         }
-        .onAppear { }
+        .background(hiddenInput)
+        .onAppear { fieldFocused = true }
+        .onTapGesture { fieldFocused = true }
     }
 
     // MARK: Sub-views
@@ -140,7 +138,7 @@ struct NativePinView: View {
                     Image(systemName: "chevron.left").font(.system(size: 10, weight: .bold))
                     Text("BACK").font(.system(size: 9, weight: .bold, design: .monospaced)).tracking(2)
                 }
-                .foregroundColor(.white.opacity(0.3))
+                .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
             Spacer()
@@ -150,14 +148,12 @@ struct NativePinView: View {
 
     private var header: some View {
         VStack(spacing: 6) {
-            Text("PASSCODE")
-                .font(.system(size: 12, weight: .bold, design: .monospaced))
-                .foregroundColor(.white.opacity(0.4))
-                .tracking(6)
-            Text("ENTER 4-DIGIT CODE")
-                .font(.system(size: 8, design: .monospaced))
-                .foregroundColor(.white.opacity(0.2))
-                .tracking(3)
+            Text("Passcode")
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(.primary)
+            Text("Type your 4-digit code")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -167,59 +163,52 @@ struct NativePinView: View {
                 Circle()
                     .fill(i < pin.count
                           ? (status == .error ? red : green)
-                          : Color.white.opacity(0.12))
+                          : Color.secondary.opacity(0.25))
                     .frame(width: 14, height: 14)
                     .animation(.easeInOut(duration: 0.1), value: pin.count)
             }
         }
         .offset(x: shakeOffset)
+        .padding(.vertical, 6)
+        .padding(.horizontal, 14)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(fieldFocused ? Color.accentColor.opacity(0.5) : Color.clear, lineWidth: 1)
+        )
     }
 
     private var statusLine: some View {
         Group {
             if status == .loading {
-                Text("VERIFYING...").foregroundColor(green)
+                Text("Verifying…").foregroundStyle(green)
             } else if status == .error {
-                Text(errorMsg).foregroundColor(red)
+                Text(errorMsg).foregroundStyle(red)
             } else {
                 Text(" ")
             }
         }
-        .font(.system(size: 9, design: .monospaced))
-        .tracking(2)
+        .font(.system(size: 11))
         .frame(height: 14)
     }
 
-    private var numpad: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.fixed(70)), count: 3), spacing: 10) {
-            ForEach(digits, id: \.self) { d in
-                if d.isEmpty {
-                    Color.clear.frame(width: 70, height: 54)
-                } else {
-                    Button { handleDigit(d) } label: {
-                        Text(d)
-                            .font(.system(size: d == "⌫" ? 15 : 19, weight: .medium, design: .monospaced))
-                            .foregroundColor(.white.opacity(d == "⌫" ? 0.45 : 0.8))
-                            .frame(width: 70, height: 54)
-                            .background(Color.white.opacity(0.04))
-                            .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.white.opacity(0.09), lineWidth: 1))
-                            .cornerRadius(3)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(status == .loading)
-                }
+    /// Invisible text field that captures keyboard input. Always focused so
+    /// the user can just start typing — no on-screen numpad needed.
+    private var hiddenInput: some View {
+        TextField("", text: Binding(
+            get: { pin },
+            set: { newValue in
+                guard status != .loading else { return }
+                let digits = newValue.filter(\.isNumber)
+                let trimmed = String(digits.prefix(4))
+                pin = trimmed
+                if pin.count == 4 { Task { await submitPin() } }
             }
-        }
-    }
-
-    // MARK: Logic
-
-    private func handleDigit(_ d: String) {
-        guard status != .loading else { return }
-        if d == "⌫" { if !pin.isEmpty { pin.removeLast() }; return }
-        guard pin.count < 4 else { return }
-        pin += d
-        if pin.count == 4 { Task { await submitPin() } }
+        ))
+        .textFieldStyle(.plain)
+        .focused($fieldFocused)
+        .opacity(0.001)
+        .frame(width: 1, height: 1)
+        .allowsHitTesting(false)
     }
 
     private func submitPin() async {
@@ -309,7 +298,21 @@ struct FaceWebView: NSViewRepresentable {
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
         context.coordinator.webView = webView
-        webView.load(URLRequest(url: startURL))
+
+        // Clear stale session cookies before each face auth attempt so a
+        // previous session cannot bypass the camera scan.
+        webView.configuration.websiteDataStore.httpCookieStore.getAllCookies { cookies in
+            let store = webView.configuration.websiteDataStore.httpCookieStore
+            let group = DispatchGroup()
+            cookies.filter { $0.name == "nx_session" || $0.name == "mn_pin_verified" || $0.name == "mn_face_verified" }
+                   .forEach { cookie in
+                       group.enter()
+                       store.delete(cookie) { group.leave() }
+                   }
+            group.notify(queue: .main) {
+                webView.load(URLRequest(url: startURL))
+            }
+        }
         return webView
     }
 
