@@ -2,7 +2,8 @@ export const maxDuration = 60
 
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/service"
-import { isAuthed, USER_ID } from "@/lib/operations/auth"
+import { USER_ID } from "@/lib/operations/auth"
+import { checkDesktopAuth } from "@/lib/desktop-auth"
 import {
   formatRecordsForPrompt,
   loadOperationContext,
@@ -23,8 +24,8 @@ const TASKS: Record<string, string> = {
 }
 
 // GET — fetch all existing briefs for this operation
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await isAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  if (!(await checkDesktopAuth(req))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { id } = await params
   const supabase = createServiceClient()
   const { data, error } = await supabase
@@ -39,7 +40,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 // POST — regenerate one brief (body: { kind: "summary" | "actions" | ... })
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await isAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!(await checkDesktopAuth(req))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { id } = await params
   const { kind } = await req.json()
   if (!KINDS.has(kind)) return NextResponse.json({ error: "invalid kind" }, { status: 400 })
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
 // DELETE — clear a brief (body: { kind })
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await isAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!(await checkDesktopAuth(req))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { id } = await params
   const { kind } = await req.json()
   if (!KINDS.has(kind)) return NextResponse.json({ error: "invalid kind" }, { status: 400 })

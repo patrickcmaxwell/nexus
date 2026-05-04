@@ -1,26 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/service"
-import { cookies } from "next/headers"
+import { checkDesktopAuth } from "@/lib/desktop-auth"
 
 const USER_ID = "e9d9a15b-0e5a-4631-9b50-6225ee03a44f"
 
-async function checkAuth() {
-  const cookieStore = await cookies()
-  const sessionId = cookieStore.get("nx_session")?.value
-  if (!sessionId) return false
-  const supabase = createServiceClient()
-  const { data } = await supabase
-    .from("security_sessions")
-    .select("id, expires_at, invalidated")
-    .eq("id", sessionId)
-    .single()
-  if (!data || data.invalidated) return false
-  return new Date(data.expires_at) > new Date()
-}
-
 // GET — records for a specific operation
 export async function GET(req: NextRequest) {
-  if (!await checkAuth()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!await checkDesktopAuth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { searchParams } = new URL(req.url)
   const operationId = searchParams.get("operation_id")
   if (!operationId) return NextResponse.json({ error: "operation_id required" }, { status: 400 })
@@ -37,7 +23,7 @@ export async function GET(req: NextRequest) {
 
 // POST — add a record to an operation
 export async function POST(req: NextRequest) {
-  if (!await checkAuth()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!await checkDesktopAuth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const body = await req.json()
   const { operation_id, type, title, content, source, priority } = body
   if (!operation_id || !title) return NextResponse.json({ error: "operation_id and title required" }, { status: 400 })
@@ -61,7 +47,7 @@ export async function POST(req: NextRequest) {
 
 // DELETE — remove a record
 export async function DELETE(req: NextRequest) {
-  if (!await checkAuth()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!await checkDesktopAuth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { id } = await req.json()
   if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 })
   const supabase = createServiceClient()

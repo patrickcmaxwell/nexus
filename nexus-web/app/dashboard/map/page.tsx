@@ -4,7 +4,7 @@ import { useRef, useState, useCallback, useEffect, useMemo } from "react"
 import {
   Map as MapIcon, RefreshCw, X, ExternalLink, ChevronRight, ChevronDown, Loader2,
   MessageSquare, Bot, Briefcase, Layers, FileText, Telescope, ShieldCheck,
-  Pin, Archive, Activity,
+  Pin, Archive, Activity, Users,
 } from "lucide-react"
 import Link from "next/link"
 

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
-import crypto from "crypto"
 
 function getServiceClient() {
   return createClient(
@@ -24,103 +23,103 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid descriptor" }, { status: 400 })
   }
 
-  // ENROLL — update the calling member's face descriptor
+  // ENROLL — store face for the calling human
   if (action === "enroll") {
-    // For enrollment, we need to know who's calling. Check session.
     const sessionId = req.cookies.get("nx_session")?.value
     if (!sessionId) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     }
+
     const { data: session } = await supabase
       .from("security_sessions")
-      .select("team_member_id")
+      .select("team_member_id, user_id")
       .eq("id", sessionId)
       .single()
 
-    const memberId = session?.team_member_id
-    if (!memberId) {
-      // Legacy fallback: enroll for the director
-      const { data: director } = await supabase
-        .from("team_members")
-        .select("id")
-        .eq("role", "director")
-        .single()
-      if (!director) return NextResponse.json({ error: "No director found" }, { status: 500 })
+    // team_member_id maps to humans.id (migrated); user_id is the owner fallback
+    const humanId = session?.team_member_id ?? session?.user_id
+    if (!humanId) {
+      return NextResponse.json({ error: "Session has no associated human" }, { status: 401 })
+    }
 
-      await supabase.from("team_members").update({ face_descriptor: descriptor }).eq("id", director.id)
-      return await createMemberSession(
-        NextResponse.json({ success: true, action: "enrolled" }),
-        director.id, "face", supabase
+    // If team_member_id isn't in humans (legacy UUID mismatch), fall back to owner
+    let targetId = humanId
+    const { data: human } = await supabase.from("humans").select("id").eq("id", humanId).single()
+    if (!human) {
+      const { data: owner } = await supabase.from("humans").select("id").eq("is_owner", true).single()
+      if (!owner) return NextResponse.json({ error: "No owner found" }, { status: 500 })
+      targetId = owner.id
+    }
+
+    const { error: updateError } = await supabase
+      .from("humans")
+      .update({ face_descriptor: descriptor })
+      .eq("id", targetId)
+
+    if (updateError) {
+      console.error("[nexus] Face enrollment failed:", updateError.message)
+      return NextResponse.json(
+        { error: "ENROLL_FAILED", detail: updateError.message },
+        { status: 500 }
       )
     }
 
-    await supabase.from("team_members").update({ face_descriptor: descriptor }).eq("id", memberId)
-    return await createMemberSession(
+    return await createHumanSession(
       NextResponse.json({ success: true, action: "enrolled" }),
-      memberId, "face", supabase
+      targetId, "face", supabase
     )
   }
 
-  // VERIFY — match face against ALL active team members
+  // VERIFY — match against all active humans
   if (action === "verify") {
-    const { data: members } = await supabase
-      .from("team_members")
-      .select("id, name, role, face_descriptor, seed_face_descriptor")
+    const { data: humans, error: selectError } = await supabase
+      .from("humans")
+      .select("id, display_name, role, face_descriptor, seed_face_descriptor")
       .eq("status", "active")
 
-    if (!members || members.length === 0) {
+    if (selectError) {
+      console.error("[nexus] Face verify query failed:", selectError.message)
+      return NextResponse.json(
+        { error: "VERIFY_QUERY_FAILED", detail: selectError.message },
+        { status: 500 }
+      )
+    }
+
+    if (!humans || humans.length === 0) {
+      return NextResponse.json({ error: "NO_REFERENCE" }, { status: 404 })
+    }
+
+    // Only treat enrolled face_descriptor as a reference — seed_face_descriptor alone
+    // is a low-quality reference photo that won't reliably match a live scan.
+    // If nobody has enrolled yet, return 404 to trigger the enrollment flow.
+    const anyEnrolled = humans.some(h => h.face_descriptor)
+    if (!anyEnrolled) {
       return NextResponse.json({ error: "NO_REFERENCE" }, { status: 404 })
     }
 
     let bestMatch: { id: string; name: string; role: string; distance: number } | null = null
 
-    for (const member of members) {
-      // Check enrolled face first, then seed face
-      const descriptors = [
-        member.face_descriptor,
-        member.seed_face_descriptor,
-      ].filter(Boolean)
+    for (const human of humans) {
+      // Prefer enrolled face_descriptor; fall back to seed only if no enrolled face exists
+      const descriptors = human.face_descriptor
+        ? [human.face_descriptor]
+        : [human.seed_face_descriptor].filter(Boolean)
 
       for (const ref of descriptors) {
         const refArr = ref as number[]
         if (!refArr || refArr.length !== 128) continue
         const distance = euclideanDistance(descriptor, refArr)
         if (distance <= MATCH_THRESHOLD && (!bestMatch || distance < bestMatch.distance)) {
-          bestMatch = { id: member.id, name: member.name, role: member.role, distance }
+          bestMatch = { id: human.id, name: human.display_name, role: human.role, distance }
         }
       }
     }
 
     if (!bestMatch) {
-      // If no team member match, check legacy face_reference table
-      const { data: legacyRef } = await supabase
-        .from("face_reference")
-        .select("descriptor, user_id")
-        .single()
-
-      if (legacyRef) {
-        const distance = euclideanDistance(descriptor, legacyRef.descriptor as number[])
-        if (distance <= MATCH_THRESHOLD) {
-          // Matched legacy — find or create director member
-          const { data: director } = await supabase
-            .from("team_members")
-            .select("id")
-            .eq("role", "director")
-            .single()
-
-          if (director) {
-            return await createMemberSession(
-              NextResponse.json({ success: true, distance, name: "Director", redirect: "/dashboard" }),
-              director.id, "face", supabase
-            )
-          }
-        }
-      }
-
       return NextResponse.json({ error: "FACE_MISMATCH" }, { status: 401 })
     }
 
-    return await createMemberSession(
+    return await createHumanSession(
       NextResponse.json({ success: true, distance: bestMatch.distance, name: bestMatch.name, redirect: "/dashboard" }),
       bestMatch.id, "face", supabase
     )
@@ -129,15 +128,15 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ error: "Unknown action" }, { status: 400 })
 }
 
-async function createMemberSession(response: NextResponse, memberId: string, method: string, supabase: any): Promise<NextResponse> {
+async function createHumanSession(response: NextResponse, humanId: string, method: string, supabase: any): Promise<NextResponse> {
   const now = new Date().toISOString()
   const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
 
   const { data, error } = await supabase
     .from("security_sessions")
     .insert({
-      user_id: memberId,
-      team_member_id: memberId,
+      user_id: humanId,
+      team_member_id: humanId,
       created_at: now,
       last_verified_at: now,
       expires_at: expiresAt,
@@ -148,7 +147,7 @@ async function createMemberSession(response: NextResponse, memberId: string, met
     .single()
 
   if (error || !data) {
-    console.error("[nexus] Failed to create session:", error?.message)
+    console.error("[nexus] Failed to create face session:", error?.message)
     return response
   }
 

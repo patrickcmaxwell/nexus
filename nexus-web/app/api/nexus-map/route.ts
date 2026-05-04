@@ -1,22 +1,8 @@
 import { createServiceClient } from "@/lib/supabase/service"
-import { cookies } from "next/headers"
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
+import { checkDesktopAuth } from "@/lib/desktop-auth"
 
 const USER_ID = "e9d9a15b-0e5a-4631-9b50-6225ee03a44f"
-
-async function checkAuth() {
-  const cookieStore = await cookies()
-  const sessionId = cookieStore.get("nx_session")?.value
-  if (!sessionId) return false
-  const supabase = createServiceClient()
-  const { data } = await supabase
-    .from("security_sessions")
-    .select("id, expires_at, invalidated")
-    .eq("id", sessionId)
-    .single()
-  if (!data || data.invalidated) return false
-  return new Date(data.expires_at) > new Date()
-}
 
 export type MapNodeType =
   | "conversation"
@@ -57,8 +43,8 @@ export interface MapEdge {
   type: "topic-link" | "temporal" | "record-belongs-to" | "record-source" | "record-parent" | "research-on" | "research-producing"
 }
 
-export async function GET() {
-  if (!await checkAuth()) {
+export async function GET(req: NextRequest) {
+  if (!await checkDesktopAuth(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 

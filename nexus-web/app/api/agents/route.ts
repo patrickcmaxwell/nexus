@@ -1,26 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/service"
-import { cookies } from "next/headers"
+import { resolveHumanId } from "@/lib/desktop-auth"
 
 const USER_ID = "e9d9a15b-0e5a-4631-9b50-6225ee03a44f"
 
-async function getSessionMemberId() {
-  const cookieStore = await cookies()
-  const sessionId = cookieStore.get("nx_session")?.value
-  if (!sessionId) return null
-  const supabase = createServiceClient()
-  const { data } = await supabase
-    .from("security_sessions")
-    .select("team_member_id, expires_at, invalidated")
-    .eq("id", sessionId)
-    .single()
-  if (!data || data.invalidated || new Date(data.expires_at) < new Date()) return null
-  return data.team_member_id
-}
-
-// GET — list all agents
-export async function GET() {
-  const currentHumanId = await getSessionMemberId()
+export async function GET(req: NextRequest) {
+  const currentHumanId = await resolveHumanId(req)
   if (!currentHumanId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const supabase = createServiceClient()
   const { data, error } = await supabase
@@ -32,9 +17,8 @@ export async function GET() {
   return NextResponse.json(data)
 }
 
-// POST — create a new agent
 export async function POST(req: NextRequest) {
-  const currentHumanId = await getSessionMemberId()
+  const currentHumanId = await resolveHumanId(req)
   if (!currentHumanId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const body = await req.json()
   const { name, role, personality, capabilities, directives, status, visibility } = body
@@ -54,21 +38,17 @@ export async function POST(req: NextRequest) {
     .select()
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  // Write permissions mapping
   await supabase.from("data_permissions").insert({
     resource_type: "agent",
     resource_id: data.id,
     owner_id: currentHumanId,
-    visibility: visibility || "private"
+    visibility: visibility || "private",
   })
-
   return NextResponse.json(data)
 }
 
-// PATCH — update an agent
 export async function PATCH(req: NextRequest) {
-  const currentHumanId = await getSessionMemberId()
+  const currentHumanId = await resolveHumanId(req)
   if (!currentHumanId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const body = await req.json()
   const { id, ...updates } = body
@@ -85,9 +65,8 @@ export async function PATCH(req: NextRequest) {
   return NextResponse.json(data)
 }
 
-// DELETE — remove an agent
 export async function DELETE(req: NextRequest) {
-  const currentHumanId = await getSessionMemberId()
+  const currentHumanId = await resolveHumanId(req)
   if (!currentHumanId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { id } = await req.json()
   if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 })

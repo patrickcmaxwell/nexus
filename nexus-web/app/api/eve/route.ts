@@ -5,49 +5,25 @@ import { cookies } from "next/headers"
 import OpenAI from "openai"
 import { extractMentions } from "@/lib/mentions/parse"
 import { buildMentionsBlock } from "@/lib/mentions/context"
+import { summarizeInBackground } from "@/lib/eve/summarize"
+import { callArena } from "@/lib/arena/client"
 
 const USER_ID = "e9d9a15b-0e5a-4631-9b50-6225ee03a44f"
 
-async function summarizeInBackground(supabase: ReturnType<typeof createServiceClient>) {
-  try {
-    const { data: rows } = await supabase.from("eve_history").select("id, role, content").eq("user_id", USER_ID).eq("summarized", false).order("created_at", { ascending: true }).limit(60)
-    if (!rows || rows.length < 10) return
-
-    const transcript = rows.map(r => `${r.role === "user" ? "DIRECTOR" : "EVE"}: ${r.content}`).join("\n")
-    const client = new OpenAI({ apiKey: process.env.XAI_API_KEY!, baseURL: "https://api.x.ai/v1" })
-    const res = await client.chat.completions.create({
-      model: "grok-3-mini",
-      messages: [
-        { role: "system", content: `Extract durable memories from this conversation as JSON array: [{"type":"fact|task|objective|preference","content":"string","importance":1-10,"tags":["string"]}]. Return ONLY the JSON array.` },
-        { role: "user", content: transcript },
-      ],
-      max_tokens: 1024,
-    })
-
-    const raw = res.choices[0]?.message?.content ?? "[]"
-    const match = raw.match(/\[[\s\S]*\]/)
-    const memories: Array<{ type: string; content: string; importance: number; tags: string[] }> = match ? JSON.parse(match[0]) : []
-
-    if (memories.length > 0) {
-      await supabase.from("eve_memory").insert(memories.map(m => ({ user_id: USER_ID, type: m.type ?? "fact", content: m.content, priority: Math.min(10, Math.max(1, m.importance ?? 5)), source: "auto-summarize", is_active: true })))
-    }
-
-    await supabase.from("eve_history").update({ summarized: true }).in("id", rows.map(r => r.id))
-  } catch {
-    // Summarization is best-effort — never block the main response
+async function checkAuth(req?: Request) {
+  const supabase = createServiceClient()
+  // Bearer token (desktop / Lumen)
+  const bearer = req?.headers.get("Authorization")
+  const bearerId = bearer?.startsWith("Bearer ") ? bearer.slice(7) : null
+  if (bearerId) {
+    const { data } = await supabase.from("security_sessions").select("id, expires_at, invalidated").eq("id", bearerId).single()
+    if (data && !data.invalidated && new Date(data.expires_at) > new Date()) return true
   }
-}
-
-async function checkAuth() {
+  // Cookie fallback (web UI)
   const cookieStore = await cookies()
   const sessionId = cookieStore.get("nx_session")?.value
   if (!sessionId) return false
-  const supabase = createServiceClient()
-  const { data } = await supabase
-    .from("security_sessions")
-    .select("id, expires_at")
-    .eq("id", sessionId)
-    .single()
+  const { data } = await supabase.from("security_sessions").select("id, expires_at").eq("id", sessionId).single()
   if (!data) return false
   return new Date(data.expires_at) > new Date()
 }
@@ -74,6 +50,8 @@ Your memory bank below is ground truth about the Director and Nexus. Use it for 
 DIRECTIVE 5 — CAPABILITIES:
 You have live web search via the web_search tool — use it automatically whenever the Director asks about news, current events, prices, people, or anything requiring up-to-date information. Do not announce that you are searching. Just search and report results concisely with sources. You can create Agents, Operations, and Nexus Map topic nodes, query them, and save any information or web finding to an operation. Never fabricate facts.
 
+You also have ARENA tools (arena_task_create, arena_task_update, arena_payment_route, arena_sync_push). Arena is the executor that takes action in the real world — ClickUp, payments, iPhone sync. Fire arena tools when the Director asks for action that touches outside services. Confirm what was done after the call. NEVER call arena_payment_route without an explicit Director-authorized amount.
+
 DIRECTIVE 6 — NO DUPLICATES:
 NEVER call create_agent or create_operation more than once per name. If a function returns already_exists: true, acknowledge the existing record and do NOT call the function again.
 
@@ -85,6 +63,9 @@ When the Director says "mark this as a topic", "start a new subject", "flag this
 
 DIRECTIVE 9 — FORMAT:
 Keep responses concise. No bullet lists unless explicitly asked. No markdown headers in conversational replies. Write as if you are speaking, not writing a report.
+
+DIRECTIVE 9b — CLARIFY BEFORE ACTING:
+If the Director's request is ambiguous, multi-step, or could be interpreted more than one way, ask ONE short clarifying question instead of guessing. Do not invent details. Do not act on a guess. A single sharp follow-up beats a wrong answer. Examples: "Sir, do you mean the Sheldon op or the broader project?" or "Should I escalate that to high priority before assigning?"
 
 DIRECTIVE 10 — MENTION SYNTAX:
 When you reference a specific operation, record, conversation, topic, or agent that exists in the system, use the mention token format: @[label](type:id) — e.g. @[arcology-project](operation:abc-123) or @[Q4 research](record:xyz-456). The token renders as a clickable chip in the UI. Only use this format for entities whose type+id you actually know (from the <mentions> block the Director provided, or from a tool call result you just made). When you created a new entity via a tool call, use its returned id in the token so the Director can click it immediately. If you do not know an id, just write the plain name without brackets.`
@@ -142,7 +123,7 @@ ${memoryBlock}
 }
 
 export async function POST(req: Request) {
-  if (!await checkAuth()) {
+  if (!await checkAuth(req)) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } })
   }
 
@@ -220,6 +201,37 @@ export async function POST(req: Request) {
     { type: "function", function: { name: "get_agents", description: "Fetch all current agents from Nexus.", parameters: { type: "object", properties: {} } } },
     { type: "function", function: { name: "mark_topic", description: "Mark the current point in the conversation as a named topic.", parameters: { type: "object", properties: { label: { type: "string" }, description: { type: "string" }, color: { type: "string", enum: ["cyan", "amber", "emerald", "rose", "violet"] } }, required: ["label", "description", "color"] } } },
     { type: "function", function: { name: "save_to_operation", description: "Save a piece of information or web finding to a specific operation.", parameters: { type: "object", properties: { operation_name: { type: "string" }, title: { type: "string" }, content: { type: "string" }, type: { type: "string", enum: ["intel", "finding", "data", "alert", "note"] }, source_url: { type: "string" } }, required: ["operation_name", "title", "content", "type"] } } },
+
+    // Arena — the executor layer. These tools fire real-world side effects
+    // (ClickUp, payments, sync). Every call is audited in arena_action_log.
+    { type: "function", function: { name: "arena_task_create", description: "Create a ClickUp task via Arena. Use when the Director asks to add, schedule, or assign a task or todo. Returns the new task id.", parameters: { type: "object", properties: {
+      title:       { type: "string" },
+      description: { type: "string" },
+      assignee:    { type: "string", description: "name or handle of the assignee, optional" },
+      due:         { type: "string", description: "ISO date or human phrase like 'next Friday', optional" },
+    }, required: ["title"] } } },
+    { type: "function", function: { name: "arena_task_update", description: "Update an existing ClickUp task. Use to change status or add a note to a task you (or the Director) created earlier.", parameters: { type: "object", properties: {
+      task_id: { type: "string" },
+      status:  { type: "string", description: "e.g. 'in progress', 'done', 'blocked'", },
+      notes:   { type: "string" },
+    }, required: ["task_id"] } } },
+    { type: "function", function: { name: "arena_payment_route", description: "Route and split a payment via Arena. Splits must sum to the total amount. Only call when the Director explicitly authorizes a transfer or split.", parameters: { type: "object", properties: {
+      amount:    { type: "number", description: "total amount to route" },
+      currency:  { type: "string", description: "ISO currency code, default USD" },
+      reference: { type: "string", description: "human reference for this transaction" },
+      splits: {
+        type: "array",
+        items: { type: "object", properties: { destination: { type: "string" }, amount: { type: "number" } }, required: ["destination", "amount"] },
+        description: "list of {destination, amount} entries; amounts must sum to total",
+      },
+    }, required: ["amount", "splits"] } } },
+    { type: "function", function: { name: "arena_sync_push", description: "Trigger a memory sync push so the iPhone can pull the latest. Fire when the Director says 'sync' or 'push to phone'.", parameters: { type: "object", properties: {
+      user_id: { type: "string", description: "optional — defaults to the current Director" },
+    } } } },
+    { type: "function", function: { name: "arena_recent", description: "Read the recent Arena action audit log. Use when the Director asks 'what did Arena just do?', 'show recent tasks', or to confirm a previous action.", parameters: { type: "object", properties: {
+      limit:  { type: "number", description: "max rows to return, default 10" },
+      action: { type: "string", description: "filter by action name like 'task/create' or 'payment/route'" },
+    } } } },
   ]
 
   async function executeTool(name: string, args: Record<string, any>): Promise<string> {
@@ -284,6 +296,50 @@ export async function POST(req: Request) {
           const { data, error } = await supabase.from("eve_topics").insert({ user_id: USER_ID, conversation_id: convId, label: args.label, description: args.description, color: args.color }).select().single()
           return error ? JSON.stringify({ success: false, error: error.message }) : JSON.stringify({ success: true, topic: data })
         }
+
+        // ── Arena tool calls — real-world side effects ───────────────────
+        case "arena_task_create": {
+          const r = await callArena("/task/create", {
+            title: args.title,
+            description: args.description ?? "",
+            assignee: args.assignee ?? null,
+            due: args.due ?? null,
+          }, "eve")
+          return JSON.stringify(r.ok ? { success: true, ...((r.data as object) ?? {}) } : { success: false, error: r.error ?? `arena ${r.status}` })
+        }
+        case "arena_task_update": {
+          const r = await callArena("/task/update", {
+            task_id: args.task_id,
+            status: args.status ?? null,
+            notes: args.notes ?? null,
+          }, "eve")
+          return JSON.stringify(r.ok ? { success: true, ...((r.data as object) ?? {}) } : { success: false, error: r.error ?? `arena ${r.status}` })
+        }
+        case "arena_payment_route": {
+          const r = await callArena("/payment/route", {
+            amount: args.amount,
+            currency: args.currency ?? "USD",
+            reference: args.reference ?? null,
+            splits: args.splits ?? [],
+          }, "eve")
+          return JSON.stringify(r.ok ? { success: true, ...((r.data as object) ?? {}) } : { success: false, error: r.error ?? `arena ${r.status}` })
+        }
+        case "arena_sync_push": {
+          const r = await callArena("/sync/push", { user_id: args.user_id ?? USER_ID }, "eve")
+          return JSON.stringify(r.ok ? { success: true, ...((r.data as object) ?? {}) } : { success: false, error: r.error ?? `arena ${r.status}` })
+        }
+        case "arena_recent": {
+          const limit = Math.min(Number(args.limit) || 10, 50)
+          let query = supabase
+            .from("arena_action_log")
+            .select("action, caller, payload, result, status, created_at")
+            .order("created_at", { ascending: false })
+            .limit(limit)
+          if (args.action) query = query.eq("action", args.action)
+          const { data, error } = await query
+          return JSON.stringify(error ? { success: false, error: error.message } : { success: true, entries: data ?? [] })
+        }
+
         default:
           return JSON.stringify({ success: false, error: `Unknown tool: ${name}` })
       }

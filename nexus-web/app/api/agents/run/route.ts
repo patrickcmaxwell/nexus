@@ -2,26 +2,12 @@ export const maxDuration = 300 // 5 minutes — local dev has no limit anyway
 
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/service"
-import { cookies } from "next/headers"
+import { resolveHumanId } from "@/lib/desktop-auth"
 import OpenAI from "openai"
 
 const USER_ID = "e9d9a15b-0e5a-4631-9b50-6225ee03a44f"
 const BATCH_SIZE = 10 // conversations per LLM call
 const MAX_MESSAGES_PER_CONVO = 80 // truncate long conversations
-
-async function checkAuth() {
-  const cookieStore = await cookies()
-  const sessionId = cookieStore.get("nx_session")?.value
-  if (!sessionId) return false
-  const supabase = createServiceClient()
-  const { data } = await supabase
-    .from("security_sessions")
-    .select("id, expires_at, invalidated")
-    .eq("id", sessionId)
-    .single()
-  if (!data || data.invalidated) return false
-  return new Date(data.expires_at) > new Date()
-}
 
 type Finding = {
   title: string
@@ -39,7 +25,8 @@ type Finding = {
  * Only runs if the agent's status is 'active' or 'deployed'.
  */
 export async function POST(req: NextRequest) {
-  if (!await checkAuth()) {
+  const humanId = await resolveHumanId(req)
+  if (!humanId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
@@ -279,7 +266,8 @@ export async function POST(req: NextRequest) {
 
 // GET — check run status / agent activity
 export async function GET(req: NextRequest) {
-  if (!await checkAuth()) {
+  const humanId = await resolveHumanId(req)
+  if (!humanId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 

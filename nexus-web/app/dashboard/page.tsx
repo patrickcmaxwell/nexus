@@ -28,6 +28,7 @@ const EMPTY_OVERVIEW: Overview = {
   actionItems: [],
   activity: [],
   lastConversation: null,
+  arena: [],
 }
 
 export default async function OverviewPage() {

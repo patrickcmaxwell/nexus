@@ -1,26 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
-import { cookies } from "next/headers"
 import { createServiceClient } from "@/lib/supabase/service"
+import { checkDesktopAuth } from "@/lib/desktop-auth"
 
 const USER_ID = "e9d9a15b-0e5a-4631-9b50-6225ee03a44f"
 
-async function checkAuth() {
-  const cookieStore = await cookies()
-  const sessionId = cookieStore.get("nx_session")?.value
-  if (!sessionId) return false
-  const supabase = createServiceClient()
-  const { data } = await supabase
-    .from("security_sessions")
-    .select("id, expires_at, invalidated")
-    .eq("id", sessionId)
-    .single()
-  if (!data || data.invalidated) return false
-  return new Date(data.expires_at) > new Date()
-}
-
-// GET — list all directives/protocols
-export async function GET() {
-  if (!await checkAuth()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+export async function GET(req: NextRequest) {
+  if (!await checkDesktopAuth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const supabase = createServiceClient()
   const { data, error } = await supabase
     .from("eve_directives")
@@ -32,9 +17,8 @@ export async function GET() {
   return NextResponse.json({ directives: data ?? [] })
 }
 
-// POST — create a new directive/protocol
 export async function POST(req: NextRequest) {
-  if (!await checkAuth()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!await checkDesktopAuth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const body = await req.json()
   const { type, title, content, priority = 0, target = "all" } = body
   if (!type || !title || !content) {
@@ -50,9 +34,8 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ directive: data })
 }
 
-// PATCH — update a directive
 export async function PATCH(req: NextRequest) {
-  if (!await checkAuth()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!await checkDesktopAuth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const body = await req.json()
   const { id, ...updates } = body
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 })
@@ -68,9 +51,8 @@ export async function PATCH(req: NextRequest) {
   return NextResponse.json({ directive: data })
 }
 
-// DELETE — remove a directive
 export async function DELETE(req: NextRequest) {
-  if (!await checkAuth()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!await checkDesktopAuth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { id } = await req.json()
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 })
   const supabase = createServiceClient()

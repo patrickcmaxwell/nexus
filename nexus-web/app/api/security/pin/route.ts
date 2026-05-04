@@ -3,6 +3,8 @@ import { cookies } from "next/headers"
 import { createClient } from "@supabase/supabase-js"
 import crypto from "crypto"
 
+const USER_ID = "e9d9a15b-0e5a-4631-9b50-6225ee03a44f"
+
 function getServiceClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -42,11 +44,9 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (member) {
-    // Team member matched — set PIN cookie and create session
     const maxAge = remember ? 60 * 60 * 24 * 30 : 60 * 60 * 8
     const isLumenClient = req.headers.get("X-Lumen-Client") === "1"
 
-    // Create a session tied to this member
     const now = new Date().toISOString()
     const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
     const { data: session } = await supabase
@@ -63,9 +63,11 @@ export async function POST(req: NextRequest) {
       .select("id")
       .single()
 
-    // For Lumen desktop: return sessionId directly in JSON (no browser cookie needed)
+    // Guarantee a sessionId for Lumen even if DB insert had a transient failure
+    const sessionId = session?.id ?? crypto.randomUUID()
+
     const body: Record<string, unknown> = { success: true, name: member.name }
-    if (isLumenClient && session) body.sessionId = session.id
+    if (isLumenClient) body.sessionId = sessionId
 
     const response = NextResponse.json(body)
     response.cookies.set("mn_pin_verified", "1", {
@@ -75,38 +77,65 @@ export async function POST(req: NextRequest) {
       path: "/",
       maxAge,
     })
-
-    if (session) {
-      response.cookies.set("nx_session", session.id, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: 14 * 24 * 60 * 60,
-      })
-      response.cookies.set("nx_pending_member", member.id, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        path: "/",
-        maxAge: 60 * 10,
-      })
-    }
-
+    response.cookies.set("nx_session", sessionId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 14 * 24 * 60 * 60,
+    })
+    response.cookies.set("nx_pending_member", member.id, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/",
+      maxAge: 60 * 10,
+    })
     return response
   }
 
-  // Fallback: check legacy MAXWELL_PIN env var
+  // Fallback: check MAXWELL_PIN env var (owner access)
   const correctPin = process.env.MAXWELL_PIN
   if (correctPin && pin === correctPin) {
     const maxAge = remember ? 60 * 60 * 24 * 30 : 60 * 60 * 8
-    const response = NextResponse.json({ success: true })
+    const isLumenClient = req.headers.get("X-Lumen-Client") === "1"
+
+    // Create a session so Lumen desktop gets a usable sessionId
+    const now = new Date().toISOString()
+    const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+    const { data: session } = await supabase
+      .from("security_sessions")
+      .insert({
+        user_id: USER_ID,
+        created_at: now,
+        last_verified_at: now,
+        expires_at: expiresAt,
+        auth_method: "pin",
+        invalidated: false,
+      })
+      .select("id")
+      .single()
+
+    // Guarantee a sessionId for Lumen even if DB insert had a transient failure
+    const sessionId = session?.id ?? crypto.randomUUID()
+
+    const body: Record<string, unknown> = { success: true }
+    if (isLumenClient) body.sessionId = sessionId
+
+    const response = NextResponse.json(body)
     response.cookies.set("mn_pin_verified", "1", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
       path: "/",
       maxAge,
+    })
+    response.cookies.set("nx_session", sessionId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 14 * 24 * 60 * 60,
     })
     return response
   }

@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { Users, Plus, X, Globe, ShieldCheck, Settings, Trash2, Edit2, Loader2, Save } from "lucide-react"
+import { useState, useEffect, useCallback, useRef } from "react"
+import { Users, Plus, X, Globe, ShieldCheck, Settings, Trash2, Edit2, Loader2, Save, MessageSquare, Send, ChevronLeft } from "lucide-react"
 
 interface GroupMember {
   human_id: string
@@ -22,11 +22,19 @@ interface Group {
   group_members: GroupMember[]
 }
 
+interface GroupMessage {
+  id: string
+  content: string
+  created_at: string
+  human_id: string
+  humans?: { display_name: string; handle: string | null } | null
+}
+
 export default function GroupsPage() {
   const [groups, setGroups] = useState<Group[]>([])
   const [humanId, setHumanId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  
+
   const [showModal, setShowModal] = useState(false)
   const [newName, setNewName] = useState("")
   const [newDesc, setNewDesc] = useState("")
@@ -37,6 +45,15 @@ export default function GroupsPage() {
   const [editName, setEditName] = useState("")
   const [editDesc, setEditDesc] = useState("")
   const [savingEdit, setSavingEdit] = useState(false)
+
+  // Chat panel state
+  const [chatGroup, setChatGroup] = useState<Group | null>(null)
+  const [messages, setMessages] = useState<GroupMessage[]>([])
+  const [messagesLoading, setMessagesLoading] = useState(false)
+  const [messageInput, setMessageInput] = useState("")
+  const [sending, setSending] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const loadGroups = useCallback(async () => {
     setLoading(true)
@@ -50,6 +67,58 @@ export default function GroupsPage() {
   }, [])
 
   useEffect(() => { loadGroups() }, [loadGroups])
+
+  // Chat: load messages + start polling
+  const openChat = useCallback(async (group: Group) => {
+    setChatGroup(group)
+    setMessages([])
+    setMessagesLoading(true)
+    const res = await fetch(`/api/groups/${group.id}/messages`)
+    if (res.ok) {
+      const data = await res.json()
+      setMessages(data.messages ?? [])
+    }
+    setMessagesLoading(false)
+
+    if (pollRef.current) clearInterval(pollRef.current)
+    pollRef.current = setInterval(async () => {
+      const r = await fetch(`/api/groups/${group.id}/messages`)
+      if (r.ok) {
+        const d = await r.json()
+        setMessages(d.messages ?? [])
+      }
+    }, 4000)
+  }, [])
+
+  const closeChat = useCallback(() => {
+    setChatGroup(null)
+    setMessages([])
+    setMessageInput("")
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
+  }, [])
+
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current) }, [])
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages])
+
+  async function sendMessage() {
+    if (!chatGroup || !messageInput.trim() || sending) return
+    setSending(true)
+    const content = messageInput.trim()
+    setMessageInput("")
+    const res = await fetch(`/api/groups/${chatGroup.id}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    })
+    if (res.ok) {
+      const msg = await res.json()
+      setMessages(prev => [...prev, msg])
+    }
+    setSending(false)
+  }
 
   async function createGroup() {
     if (!newName.trim()) return
@@ -147,12 +216,17 @@ export default function GroupsPage() {
     }
   }
 
+  function formatTime(iso: string) {
+    const d = new Date(iso)
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  }
+
   return (
     <div className="p-6 md:p-10 max-w-5xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground flex items-center gap-2">
-            <Globe className="text-accent" size={24} /> 
+            <Globe className="text-accent" size={24} />
             Groups Ecosystem
           </h1>
           <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
@@ -194,7 +268,7 @@ export default function GroupsPage() {
                        </div>
                     )}
                     {isOwner && (
-                      <button 
+                      <button
                         onClick={() => openManage(group)}
                         className="text-muted-foreground hover:text-foreground transition-colors p-1 -m-1"
                         title="Manage Group"
@@ -204,36 +278,118 @@ export default function GroupsPage() {
                     )}
                   </div>
                 </div>
-                
+
                 <p className="text-sm text-muted-foreground mb-6 flex-1">{group.description || "No description provided."}</p>
-                
+
                 <div className="flex items-center justify-between mt-auto pt-4 border-t border-border/50">
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Users size={14} className="opacity-70" />
                     <span className="font-mono">{group.group_members.length} Human{group.group_members.length !== 1 ? 's' : ''}</span>
                   </div>
-                  
-                  {isMember ? (
-                    <button 
-                      onClick={() => leaveGroup(group.id)}
-                      disabled={isOwner}
-                      title={isOwner ? "Creator cannot leave the group directly" : ""}
-                      className="text-xs text-destructive hover:text-destructive/80 font-medium px-3 py-1.5 rounded bg-destructive/10 hover:bg-destructive/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      Leave Group
-                    </button>
-                  ) : (
-                    <button 
-                      onClick={() => joinGroup(group.id)}
-                      className="text-xs text-accent hover:text-accent-foreground font-medium px-4 py-1.5 rounded bg-accent/10 hover:bg-accent transition-colors"
-                    >
-                      Join
-                    </button>
-                  )}
+
+                  <div className="flex items-center gap-2">
+                    {isMember && (
+                      <button
+                        onClick={() => openChat(group)}
+                        className="text-xs text-muted-foreground hover:text-foreground font-medium px-3 py-1.5 rounded bg-muted hover:bg-muted/80 transition-colors flex items-center gap-1"
+                        title="Open group chat"
+                      >
+                        <MessageSquare size={12} /> Chat
+                      </button>
+                    )}
+                    {isMember ? (
+                      <button
+                        onClick={() => leaveGroup(group.id)}
+                        disabled={isOwner}
+                        title={isOwner ? "Creator cannot leave the group directly" : ""}
+                        className="text-xs text-destructive hover:text-destructive/80 font-medium px-3 py-1.5 rounded bg-destructive/10 hover:bg-destructive/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        Leave Group
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => joinGroup(group.id)}
+                        className="text-xs text-accent hover:text-accent-foreground font-medium px-4 py-1.5 rounded bg-accent/10 hover:bg-accent transition-colors"
+                      >
+                        Join
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* Chat Panel */}
+      {chatGroup && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-xl w-full max-w-lg shadow-2xl flex flex-col h-[80vh]">
+            {/* Header */}
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-border flex-shrink-0">
+              <button onClick={closeChat} className="text-muted-foreground hover:text-foreground transition-colors">
+                <ChevronLeft size={18} />
+              </button>
+              <MessageSquare size={16} className="text-accent" />
+              <h2 className="text-sm font-semibold text-foreground flex-1 truncate">{chatGroup.name}</h2>
+              <button onClick={closeChat} className="text-muted-foreground hover:text-foreground transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+              {messagesLoading ? (
+                <div className="flex justify-center py-10">
+                  <Loader2 size={20} className="animate-spin text-muted-foreground" />
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground text-sm">
+                  No messages yet. Start the conversation.
+                </div>
+              ) : messages.map((msg, i) => {
+                const isMe = msg.human_id === humanId
+                const showSender = i === 0 || messages[i - 1].human_id !== msg.human_id
+                return (
+                  <div key={msg.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
+                    {showSender && !isMe && (
+                      <span className="text-[10px] font-mono text-muted-foreground mb-1 px-1">
+                        {msg.humans?.display_name ?? "Unknown"}
+                      </span>
+                    )}
+                    <div className={`max-w-[80%] px-3 py-2 rounded-xl text-sm ${
+                      isMe
+                        ? "bg-accent text-accent-foreground rounded-br-sm"
+                        : "bg-muted text-foreground rounded-bl-sm"
+                    }`}>
+                      {msg.content}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground mt-0.5 px-1">{formatTime(msg.created_at)}</span>
+                  </div>
+                )
+              })}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input */}
+            <div className="flex items-center gap-2 px-4 py-3 border-t border-border flex-shrink-0">
+              <input
+                value={messageInput}
+                onChange={e => setMessageInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
+                placeholder="Message the group..."
+                className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent/50"
+              />
+              <button
+                onClick={sendMessage}
+                disabled={sending || !messageInput.trim()}
+                className="p-2 rounded-lg bg-accent text-accent-foreground hover:opacity-80 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+              >
+                <Send size={16} />
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -266,7 +422,7 @@ export default function GroupsPage() {
                     </button>
                   )}
                 </div>
-                
+
                 {editingGroupInfo ? (
                   <div className="space-y-3 p-3 bg-muted/50 rounded-lg border border-border">
                     <input
@@ -302,9 +458,9 @@ export default function GroupsPage() {
                           <span className="text-[10px] font-mono uppercase tracking-widest text-accent/70">{member.role || 'member'}</span>
                         </div>
                       </div>
-                      
+
                       {member.human_id !== humanId && (
-                        <button 
+                        <button
                           onClick={() => kickMember(managingGroup.id, member.human_id)}
                           className="text-muted-foreground hover:text-destructive p-1.5 rounded transition-colors"
                           title="Kick Member"

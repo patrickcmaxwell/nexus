@@ -33,6 +33,7 @@ export async function GET() {
     briefsActionsRes,
     recentRecordsRes,
     recentConvRes,
+    arenaRes,
   ] = await Promise.all([
     // Counts
     supabase.from("eve_conversations").select("id", { count: "exact", head: true }).eq("user_id", USER_ID),
@@ -96,6 +97,13 @@ export async function GET() {
       .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+
+    // Recent Arena executor activity (Eve's real-world side effects)
+    supabase
+      .from("arena_action_log")
+      .select("id, action, caller, payload, result, status, created_at")
+      .order("created_at", { ascending: false })
+      .limit(8),
   ])
 
   const operations = opRes.data ?? []
@@ -289,5 +297,6 @@ export async function GET() {
     actionItems,
     activity: activity.slice(0, 20),
     lastConversation,
+    arena: arenaRes.data ?? [],
   })
 }

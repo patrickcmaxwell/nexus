@@ -23,7 +23,7 @@ export default function FacePage() {
         setStatusMsg("LOADING MODEL 1/3 — FACE DETECTOR...")
         setLoadProgress(10)
         const faceapi = await import("@vladmandic/face-api")
-        const MODEL_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model"
+        const MODEL_URL = "/models"
 
         await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL)
         setLoadProgress(40)

@@ -1,29 +1,19 @@
 export const maxDuration = 30
 
 import { NextRequest, NextResponse } from "next/server"
-import { cookies } from "next/headers"
-import { createServiceClient } from "@/lib/supabase/service"
 
-async function checkAuth() {
-  const cookieStore = await cookies()
-  const sessionId = cookieStore.get("nx_session")?.value
-  if (!sessionId) return false
-  const supabase = createServiceClient()
-  const { data } = await supabase
-    .from("security_sessions")
-    .select("id, expires_at, invalidated")
-    .eq("id", sessionId)
-    .single()
-  if (!data || data.invalidated) return false
-  return new Date(data.expires_at) > new Date()
+import { checkDesktopAuth } from "@/lib/desktop-auth"
+
+async function checkAuth(req: NextRequest) {
+  return checkDesktopAuth(req)
 }
 
 export async function POST(req: NextRequest) {
-  if (!await checkAuth()) {
+  if (!await checkAuth(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const { text } = await req.json()
+  const { text, voice_id } = await req.json()
   if (!text?.trim()) {
     return NextResponse.json({ error: "No text provided" }, { status: 400 })
   }
@@ -33,8 +23,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "ELEVENLABS_API_KEY not configured" }, { status: 500 })
   }
 
-  // "EXAVITQu4vr4xnSDxMaL" is Bella, which is allowed on the free tier.
-  const VOICE_ID = "EXAVITQu4vr4xnSDxMaL" 
+  // Default voice "EXAVITQu4vr4xnSDxMaL" is Bella, allowed on the free tier.
+  // Callers can override with any voice_id available on their ElevenLabs
+  // account by passing { voice_id: "..." } in the request body.
+  const VOICE_ID = (typeof voice_id === "string" && voice_id.length > 0)
+    ? voice_id
+    : "EXAVITQu4vr4xnSDxMaL"
 
   // ElevenLabs TTS endpoint
   const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}?output_format=mp3_44100_128`, {

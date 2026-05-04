@@ -1,26 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
-import { cookies } from "next/headers"
 import { createServiceClient } from "@/lib/supabase/service"
+import { checkDesktopAuth } from "@/lib/desktop-auth"
 
 const USER_ID = "e9d9a15b-0e5a-4631-9b50-6225ee03a44f"
 
-async function checkAuth() {
-  const cookieStore = await cookies()
-  const sessionId = cookieStore.get("nx_session")?.value
-  if (!sessionId) return false
-  const supabase = createServiceClient()
-  const { data } = await supabase
-    .from("security_sessions")
-    .select("id, expires_at, invalidated")
-    .eq("id", sessionId)
-    .single()
-  if (!data || data.invalidated) return false
-  return new Date(data.expires_at) > new Date()
-}
-
 // GET — fetch all active memories for system prompt injection
-export async function GET() {
-  if (!await checkAuth()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+export async function GET(req: NextRequest) {
+  if (!await checkDesktopAuth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const supabase = createServiceClient()
   const { data: memories } = await supabase
@@ -37,7 +23,7 @@ export async function GET() {
 
 // POST — save a new memory entry
 export async function POST(req: NextRequest) {
-  if (!await checkAuth()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!await checkDesktopAuth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { type, content, priority, source } = await req.json()
   if (!type || !content) return NextResponse.json({ error: "Missing type or content" }, { status: 400 })
@@ -62,7 +48,7 @@ export async function POST(req: NextRequest) {
 
 // DELETE — deactivate a memory
 export async function DELETE(req: NextRequest) {
-  if (!await checkAuth()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!await checkDesktopAuth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { id } = await req.json()
   const supabase = createServiceClient()
