@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{ printf '\\n## %s\\n' \"$(date '+%Y-%m-%d %H:%M %Z')\"; git log --oneline -5 2>/dev/null | sed 's/^/  /'; printf '\\n'; } >> SESSION-LOG.md 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  }
+}
