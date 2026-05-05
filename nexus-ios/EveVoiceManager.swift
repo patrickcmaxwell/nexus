@@ -10,7 +10,62 @@ struct ChatTurn: Identifiable {
     let role: Role           // user | eve
     var content: String      // var so streaming could mutate (future)
     let timestamp = Date()
+    /// Which brain produced this assistant reply: "grok" | "local" | "claude" | "vision" | "offline".
+    var brain: String? = nil
+    /// Tool calls Eve fired in this turn — rendered as visible cards in the bubble.
+    var toolCalls: [ToolCallSummary] = []
     enum Role { case user, eve }
+}
+
+/// Display-ready record of a single tool Eve invoked. Mirrors Lumen's
+/// `ToolCallSummary` so the JSON contract from /api/eve renders identically
+/// across all clients.
+struct ToolCallSummary: Hashable, Identifiable {
+    let id = UUID()
+    let name: String         // raw tool name (e.g., arena_task_create)
+    let humanLabel: String   // "Created task", "Logged action", etc.
+    let primary: String      // headline value: title / name / amount
+    let detail: String       // secondary line: id / status / count
+    let success: Bool
+
+    static func from(rawName: String, args: [String: Any], result: [String: Any]) -> ToolCallSummary {
+        let success = (result["success"] as? Bool) ?? true
+        let err = result["error"] as? String
+
+        switch rawName {
+        case "arena_task_create":
+            let title = (args["title"] as? String) ?? "Untitled task"
+            let id = (result["task_id"] as? String) ?? ""
+            let assignee = args["assignee"] as? String
+            let detail = [id, assignee.map { "→ \($0)" }].compactMap { $0 }.compactMap { $0 }.joined(separator: "  ")
+            return .init(name: rawName, humanLabel: "Created task", primary: title,
+                         detail: success ? detail : (err ?? "failed"), success: success)
+        case "arena_task_update":
+            let id = (args["task_id"] as? String) ?? ""
+            let status = (args["status"] as? String) ?? "updated"
+            return .init(name: rawName, humanLabel: "Updated task", primary: id,
+                         detail: success ? status.uppercased() : (err ?? "failed"), success: success)
+        case "arena_payment_route":
+            let amount = (args["amount"] as? Double).map { String(format: "$%.2f", $0) }
+                ?? (args["amount"] as? Int).map { "$\($0)" } ?? "?"
+            let ref = (args["reference"] as? String) ?? ""
+            return .init(name: rawName, humanLabel: "Routed payment", primary: amount,
+                         detail: success ? ref : (err ?? "failed"), success: success)
+        case "arena_sync_push":
+            return .init(name: rawName, humanLabel: "Pushed memory sync", primary: "Memory bank",
+                         detail: success ? "synced" : (err ?? "failed"), success: success)
+        case "arena_recent":
+            let entries = (result["entries"] as? [Any])?.count ?? 0
+            return .init(name: rawName, humanLabel: "Read Arena log",
+                         primary: "\(entries) entries", detail: "", success: success)
+        default:
+            let primary = (args["title"] as? String)
+                ?? (args["name"] as? String)
+                ?? (args["content"] as? String).map { String($0.prefix(40)) } ?? rawName
+            return .init(name: rawName, humanLabel: rawName.replacingOccurrences(of: "_", with: " ").capitalized,
+                         primary: primary, detail: success ? "ok" : (err ?? "failed"), success: success)
+        }
+    }
 }
 
 class EveVoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
@@ -205,21 +260,34 @@ class EveVoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate {
         }
 
         do {
-            let result: (content: String, conversationId: String?) = try await {
-                if useLocalBrain {
-                    return try await api.askEveLocal(message: message, conversationId: conversationId)
-                } else {
-                    return try await api.askEve(message: message, conversationId: conversationId)
-                }
-            }()
+            // Local path returns 2-tuple, Grok returns 3-tuple. Branch the
+            // call to keep types straight, then build a uniform turn.
+            var replyContent: String = ""
+            var replyConvId: String? = nil
+            var replyTools: [ToolCallSummary] = []
+            var replyBrain: String = useLocalBrain ? "local" : "grok"
+
+            if useLocalBrain {
+                let r = try await api.askEveLocal(message: message, conversationId: conversationId)
+                replyContent = r.content
+                replyConvId  = r.conversationId
+            } else {
+                let r = try await api.askEve(message: message, conversationId: conversationId)
+                replyContent = r.content
+                replyConvId  = r.conversationId
+                replyTools   = r.toolCalls
+            }
 
             await MainActor.run {
-                if self.conversationId == nil { self.conversationId = result.conversationId }
-                self.lastReply     = result.content
+                if self.conversationId == nil { self.conversationId = replyConvId }
+                self.lastReply     = replyContent
                 self.statusMessage = "Ready"
-                self.messages.append(ChatTurn(role: .eve, content: result.content))
+                var turn = ChatTurn(role: .eve, content: replyContent)
+                turn.brain = replyBrain
+                turn.toolCalls = replyTools
+                self.messages.append(turn)
             }
-            speak(result.content)
+            speak(replyContent)
 
         } catch NexusAPIClient.APIError.unauthorized {
             await MainActor.run {

@@ -57,16 +57,38 @@ class NexusAPIClient {
 
     enum APIError: Error { case invalidURL, unauthorized, requestFailed(String) }
 
+    /// Active human's identity, fetched from /api/auth/me. Mirrors the
+    /// shape Lumen/web use so the iOS UI can render the same avatar +
+    /// role hints with no schema friction.
+    struct ActiveProfile: Equatable {
+        let humanId: String
+        let email: String
+        let displayName: String
+        let role: String
+        let isOwner: Bool
+
+        var avatarInitial: String {
+            String((displayName.first ?? email.first ?? "?")).uppercased()
+        }
+    }
+
     // MARK: - Auth
 
-    /// Submits the 4-digit PIN, returns a session id on success and caches it.
-    func authenticate(pin: String) async throws -> String {
+    /// Identity-first sign-in. Sends email + 4-digit PIN to /api/security/pin.
+    /// On success returns the session id and caches it. The X-Lumen-Client
+    /// header makes the server echo the sessionId in the response body so we
+    /// can stash it without doing cookie parsing on iOS.
+    func authenticate(email: String, pin: String) async throws -> String {
         guard let url = URL(string: "\(nexusBase)/api/security/pin") else { throw APIError.invalidURL }
         var req = URLRequest(url: url, timeoutInterval: 15)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("1",                forHTTPHeaderField: "X-Lumen-Client")
-        req.httpBody = try JSONSerialization.data(withJSONObject: ["pin": pin, "remember": true])
+        req.httpBody = try JSONSerialization.data(withJSONObject: [
+            "email":    email,
+            "pin":      pin,
+            "remember": true,
+        ])
 
         let (data, response) = try await URLSession.shared.data(for: req)
         guard let http = response as? HTTPURLResponse else { throw APIError.requestFailed("no http") }
@@ -79,17 +101,46 @@ class NexusAPIClient {
             throw APIError.requestFailed("no sessionId in response")
         }
         sessionId = sid
+        // Cache the email so the PIN form can pre-fill it on next launch.
+        UserDefaults.standard.set(email, forKey: "nexus.lastEmail")
         return sid
     }
 
-    func logout() { sessionId = nil }
+    /// Fetches the active human profile for the cached session. Used after
+    /// authenticate() and on app launch to verify the cookie is still good.
+    /// Returns nil on 401 (caller should drop the cached sessionId).
+    func fetchActiveProfile() async -> ActiveProfile? {
+        guard let sid = sessionId, !sid.isEmpty else { return nil }
+        guard let url = URL(string: "\(nexusBase)/api/auth/me") else { return nil }
+        var req = URLRequest(url: url, timeoutInterval: 10)
+        req.setValue("Bearer \(sid)", forHTTPHeaderField: "Authorization")
+        do {
+            let (data, response) = try await URLSession.shared.data(for: req)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200,
+                  let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            else { return nil }
+            return ActiveProfile(
+                humanId:     json["humanId"]     as? String ?? "",
+                email:       json["email"]       as? String ?? "",
+                displayName: json["displayName"] as? String ?? "",
+                role:        json["role"]        as? String ?? "observer",
+                isOwner:     json["isOwner"]     as? Bool   ?? false
+            )
+        } catch {
+            return nil
+        }
+    }
+
+    func logout() {
+        sessionId = nil
+    }
 
     // MARK: - Brain
 
     /// Sends a message to nexus-web Eve (Grok with full tool calling).
     /// Returns Eve's reply text. Conversation threading happens server-side
     /// keyed on `source: "ios"`.
-    func askEve(message: String, conversationId: String? = nil) async throws -> (content: String, conversationId: String?) {
+    func askEve(message: String, conversationId: String? = nil) async throws -> (content: String, conversationId: String?, toolCalls: [ToolCallSummary]) {
         guard let sid = sessionId, !sid.isEmpty else { throw APIError.unauthorized }
         guard let url = URL(string: "\(nexusBase)/api/eve") else { throw APIError.invalidURL }
 
@@ -117,8 +168,21 @@ class NexusAPIClient {
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         let content = json?["content"] as? String ?? ""
         let convId  = json?["conversationId"] as? String
+
+        // Parse tool_calls trace — same JSON contract as Lumen + nexus-web,
+        // so iOS gets visible Eve actions for free.
+        var toolCalls: [ToolCallSummary] = []
+        if let raw = json?["tool_calls"] as? [[String: Any]] {
+            for tc in raw {
+                let name   = (tc["name"]   as? String) ?? "unknown"
+                let args   = (tc["args"]   as? [String: Any]) ?? [:]
+                let result = (tc["result"] as? [String: Any]) ?? [:]
+                toolCalls.append(.from(rawName: name, args: args, result: result))
+            }
+        }
+
         guard !content.isEmpty else { throw APIError.requestFailed("empty content") }
-        return (content, convId)
+        return (content, convId, toolCalls)
     }
 
     // MARK: - Conversation history

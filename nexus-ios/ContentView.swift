@@ -7,6 +7,7 @@ import PhotosUI
 struct ContentView: View {
     @StateObject private var voice = EveVoiceManager()
     @State private var sessionId: String? = NexusAPIClient.shared.sessionId
+    @State private var activeProfile: NexusAPIClient.ActiveProfile? = nil
     @State private var showSettings = false
     @State private var showHistory = false
     @State private var photoSelection: [PhotosPickerItem] = []
@@ -19,16 +20,27 @@ struct ContentView: View {
             Color.black.ignoresSafeArea()
 
             if sessionId == nil {
-                PinAuthView { sid in sessionId = sid }
+                PinAuthView { sid in
+                    sessionId = sid
+                    Task { await refreshActiveProfile() }
+                }
             } else {
                 authenticatedView
             }
         }
         .animation(.easeInOut, value: sessionId)
+        // On launch, validate the cached cookie against /api/auth/me. If
+        // the server-side session has been invalidated (e.g. someone
+        // switched users on Lumen or web), drop the local cache so the
+        // user gets the fresh PIN screen instead of mysterious 401s.
+        .task {
+            if sessionId != nil { await refreshActiveProfile() }
+        }
         .sheet(isPresented: $showSettings) {
             SettingsView(onLogout: {
                 NexusAPIClient.shared.logout()
                 sessionId = nil
+                activeProfile = nil
                 showSettings = false
             })
         }
@@ -40,13 +52,58 @@ struct ContentView: View {
         }
     }
 
+    /// Fetch the active human profile from /api/auth/me. Returns silently
+    /// on success — the rendered top bar reads `activeProfile` directly.
+    /// On 401 / nil response, drops the cached session so the PIN gate
+    /// reappears instead of failing on every subsequent API call.
+    private func refreshActiveProfile() async {
+        let profile = await NexusAPIClient.shared.fetchActiveProfile()
+        await MainActor.run {
+            if let profile {
+                self.activeProfile = profile
+            } else {
+                NexusAPIClient.shared.logout()
+                self.activeProfile = nil
+                self.sessionId = nil
+            }
+        }
+    }
+
+    /// Compact "who am I" pill — initial-letter avatar + display name. Tap
+    /// (gesture lives on parent) opens settings where the user can sign out.
+    /// Owner gets a subtle violet ring so the Director knows at a glance.
+    @ViewBuilder
+    private func avatarPill(_ profile: NexusAPIClient.ActiveProfile) -> some View {
+        HStack(spacing: 6) {
+            ZStack {
+                Circle()
+                    .fill(profile.isOwner ? Color.indigo.opacity(0.25) : Color.gray.opacity(0.18))
+                Circle()
+                    .stroke(profile.isOwner ? Color.indigo.opacity(0.5) : Color.gray.opacity(0.3), lineWidth: 1)
+                Text(profile.avatarInitial)
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .foregroundColor(profile.isOwner ? .indigo : .white.opacity(0.7))
+            }
+            .frame(width: 22, height: 22)
+            Text(profile.displayName)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(.white.opacity(0.75))
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 8).padding(.vertical, 4)
+        .background(.thinMaterial, in: Capsule())
+    }
+
     private var authenticatedView: some View {
         VStack(spacing: 0) {
-            // Top bar: tab switch + settings
+            // Top bar: tab switch + identity avatar + settings
             HStack(spacing: 16) {
                 tabButton("VOICE", .voice)
                 tabButton("CONTROL", .control)
                 Spacer()
+                if let profile = activeProfile {
+                    avatarPill(profile)
+                }
                 Button(action: { showSettings = true }) {
                     Image(systemName: "gearshape")
                         .font(.system(size: 18))
@@ -479,18 +536,45 @@ private struct OperationRow: View {
 
 private struct PinAuthView: View {
     let onAuth: (String) -> Void
+
+    @State private var email: String = UserDefaults.standard.string(forKey: "nexus.lastEmail") ?? ""
     @State private var digits: [String] = Array(repeating: "", count: 4)
     @State private var error: String = ""
     @State private var loading = false
+    @FocusState private var emailFocused: Bool
     @FocusState private var focusedIndex: Int?
 
     var body: some View {
-        VStack(spacing: 36) {
+        VStack(spacing: 28) {
             Spacer()
             Text("NEXUS")
                 .font(.system(size: 14, weight: .medium, design: .monospaced))
                 .foregroundColor(.indigo)
                 .tracking(8)
+
+            // Email — identity hint that pins down which human's PIN we
+            // verify against. Eliminates the multi-user PIN-collision bug
+            // where two team members could share a 4-digit code.
+            TextField("you@example.com", text: $email)
+                .textFieldStyle(.plain)
+                .keyboardType(.emailAddress)
+                .textContentType(.emailAddress)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled(true)
+                .focused($emailFocused)
+                .font(.system(size: 14, design: .monospaced))
+                .padding(.horizontal, 14).padding(.vertical, 10)
+                .background(Color.gray.opacity(0.08))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(emailFocused ? Color.indigo.opacity(0.4) : Color.gray.opacity(0.2), lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .onChange(of: email) { _, new in
+                    email = new.lowercased().trimmingCharacters(in: .whitespaces)
+                }
+                .frame(maxWidth: 280)
+                .padding(.horizontal, 32)
 
             HStack(spacing: 12) {
                 ForEach(0..<4, id: \.self) { i in
@@ -518,7 +602,11 @@ private struct PinAuthView: View {
 
             Spacer()
         }
-        .onAppear { focusedIndex = 0 }
+        .onAppear {
+            // Skip straight to PIN entry if we already have a cached email.
+            if email.isEmpty { emailFocused = true }
+            else { focusedIndex = 0 }
+        }
     }
 
     private func handleDigitChange(at i: Int) {
@@ -533,15 +621,24 @@ private struct PinAuthView: View {
     }
 
     private func submit() async {
+        let trimmedEmail = email.trimmingCharacters(in: .whitespaces)
+        guard !trimmedEmail.isEmpty else {
+            await MainActor.run {
+                self.error = "Email required"
+                self.digits = Array(repeating: "", count: 4)
+                self.emailFocused = true
+            }
+            return
+        }
         loading = true
         defer { loading = false }
         let pin = digits.joined()
         do {
-            let sid = try await NexusAPIClient.shared.authenticate(pin: pin)
+            let sid = try await NexusAPIClient.shared.authenticate(email: trimmedEmail, pin: pin)
             await MainActor.run { onAuth(sid) }
         } catch {
             await MainActor.run {
-                self.error = "Invalid PIN"
+                self.error = "Invalid credentials"
                 self.digits = Array(repeating: "", count: 4)
                 self.focusedIndex = 0
             }
@@ -566,22 +663,57 @@ private struct IOSChatBubble: View {
                 Spacer(minLength: 60)
             }
 
-            Text(turn.content)
-                .font(.system(size: 13))
-                .foregroundColor(isEve ? .indigo.opacity(0.92) : .white.opacity(0.78))
-                .multilineTextAlignment(.leading)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(isEve ? Color.indigo.opacity(0.10) : Color.white.opacity(0.05))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(isEve ? Color.indigo.opacity(0.25) : Color.white.opacity(0.10), lineWidth: 1)
-                )
-                .frame(maxWidth: .infinity, alignment: isEve ? .leading : .trailing)
-                .textSelection(.enabled)
+            VStack(alignment: .leading, spacing: 6) {
+                // Brain badge + ACTIONS pill — only on Eve replies that have metadata
+                if isEve, (turn.brain != nil || !turn.toolCalls.isEmpty) {
+                    HStack(spacing: 5) {
+                        if let b = turn.brain {
+                            Text(brainLabel(b))
+                                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                                .tracking(1.5)
+                                .foregroundColor(brainColor(b))
+                                .padding(.horizontal, 5).padding(.vertical, 1)
+                                .background(brainColor(b).opacity(0.13))
+                                .clipShape(Capsule())
+                        }
+                        if !turn.toolCalls.isEmpty {
+                            Text("\(turn.toolCalls.count) ACTION\(turn.toolCalls.count == 1 ? "" : "S")")
+                                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                                .tracking(1.5)
+                                .foregroundColor(.cyan)
+                                .padding(.horizontal, 5).padding(.vertical, 1)
+                                .background(Color.cyan.opacity(0.13))
+                                .clipShape(Capsule())
+                        }
+                    }
+                }
+
+                // Tool-call cards above prose so Eve's actions are visible
+                if isEve, !turn.toolCalls.isEmpty {
+                    VStack(spacing: 4) {
+                        ForEach(turn.toolCalls) { tc in
+                            ToolCallCardiOS(summary: tc)
+                        }
+                    }
+                }
+
+                Text(turn.content)
+                    .font(.system(size: 13))
+                    .foregroundColor(isEve ? .indigo.opacity(0.92) : .white.opacity(0.78))
+                    .multilineTextAlignment(.leading)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(isEve ? Color.indigo.opacity(0.10) : Color.white.opacity(0.05))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(isEve ? Color.indigo.opacity(0.25) : Color.white.opacity(0.10), lineWidth: 1)
+                    )
+                    .frame(maxWidth: .infinity, alignment: isEve ? .leading : .trailing)
+                    .textSelection(.enabled)
+            }
 
             if !isEve {
                 Text("YOU")
@@ -594,6 +726,95 @@ private struct IOSChatBubble: View {
                 Spacer(minLength: 60)
             }
         }
+    }
+
+    private func brainLabel(_ b: String) -> String {
+        switch b {
+        case "grok":    return "GROK"
+        case "local":   return "LOCAL"
+        case "claude":  return "CLAUDE"
+        case "vision":  return "VISION"
+        case "offline": return "OFFLINE"
+        default:        return b.uppercased()
+        }
+    }
+
+    private func brainColor(_ b: String) -> Color {
+        switch b {
+        case "grok":    return .indigo
+        case "local":   return .cyan
+        case "claude":  return .orange
+        case "vision":  return .cyan
+        case "offline": return .gray
+        default:        return .gray
+        }
+    }
+}
+
+/// iOS variant of the tool-call card — same data shape as Lumen + nexus-web.
+private struct ToolCallCardiOS: View {
+    let summary: ToolCallSummary
+
+    private var accent: Color {
+        if !summary.success { return .red }
+        switch summary.name {
+        case _ where summary.name.hasPrefix("arena_payment"): return .red
+        case _ where summary.name.hasPrefix("arena_sync"):    return .indigo
+        case _ where summary.name.hasPrefix("arena_task"):    return .cyan
+        default:                                              return .indigo
+        }
+    }
+
+    private var icon: String {
+        if !summary.success { return "exclamationmark.triangle.fill" }
+        switch summary.name {
+        case "arena_task_create":  return "checkmark.seal.fill"
+        case "arena_task_update":  return "pencil.circle.fill"
+        case "arena_payment_route": return "dollarsign.circle.fill"
+        case "arena_sync_push":    return "arrow.up.to.line.circle.fill"
+        case "arena_recent":       return "list.bullet.rectangle.portrait.fill"
+        default:                   return "wrench.and.screwdriver.fill"
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 9) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(accent)
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 5) {
+                    Text(summary.humanLabel.uppercased())
+                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                        .tracking(1.5)
+                        .foregroundColor(accent)
+                    if !summary.success {
+                        Text("FAILED")
+                            .font(.system(size: 8, weight: .bold, design: .monospaced))
+                            .tracking(1.5)
+                            .foregroundColor(.red)
+                            .padding(.horizontal, 4).padding(.vertical, 1)
+                            .background(Color.red.opacity(0.18))
+                            .clipShape(Capsule())
+                    }
+                }
+                Text(summary.primary)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.92))
+                    .lineLimit(1)
+                if !summary.detail.isEmpty {
+                    Text(summary.detail)
+                        .font(.system(size: 9, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.5))
+                        .lineLimit(1)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 9).padding(.vertical, 7)
+        .background(accent.opacity(0.10))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(accent.opacity(0.32), lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 
