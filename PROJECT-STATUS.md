@@ -293,16 +293,49 @@ ollama pull qwen2.5:14b   # any model name
 
 ### Editor & AI Assistant
 
-**Required:** VS Code with Claude Code running in the integrated terminal.
+**Recommended:** `scripts/Claude-Vera.command` (double-click from Finder, drag to Dock for one-click access). Opens your default Terminal at the nexus repo root with Claude Code running. No VS Code required.
 
-### Quick Reference
+VS Code with Claude Code in the integrated terminal still works fine, but is no longer the canonical entry point.
+
+### Boot system (Operation Letsgo)
+
+Nexus runs as a permanent fixture via launchd, orchestrated by the `vera` CLI:
 
 | Task | Command |
 |---|---|
-| Launch Claude in current folder | `claude` |
-| Start nexus-web | `cd nexus-web && npm run dev` |
-| Start desktop app | `cd desktop && npm run dev` |
-| Rebuild Lumen | Open `lumen/lumen-desktop/lumen-desktop.xcodeproj` → `Cmd+R` |
+| Bring services up | `vera up` |
+| Take services down | `vera down` |
+| Pause for travel (survives reboot) | `vera pause` |
+| Resume after travel | `vera resume` |
+| Soft-restart after `git pull` | `vera reload [service]` |
+| Service health + status | `vera status` |
+| Tail logs | `vera logs [service]` |
+| One-time install | `vera install` |
+| Uninstall | `vera uninstall` |
+
+Services managed:
+- **web** — nexus-web (Next.js) on `:3000`
+- **arena** — arena (Express) on `:3001`
+- **ollama-check** — daily 09:00 probe + auto-pull missing Ollama models
+
+Logs land in `~/Library/Logs/Nexus/{web,arena,ollama-check}.log`. State (paused/running) persists at `~/.vera/state`.
+
+### Lumen (macOS native)
+
+| Task | Command |
+|---|---|
+| Build standalone `.app` to `/Applications/Lumen.app` | `./scripts/build-lumen.sh` |
+| Develop / debug | Open `lumen/lumen-desktop/lumen-desktop.xcodeproj` → `Cmd+R` |
+
+After the first build, `Lumen.app` is in `/Applications/`. Add it to System Settings → General → Login Items so it launches automatically.
+
+### Manual fallbacks (if Vera is uninstalled)
+
+| Task | Command |
+|---|---|
+| Start nexus-web manually | `cd nexus-web && npm run dev` |
+| Start arena manually | `cd arena && npm run dev` |
+| Launch Claude manually | `cd /Users/shadow/code/nexus && claude` |
 
 ---
 

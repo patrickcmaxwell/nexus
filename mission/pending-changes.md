@@ -4,6 +4,22 @@ Proposed code changes waiting on a condition. Each entry has a **trigger** that 
 
 ---
 
+## 0. Operation Multi-User — verify web deploy + test team admin
+
+**Trigger:** Director has time to test (he asked to be reminded later, 2026-05-05).
+**Context:** Phase 1-3 of Operation Multi-User are committed (migration 019, identity-first auth, web UI). Vercel deploy needs Director to push (`cd ~/code/nexus && git push origin main`).
+
+### Test checklist after Vercel build completes
+1. `fetch('/api/auth/me')` in browser console → returns identity bundle (`humanId`, `email`, `isOwner: true`)
+2. `fetch('/api/auth/known-users')` → returns array with Patrick + Merlin
+3. `/auth/pin` with email + 4-digit PIN → redirects to `/auth/face`
+4. `/` face scan → lands in dashboard
+5. `/dashboard/humans` shows both members; "Add Human" form opens (don't actually invite Londynn yet — wait until Lumen Phase 4 is done)
+
+If all 5 pass, ship Phase 4 Lumen build, THEN send Londynn's invite from `/dashboard/humans`.
+
+---
+
 ## 1. Lumen API key — read from environment, not hardcoded
 
 **Trigger:** Xcode is closed (or stopped debugging `lumen-desktop`).
@@ -50,3 +66,98 @@ After applying:
 grep -r "PASTE_YOUR_KEY_HERE\|sk-ant-" lumen/lumen-desktop/
 # should return nothing
 ```
+
+---
+
+## 2. Lumen `sessionCookie` is not persisted — re-auth required on every launch
+
+**Trigger:** Xcode is closed (or stopped debugging `lumen-desktop`).
+**File:** `lumen/lumen-desktop/lumen-desktop/LumenAPIManager.swift:10`
+**Current:**
+```swift
+var sessionCookie: String?  // kept for nexus-web dashboard calls only
+```
+**Issue:** Plain `var` in memory only. On every Lumen relaunch the cookie is `nil`, so the user has to PIN/face-auth again. The DB session is still valid (14-day expiry) — the bug is purely client-side persistence.
+
+### Proposed replacement
+
+```swift
+private static let sessionCookieKey = "lumen.sessionCookie"
+
+var sessionCookie: String? {
+    didSet {
+        if let v = sessionCookie, !v.isEmpty {
+            UserDefaults.standard.set(v, forKey: LumenAPIManager.sessionCookieKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: LumenAPIManager.sessionCookieKey)
+        }
+    }
+}
+
+// In init() (or computed property pattern matching localModel/voiceId):
+//   self.sessionCookie = UserDefaults.standard.string(forKey: Self.sessionCookieKey)
+```
+
+**Companion fix in `AuthManager.swift`:** on launch, if `LumenAPIManager.shared.sessionCookie` is non-nil, set `isAuthenticated = true` immediately so the AuthGate is skipped.
+
+```swift
+init() {
+    if let cookie = LumenAPIManager.shared.sessionCookie, !cookie.isEmpty {
+        isAuthenticated = true
+    }
+}
+```
+
+Optional: validate the cookie against `/api/security/session-check` (or `/api/dashboard/overview` as a probe) before trusting it; if 401, drop the cookie and force re-auth.
+
+### Verification
+
+1. Build Lumen, PIN-auth.
+2. Quit + relaunch.
+3. Should land directly on the dashboard without seeing AuthGate.
+4. `defaults read com.maxwell.lumen-desktop lumen.sessionCookie` should print the same UUID.
+
+---
+
+## 3. nexus-web `/api/security/pin` queries deprecated `team_members` table
+
+**Trigger:** Anytime — non-Swift, no Xcode constraint. Apply during a non-test window for nexus-web.
+**File:** `nexus-web/app/api/security/pin/route.ts:38-44`
+**Issue:** PIN auth path looks up `team_members` while the rest of the security stack (`/api/security/face`) was migrated to `humans`. Today both tables exist (`team_members` HTTP 200 with rows; `humans` exists too) so the bug is latent — but the moment `team_members` is dropped, all team-member PIN logins break instantly. Owner login via `MAXWELL_PIN` env var would still work.
+
+### Proposed replacement
+
+Add a fallback to `humans` after the `team_members` lookup (with `pin_hash` column, if it exists in humans schema):
+
+```ts
+// 1. Try team_members (legacy, still authoritative until migration completes)
+let { data: member } = await supabase
+  .from("team_members")
+  .select("id, name, role")
+  .eq("pin_hash", pinHash)
+  .eq("status", "active")
+  .single()
+
+// 2. Fallback to humans (post-migration target)
+if (!member) {
+  const { data: human } = await supabase
+    .from("humans")
+    .select("id, role")           // confirm column names — `name` may not exist in humans
+    .eq("pin_hash", pinHash)
+    .eq("status", "active")       // or .eq("active", true) — check schema
+    .single()
+  if (human) member = { id: human.id, name: "", role: human.role }
+}
+```
+
+**Pre-flight:** confirm `humans` schema has `pin_hash` and an active flag before deploying. Quick check:
+```bash
+curl -s "$SUPA_URL/rest/v1/humans?select=id,pin_hash&limit=1" \
+  -H "apikey: $SUPA_KEY" -H "Authorization: Bearer $SUPA_KEY"
+```
+
+### Verification
+
+1. Apply migration mapping a known team_member's `pin_hash` to a `humans` row.
+2. POST to `/api/security/pin` with that PIN, expect `{ success: true }`.
+3. Drop the team_members row, repeat — should still succeed via `humans` fallback.
