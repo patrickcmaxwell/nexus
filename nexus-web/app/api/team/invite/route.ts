@@ -58,42 +58,57 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const { name, seedFaceDescriptor, role = "observer" } = await req.json()
+  const { name, email, seedFaceDescriptor, role = "observer" } = await req.json()
   if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 })
-  
+  if (!email) return NextResponse.json({ error: "Email is required" }, { status: 400 })
+
   if (!["observer", "collaborator", "operator", "admin"].includes(role)) {
     return NextResponse.json({ error: "Invalid role specified" }, { status: 400 })
   }
 
   const supabase = getServiceClient()
 
+  // Reject duplicate email (case-insensitive — backed by humans_email_lower_idx)
+  const { data: existing } = await supabase
+    .from("humans")
+    .select("id, display_name, status")
+    .ilike("email", email)
+    .maybeSingle()
+  if (existing) {
+    return NextResponse.json(
+      { error: `${existing.display_name || "Someone"} is already in the team (${existing.status})` },
+      { status: 409 }
+    )
+  }
+
   // Generate invite token
   const inviteToken = crypto.randomBytes(32).toString("hex")
 
-  // Create a temporary PIN hash
-  const tempPin = crypto.randomBytes(4).toString("hex") 
+  // Temporary PIN hash that the invitee replaces during /invite/[token] setup.
+  // pin_hash is NOT NULL on the table, so we have to seed it with something.
+  const tempPin = crypto.randomBytes(4).toString("hex")
   const tempPinHash = crypto.createHash("sha256").update(tempPin).digest("hex")
-  
-  // Create a handle from the name
+
   const safeHandle = name.toLowerCase().replace(/[^a-z0-9]/g, "") + "_" + crypto.randomBytes(2).toString("hex")
 
   const { data, error } = await supabase
     .from("humans")
     .insert({
       display_name: name,
+      email: email,
       handle: safeHandle,
       role: role,
+      is_owner: false,
       pin_hash: tempPinHash,
       seed_face_descriptor: seedFaceDescriptor || null,
       status: "invited",
       invite_token: inviteToken,
     })
-    .select("id, display_name, invite_token, status")
+    .select("id, display_name, email, invite_token, status")
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Build invite URL
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
   const inviteUrl = `${baseUrl}/invite/${inviteToken}`
 

@@ -2,8 +2,10 @@ import { cookies } from "next/headers"
 import { createServiceClient } from "@/lib/supabase/service"
 
 /**
- * The original single-user identity for this Nexus deployment.
- * Used as a fallback when team_member_id is not available in the session.
+ * Legacy "single-user" identity. Patrick's auth.users.id. Kept as a const
+ * for backward compatibility with routes that still reference it directly,
+ * but new code should call `getActiveAuthId()` from `@/lib/auth/session`
+ * to support multi-user isolation.
  */
 export const USER_ID = "e9d9a15b-0e5a-4631-9b50-6225ee03a44f"
 
@@ -27,6 +29,8 @@ export async function isAuthed(): Promise<boolean> {
 
 /**
  * Returns the team_member_id from the current session, or null if not found.
+ * (Kept as the team_member_id name for compatibility — points at humans.id
+ * after the multi-user migration unified the two tables.)
  */
 export async function getSessionMemberId(): Promise<string | null> {
   const cookieStore = await cookies()
@@ -43,7 +47,9 @@ export async function getSessionMemberId(): Promise<string | null> {
 }
 
 /**
- * Returns the full team member record for the current session.
+ * Returns the full human record for the current session. The shape mirrors
+ * what callers expected when this came from `team_members`, so existing
+ * call sites keep working — `name` is mapped from `display_name`.
  */
 export async function getSessionMember(): Promise<{
   id: string
@@ -56,9 +62,16 @@ export async function getSessionMember(): Promise<{
   if (!memberId) return null
   const supabase = createServiceClient()
   const { data } = await supabase
-    .from("team_members")
-    .select("id, name, role, email, status")
+    .from("humans")
+    .select("id, display_name, role, email, status")
     .eq("id", memberId)
     .single()
-  return data || null
+  if (!data) return null
+  return {
+    id: data.id,
+    name: data.display_name,
+    role: data.role,
+    email: data.email,
+    status: data.status,
+  }
 }
