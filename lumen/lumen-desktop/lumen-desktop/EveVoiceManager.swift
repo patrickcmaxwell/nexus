@@ -15,6 +15,10 @@ class EveVoiceManager: NSObject, AVSpeechSynthesizerDelegate, AVAudioPlayerDeleg
     var onTranscriptPartial: ((String) -> Void)?
     var onAudioLevel: ((Float) -> Void)?
     var onReadyToListen: (() -> Void)?
+    /// Fires when the Director starts speaking while Eve is mid-reply.
+    /// Subscriber should stop showing Eve as speaking and prepare for the
+    /// recognizer to produce the user's incoming utterance.
+    var onBargeIn: (() -> Void)?
 
     private var speakCompletion: (() -> Void)?
     private var latestPartial = ""
@@ -27,12 +31,28 @@ class EveVoiceManager: NSObject, AVSpeechSynthesizerDelegate, AVAudioPlayerDeleg
     private var lastSpeechTime: Date = Date()
     private var firstSpeechTime: Date? = nil      // set when first voice activity detected
     private var silenceWatchdog: Timer?
-    private let silenceThreshold: Float = 0.010   // raw RMS below this = silence
-    private let shortPauseDelay: TimeInterval = 1.0    // sentence-final punctuation
-    private let mediumPauseDelay: TimeInterval = 1.4
-    private let longPauseDelay: TimeInterval = 1.9
-    private let connectorPauseDelay: TimeInterval = 2.4   // trailing "and", "but", "so", etc.
-    private let minSpeakDuration: TimeInterval = 0.5     // must have spoken for at least this long
+    // RMS-based "is the mic hearing sound" detector. Lowered substantially
+    // because the previous 0.012 dropped below the floor between syllables
+    // and the watchdog mistook normal speech rhythm for silence. Partial
+    // transcript updates are now the PRIMARY end-of-speech signal; RMS only
+    // catches activity the recognizer hasn't transcribed yet (mumbles,
+    // breaths, starts of utterances).
+    private let silenceThreshold: Float = 0.004
+    // Pause windows tuned for FLUID conversation. Director was being cut off
+    // mid-thought; SFSpeechRecognizer's own `isFinal` callback is now ignored
+    // as a submit trigger so these delays are the SOLE arbiter of end-of-utterance.
+    private let shortPauseDelay: TimeInterval = 1.8        // sentence-final punctuation (was 1.0)
+    private let mediumPauseDelay: TimeInterval = 2.6       // typical mid-utterance (was 1.4)
+    private let longPauseDelay: TimeInterval = 3.4         // very short fragment (was 1.9)
+    private let connectorPauseDelay: TimeInterval = 4.2    // trailing "and"/"but"/"so" (was 2.4)
+    private let minSpeakDuration: TimeInterval = 0.4       // must have spoken for at least this long
+
+    /// Buffer that survives recognizer restarts. SFSpeechRecognizer ends the
+    /// recognition task whenever it decides `isFinal` (often after <1s pause)
+    /// — to keep listening, we restart the task and concat each burst of
+    /// recognized text into this buffer. The Director sees a continuous
+    /// transcript regardless of how many internal restarts happened.
+    private var accumulatedFinal: String = ""
     // Words that mean the Director is mid-thought when they trail a phrase.
     private let connectorWords: Set<String> = [
         "and", "but", "or", "so", "then", "because", "cause",
@@ -87,13 +107,11 @@ class EveVoiceManager: NSObject, AVSpeechSynthesizerDelegate, AVAudioPlayerDeleg
     private func beginRecognition() {
         stopEngine()
 
+        accumulatedFinal = ""
         latestPartial = ""
         lastTranscriptUpdate = Date()
         lastSpeechTime = Date()
         firstSpeechTime = nil
-
-        recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
-        recognitionRequest?.shouldReportPartialResults = true
 
         let inputNode = engine.inputNode
         let format = inputNode.outputFormat(forBus: 0)
@@ -133,24 +151,86 @@ class EveVoiceManager: NSObject, AVSpeechSynthesizerDelegate, AVAudioPlayerDeleg
             self?.checkSilence()
         }
 
-        recognitionTask = recognizer?.recognitionTask(with: recognitionRequest!) { [weak self] result, error in
+        startRecognitionTask()
+    }
+
+    /// Start (or restart) the SFSpeechRecognizer task. Called once at engine
+    /// start and again whenever the recognizer fires `isFinal` (which it does
+    /// after even a brief pause). The audio tap keeps appending to the
+    /// current `recognitionRequest`, so audio flow is uninterrupted across
+    /// restarts — the Director never gets cut off.
+    private func startRecognitionTask() {
+        let req = SFSpeechAudioBufferRecognitionRequest()
+        req.shouldReportPartialResults = true
+        req.taskHint = .dictation   // long-form, patient endpointing
+        recognitionRequest = req
+
+        recognitionTask = recognizer?.recognitionTask(with: req) { [weak self] result, error in
+            guard let self else { return }
             if let result = result {
                 let text = result.bestTranscription.formattedString
                 if result.isFinal {
+                    // Apple's recognizer thinks we're done — it isn't authoritative.
+                    // Fold this burst into the accumulated transcript and rekick
+                    // recognition so the user can keep talking. The silence
+                    // watchdog (real audio RMS) is the only thing that ends an
+                    // utterance now.
                     DispatchQueue.main.async {
-                        self?.latestPartial = ""
-                        self?.lastTranscriptUpdate = Date()
-                        self?.onAudioLevel?(0)
-                        if !text.isEmpty { self?.onTranscriptFinal?(text) }
+                        self.foldIsFinal(text)
                     }
-                    self?.stopEngine()
                 } else if !text.isEmpty {
-                    self?.latestPartial = text
-                    self?.lastTranscriptUpdate = Date()
-                    DispatchQueue.main.async { self?.onTranscriptPartial?(text) }
+                    let combined = self.accumulatedFinal.isEmpty
+                        ? text
+                        : "\(self.accumulatedFinal) \(text)"
+                    DispatchQueue.main.async {
+                        // Partial transcript = authoritative proof user is
+                        // still speaking. Refresh BOTH timers so the watchdog
+                        // can't fire while text is still being added.
+                        let now = Date()
+                        self.latestPartial = combined
+                        self.lastTranscriptUpdate = now
+                        self.lastSpeechTime = now
+                        if self.firstSpeechTime == nil { self.firstSpeechTime = now }
+                        self.onTranscriptPartial?(combined)
+                    }
                 }
             }
-            if error != nil { self?.stopEngine() }
+            if error != nil {
+                // Don't kill the engine — restart the task. Common transient
+                // errors are timeouts after silence, which we recover from.
+                DispatchQueue.main.async {
+                    if self.silenceWatchdog != nil {
+                        self.startRecognitionTask()
+                    }
+                }
+            }
+        }
+    }
+
+    /// Called when SFSpeechRecognizer fires `isFinal`. Append the burst to
+    /// `accumulatedFinal`, push a partial-transcript update so the UI stays
+    /// in sync, then restart the recognizer so audio continues to flow.
+    private func foldIsFinal(_ text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            // The recognizer producing a final burst = unambiguous proof of
+            // recent speech. Refresh the watchdog clocks so the restart
+            // window can't trigger a false silence detection.
+            let now = Date()
+            accumulatedFinal = accumulatedFinal.isEmpty
+                ? trimmed
+                : "\(accumulatedFinal) \(trimmed)"
+            latestPartial = accumulatedFinal
+            lastTranscriptUpdate = now
+            lastSpeechTime = now
+            onTranscriptPartial?(accumulatedFinal)
+        }
+        // Critical: restart the recognizer so subsequent audio is still
+        // recognized. Cancel the old task first to avoid duplicate callbacks.
+        recognitionTask?.cancel()
+        recognitionTask = nil
+        if silenceWatchdog != nil {
+            startRecognitionTask()
         }
     }
 
@@ -197,23 +277,38 @@ class EveVoiceManager: NSObject, AVSpeechSynthesizerDelegate, AVAudioPlayerDeleg
     }
 
     private func submitPartialAndStop() {
-        let pending = latestPartial
+        // Combine accumulated bursts (from prior isFinal callbacks) with the
+        // current partial. This is the FULL transcript the Director just spoke.
+        let combined = mergedTranscript()
+        accumulatedFinal = ""
         latestPartial = ""
         lastTranscriptUpdate = Date()
         stopEngine()
         onAudioLevel?(0)
-        if !pending.isEmpty { onTranscriptFinal?(pending) }
+        if !combined.isEmpty { onTranscriptFinal?(combined) }
     }
 
     func stopListening() {
-        let pending = latestPartial
+        let combined = mergedTranscript()
+        accumulatedFinal = ""
         latestPartial = ""
         lastTranscriptUpdate = Date()
         stopEngine()
         onAudioLevel?(0)
-        if !pending.isEmpty {
-            DispatchQueue.main.async { self.onTranscriptFinal?(pending) }
+        if !combined.isEmpty {
+            DispatchQueue.main.async { self.onTranscriptFinal?(combined) }
         }
+    }
+
+    /// Pick the fuller of the two — `latestPartial` already incorporates
+    /// `accumulatedFinal` in normal operation, but if a partial hasn't fired
+    /// yet after the latest restart, `accumulatedFinal` alone is the source
+    /// of truth.
+    private func mergedTranscript() -> String {
+        let p = latestPartial.trimmingCharacters(in: .whitespacesAndNewlines)
+        let a = accumulatedFinal.trimmingCharacters(in: .whitespacesAndNewlines)
+        if p.count >= a.count { return p }
+        return a
     }
 
     private func stopEngine() {
@@ -282,12 +377,153 @@ class EveVoiceManager: NSObject, AVSpeechSynthesizerDelegate, AVAudioPlayerDeleg
             audioPlayer = try AVAudioPlayer(data: data)
             audioPlayer?.delegate = self
             audioPlayer?.volume = 1.0
+            audioPlayer?.isMeteringEnabled = true   // <- enable level metering for the orb
             audioPlayer?.prepareToPlay()
             audioPlayer?.play()
+            startTTSMetering()
+            startBargeInMonitor()  // Director can interrupt Eve mid-reply
         } catch {
             // If the data isn't playable, fall back to system speech with a generic
             fallbackSystemSpeak("Voice playback failed.")
         }
+    }
+
+    // MARK: - Barge-in detection
+    //
+    // Lightweight VAD on the mic while Eve is speaking. Fires `onBargeIn`
+    // when sustained user voice is detected, allowing the caller to stop
+    // Eve's playback and switch to listening — natural-conversation pattern.
+    //
+    // Implemented via AVAudioRecorder (level metering only, audio discarded)
+    // rather than a second AVAudioEngine, because two engines tapping the
+    // mic simultaneously throws Core Audio -10877 errors all over the
+    // console. Recorder + a 30Hz polling timer is much lighter and doesn't
+    // collide with the speech-recognition engine when it's idle.
+    //
+    // Disable-able: set `bargeInEnabled = false` (defaults true) to skip
+    // entirely if the mic is unavailable or the user prefers no interrupt.
+
+    private var bargeInRecorder: AVAudioRecorder?
+    private var bargeInTimer: Timer?
+    private var bargeInVoiceFrames: Int = 0
+    private let bargeInRMSThreshold: Float = 0.05    // linear (0…1) — high to avoid Eve's own playback
+    private let bargeInSustainedFrames: Int = 6
+    private let bargeInTempURL: URL = URL(
+        fileURLWithPath: NSTemporaryDirectory() + "lumen-barge.caf"
+    )
+    var bargeInEnabled: Bool = true   // toggle off if it ever causes issues
+
+    private func startBargeInMonitor() {
+        guard bargeInEnabled,
+              recognitionTask == nil,
+              bargeInRecorder == nil
+        else { return }
+
+        let settings: [String: Any] = [
+            AVFormatIDKey:           Int(kAudioFormatLinearPCM),
+            AVSampleRateKey:         16000,
+            AVNumberOfChannelsKey:   1,
+            AVLinearPCMBitDepthKey:  16,
+            AVLinearPCMIsFloatKey:   false,
+            AVLinearPCMIsBigEndianKey: false,
+        ]
+        do {
+            let recorder = try AVAudioRecorder(url: bargeInTempURL, settings: settings)
+            recorder.isMeteringEnabled = true
+            guard recorder.prepareToRecord(), recorder.record() else { return }
+            bargeInRecorder = recorder
+            bargeInVoiceFrames = 0
+
+            // Poll meter at ~30Hz. Lighter than installing an audio tap; no
+            // engine collision with AVSpeechSynthesizer / AVAudioPlayer.
+            let timer = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
+                self?.pollBargeInMeter()
+            }
+            RunLoop.main.add(timer, forMode: .common)
+            bargeInTimer = timer
+        } catch {
+            // Recorder couldn't start — common when mic is in use elsewhere.
+            // Silently degrade. Director won't get barge-in this turn but
+            // nothing crashes.
+            bargeInRecorder = nil
+        }
+    }
+
+    private func pollBargeInMeter() {
+        guard let r = bargeInRecorder else { return }
+        r.updateMeters()
+        let db = r.averagePower(forChannel: 0)   // -160 … 0
+        // Convert dB to linear amplitude
+        let clamped = max(-50, min(0, db))
+        let linear = pow(10.0, Float(clamped) / 20.0)
+
+        if linear >= bargeInRMSThreshold {
+            bargeInVoiceFrames += 1
+            if bargeInVoiceFrames >= bargeInSustainedFrames {
+                handleBargeIn()
+            }
+        } else {
+            bargeInVoiceFrames = max(0, bargeInVoiceFrames - 1)
+        }
+    }
+
+    private func stopBargeInMonitor() {
+        bargeInTimer?.invalidate()
+        bargeInTimer = nil
+        bargeInRecorder?.stop()
+        bargeInRecorder = nil
+        bargeInVoiceFrames = 0
+    }
+
+    /// Director made noise while Eve was speaking. Per the Director's spec:
+    /// interrupt = "shut up so I can move on" — NOT "start listening."
+    /// Going silent during Eve's reply means "I'm letting you finish, keep
+    /// going." So we just stop her playback and idle out. The Director can
+    /// hit the mic explicitly when they're ready to speak.
+    private func handleBargeIn() {
+        guard bargeInRecorder != nil else { return }
+        stopBargeInMonitor()
+        synthesizer.stopSpeaking(at: .immediate)
+        audioPlayer?.stop()
+        audioPlayer = nil
+        stopTTSMetering()
+        let completion = speakCompletion
+        speakCompletion = nil
+        onBargeIn?()        // listener flips eveStatus to .idle
+        completion?()       // unblock anyone awaiting end-of-speech
+    }
+
+    /// 60Hz metering loop. While `audioPlayer` is alive, samples the average
+    /// power on channel 0 and pushes a normalized 0…1 amplitude through
+    /// `onAudioLevel`. This is what makes the EveOrb pulse with Eve's TTS
+    /// voice (ElevenLabs MP3) instead of going dead during her replies.
+    private var ttsMeterTimer: Timer?
+    private func startTTSMetering() {
+        ttsMeterTimer?.invalidate()
+        let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
+            guard let self, let player = self.audioPlayer, player.isPlaying else {
+                self?.stopTTSMetering()
+                return
+            }
+            player.updateMeters()
+            // averagePower returns dB in [-160, 0]. Map to linear 0…1 with a
+            // perceptual curve — most speech sits in [-30, -10] dB so we
+            // expand that range.
+            let db = player.averagePower(forChannel: 0)
+            let clamped = max(-50, min(0, db))
+            let linear = pow(10.0, Float(clamped) / 20.0)        // 0…1
+            // Boost a bit so quiet speech still drives visible motion
+            let boosted = min(1.0, linear * 2.4)
+            self.onAudioLevel?(boosted)
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        ttsMeterTimer = timer
+    }
+
+    private func stopTTSMetering() {
+        ttsMeterTimer?.invalidate()
+        ttsMeterTimer = nil
+        onAudioLevel?(0)
     }
 
     private func fallbackSystemSpeak(_ text: String) {
@@ -304,20 +540,30 @@ class EveVoiceManager: NSObject, AVSpeechSynthesizerDelegate, AVAudioPlayerDeleg
         utterance.pitchMultiplier = 1.08
         utterance.volume = 1.0
         synthesizer.speak(utterance)
+        startBargeInMonitor()  // Director can interrupt system synth too
     }
 
     func stopSpeaking() {
         synthesizer.stopSpeaking(at: .immediate)
         audioPlayer?.stop()
         audioPlayer = nil
+        stopTTSMetering()
+        stopBargeInMonitor()
         speakCompletion?()
         speakCompletion = nil
     }
 
     // MARK: - AVSpeechSynthesizerDelegate
 
+    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
+        // System synth: no isMeteringEnabled equivalent. We can't drive the
+        // orb from real amplitude here, but barge-in still works (lifecycle
+        // hooks fire stopBargeInMonitor on finish).
+    }
+
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
         DispatchQueue.main.async { [weak self] in
+            self?.stopBargeInMonitor()
             self?.finishSpeaking()
         }
     }
@@ -326,6 +572,8 @@ class EveVoiceManager: NSObject, AVSpeechSynthesizerDelegate, AVAudioPlayerDeleg
 
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         DispatchQueue.main.async { [weak self] in
+            self?.stopTTSMetering()
+            self?.stopBargeInMonitor()
             self?.finishSpeaking()
         }
     }

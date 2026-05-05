@@ -102,11 +102,13 @@ struct NativePinView: View {
     let onAuthenticated: (String) -> Void
     let onBack: () -> Void
 
+    @State private var email = (UserDefaults.standard.string(forKey: "lumen.lastEmail") ?? "")
     @State private var pin = ""
     @State private var status: PinStatus = .idle
     @State private var errorMsg = ""
     @State private var shakeOffset: CGFloat = 0
-    @FocusState private var fieldFocused: Bool
+    @FocusState private var emailFocused: Bool
+    @FocusState private var pinFocused: Bool
 
     enum PinStatus { case idle, loading, error }
 
@@ -117,16 +119,23 @@ struct NativePinView: View {
         VStack(spacing: 0) {
             backRow
             Spacer()
-            VStack(spacing: 28) {
+            VStack(spacing: 24) {
                 header
+                emailField
                 pinDots
                 statusLine
             }
+            .frame(maxWidth: 320)
             Spacer()
         }
-        .background(hiddenInput)
-        .onAppear { fieldFocused = true }
-        .onTapGesture { fieldFocused = true }
+        .background(hiddenPinInput)
+        .onAppear {
+            // If the Director has logged in here before we have an email
+            // cached, jump them straight to the PIN dots. Otherwise focus
+            // email so they can type/auto-fill.
+            if email.isEmpty { emailFocused = true }
+            else { pinFocused = true }
+        }
     }
 
     // MARK: Sub-views
@@ -148,13 +157,35 @@ struct NativePinView: View {
 
     private var header: some View {
         VStack(spacing: 6) {
-            Text("Passcode")
+            Text("Sign in")
                 .font(.system(size: 22, weight: .semibold))
                 .foregroundStyle(.primary)
-            Text("Type your 4-digit code")
+            Text("Email + 4-digit passcode")
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
         }
+    }
+
+    /// Native macOS text field for the identity hint. Locked to lower-case
+    /// since emails are stored case-insensitive server-side; saves the
+    /// Director from accidentally entering "Patrick@..." vs "patrick@...".
+    private var emailField: some View {
+        TextField("you@example.com", text: $email)
+            .textFieldStyle(.plain)
+            .focused($emailFocused)
+            .font(.system(size: 13))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color.secondary.opacity(0.08))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(
+                emailFocused ? Color.accentColor.opacity(0.5) : Color.secondary.opacity(0.2),
+                lineWidth: 1
+            ))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .onSubmit { pinFocused = true }
+            .onChange(of: email) { _, new in
+                email = new.lowercased().trimmingCharacters(in: .whitespaces)
+            }
     }
 
     private var pinDots: some View {
@@ -173,7 +204,7 @@ struct NativePinView: View {
         .padding(.horizontal, 14)
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(fieldFocused ? Color.accentColor.opacity(0.5) : Color.clear, lineWidth: 1)
+                .stroke(pinFocused ? Color.accentColor.opacity(0.5) : Color.clear, lineWidth: 1)
         )
     }
 
@@ -191,9 +222,10 @@ struct NativePinView: View {
         .frame(height: 14)
     }
 
-    /// Invisible text field that captures keyboard input. Always focused so
-    /// the user can just start typing — no on-screen numpad needed.
-    private var hiddenInput: some View {
+    /// Invisible text field that captures keyboard input for the PIN. Only
+    /// focused after the email is set, so digit keystrokes don't compete
+    /// with email typing.
+    private var hiddenPinInput: some View {
         TextField("", text: Binding(
             get: { pin },
             set: { newValue in
@@ -205,13 +237,19 @@ struct NativePinView: View {
             }
         ))
         .textFieldStyle(.plain)
-        .focused($fieldFocused)
+        .focused($pinFocused)
         .opacity(0.001)
         .frame(width: 1, height: 1)
         .allowsHitTesting(false)
     }
 
     private func submitPin() async {
+        let trimmedEmail = email.trimmingCharacters(in: .whitespaces)
+        guard !trimmedEmail.isEmpty else {
+            await fail("EMAIL REQUIRED")
+            await MainActor.run { emailFocused = true }
+            return
+        }
         await MainActor.run { status = .loading }
 
         let base = LumenAPIManager.shared.nexusBase
@@ -221,22 +259,40 @@ struct NativePinView: View {
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("1", forHTTPHeaderField: "X-Lumen-Client")
-        req.httpBody = try? JSONSerialization.data(withJSONObject: ["pin": pin, "remember": true])
+        req.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "email": trimmedEmail,
+            "pin": pin,
+            "remember": true,
+        ])
 
         do {
             let (data, response) = try await URLSession.shared.data(for: req)
             let http = response as? HTTPURLResponse
             let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
 
-            if http?.statusCode == 200, let sessionId = json?["sessionId"] as? String, !sessionId.isEmpty {
+            if http?.statusCode == 200, let sessionId = (json?["sessionId"] as? String) ?? extractCookie(from: http), !sessionId.isEmpty {
+                UserDefaults.standard.set(trimmedEmail, forKey: "lumen.lastEmail")
                 await MainActor.run { onAuthenticated(sessionId) }
             } else {
                 let code = json?["error"] as? String ?? ""
-                await fail(code == "IP_BLOCKED" ? "IP BLOCKED — LOCKOUT ACTIVE" : "INVALID PASSCODE")
+                await fail(code == "IP_BLOCKED" ? "IP BLOCKED — LOCKOUT ACTIVE" : "INVALID CREDENTIALS")
             }
         } catch {
             await fail("CONNECTION ERROR — CHECK NEXUS")
         }
+    }
+
+    /// Fallback: if the X-Lumen-Client body field didn't come through,
+    /// pull nx_session from the Set-Cookie header.
+    private func extractCookie(from http: HTTPURLResponse?) -> String? {
+        guard let header = http?.value(forHTTPHeaderField: "Set-Cookie") else { return nil }
+        for part in header.split(separator: ";") {
+            let kv = part.split(separator: "=", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
+            if kv.count == 2, kv[0] == "nx_session" {
+                return kv[1]
+            }
+        }
+        return nil
     }
 
     @MainActor

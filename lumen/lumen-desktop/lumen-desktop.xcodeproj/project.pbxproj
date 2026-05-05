@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		DD0100000000000000ST0003 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = DD0100000000000000ST0002 /* SwiftTerm */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		BF67E59A2FA0592600157609 /* lumen-desktop.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "lumen-desktop.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DD0100000000000000ST0003 /* SwiftTerm in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +70,7 @@
 			);
 			name = "lumen-desktop";
 			packageProductDependencies = (
+				DD0100000000000000ST0002 /* SwiftTerm */,
 			);
 			productName = "lumen-desktop";
 			productReference = BF67E59A2FA0592600157609 /* lumen-desktop.app */;
@@ -94,6 +100,9 @@
 			);
 			mainGroup = BF67E5912FA0592600157609;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				DD0100000000000000ST0001 /* XCRemoteSwiftPackageReference "SwiftTerm" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = BF67E59B2FA0592600157609 /* Products */;
 			projectDirPath = "";
@@ -284,7 +293,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -329,6 +338,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		DD0100000000000000ST0001 /* XCRemoteSwiftPackageReference "SwiftTerm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/migueldeicaza/SwiftTerm";
+			requirement = {
+				kind = exactVersion;
+				version = 1.11.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		DD0100000000000000ST0002 /* SwiftTerm */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = DD0100000000000000ST0001 /* XCRemoteSwiftPackageReference "SwiftTerm" */;
+			productName = SwiftTerm;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = BF67E5922FA0592600157609 /* Project object */;
 }

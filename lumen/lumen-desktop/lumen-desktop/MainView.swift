@@ -72,7 +72,7 @@ struct MainView: View {
     }
 
     enum PanelType: String, Codable, Hashable, Equatable, CaseIterable, Identifiable {
-        case none, agents, operations, directives, memory, chats, nexusMap = "nexus_map", files, system, settings
+        case none, agents, operations, directives, memory, chats, nexusMap = "nexus_map", files, code, system, settings
         var id: String { rawValue }
 
         var title: String {
@@ -85,6 +85,7 @@ struct MainView: View {
             case .chats:      return "Conversations"
             case .nexusMap:   return "Nexus Map"
             case .files:      return "Files"
+            case .code:       return "Code"
             case .system:     return "System"
             case .settings:   return "Settings"
             }
@@ -143,6 +144,11 @@ struct MainView: View {
                 activePanel = MainView.panelFor(mentionType: type)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .lumenComposerFocus)) { _ in
+            // Triggered when a context-menu action (e.g. "Reply to this")
+            // wants the composer to grab focus immediately.
+            inputFocused = true
+        }
         .animation(.spring(response: 0.32, dampingFraction: 0.82), value: activePanel)
         .task {
             await store.fetchDashboard()
@@ -152,10 +158,15 @@ struct MainView: View {
     }
 
     private func submitInput() {
-        let text = inputText.trimmingCharacters(in: .whitespaces)
-        guard !text.isEmpty else { return }
+        let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        // If the Director picked "Reply" off an Eve message, prepend the
+        // quoted blockquote so Eve sees what's being responded to. Consuming
+        // the prefix also clears the pinned reply target.
+        let prefix = store.consumeReplyPrefix()
+        let outgoing = prefix + trimmed
         inputText = ""
-        Task { await store.send(text) }
+        Task { await store.send(outgoing) }
     }
 
     private func pingLMStudio() async {
@@ -189,6 +200,7 @@ struct SidebarNav: View {
     let lmStatus: MainView.LMStatus
     @Binding var activePanel: MainView.PanelType
     @EnvironmentObject var sync: LumenSync
+    @EnvironmentObject var apps: LumenAppRegistry
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -218,6 +230,11 @@ struct SidebarNav: View {
 
             Section("System") {
                 row(.files, label: "Files", icon: "folder.fill", tint: C.eve)
+                // Code badge tracks running Claude Code sessions live — the
+                // Director sees activity without having to open the panel.
+                row(.code, label: "Code", icon: "terminal.fill", tint: C.eve,
+                    badge: apps.runningCodeCount > 0 ? apps.runningCodeCount : nil,
+                    badgeIsLive: true)
                 row(.system, label: "System", icon: "cpu.fill", tint: C.listen)
                 row(.settings, label: "Settings", icon: "gearshape.fill", tint: C.think)
             }
@@ -229,7 +246,8 @@ struct SidebarNav: View {
     }
 
     @ViewBuilder
-    private func row(_ panel: MainView.PanelType, label: String, icon: String, tint: Color, badge: Int? = nil) -> some View {
+    private func row(_ panel: MainView.PanelType, label: String, icon: String, tint: Color,
+                     badge: Int? = nil, badgeIsLive: Bool = false) -> some View {
         HStack(spacing: 8) {
             Image(systemName: icon)
                 .foregroundStyle(tint)
@@ -237,9 +255,21 @@ struct SidebarNav: View {
             Text(label)
             Spacer()
             if let badge, badge > 0 {
-                Text("\(badge)")
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(.secondary)
+                if badgeIsLive {
+                    // Live activity dot + count — signals "something is
+                    // running in the background you may have forgotten."
+                    HStack(spacing: 4) {
+                        Circle().fill(C.listen).frame(width: 6, height: 6)
+                            .shadow(color: C.listen, radius: 3)
+                        Text("\(badge)")
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(C.listen)
+                    }
+                } else {
+                    Text("\(badge)")
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .tag(panel)
@@ -291,12 +321,26 @@ struct DetailContainer: View {
         Group {
             switch activePanel {
             case .none:
-                LiveThreadView(
-                    store: store,
-                    inputText: $inputText,
-                    inputFocused: $inputFocused,
-                    onSubmit: onSubmit
-                )
+                // Default surface routes through viewMode: dashboard is the
+                // new landing, live is the chat thread the Director engages
+                // into. Other panel selections (chats, agents, etc.) bypass
+                // viewMode entirely and show their dedicated panel.
+                if store.viewMode == .dashboard {
+                    DashboardView(
+                        store: store,
+                        auth: auth,
+                        lmStatus: lmStatus,
+                        inputText: $inputText,
+                        inputFocused: $inputFocused
+                    )
+                } else {
+                    LiveThreadView(
+                        store: store,
+                        inputText: $inputText,
+                        inputFocused: $inputFocused,
+                        onSubmit: onSubmit
+                    )
+                }
             case .chats:
                 ChatsPanel(store: store) { activePanel = .none }
             case .agents:
@@ -311,6 +355,8 @@ struct DetailContainer: View {
                 NexusMapView(store: store)
             case .files:
                 FilesPanel(store: store) { activePanel = .none }
+            case .code:
+                CodePanel(store: store) { activePanel = .none }
             case .system:
                 SystemPanel(store: store) { activePanel = .none }
             case .settings:
@@ -320,8 +366,185 @@ struct DetailContainer: View {
         .navigationTitle(activePanel.title)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                EveStatusToolbar(store: store)
+                HStack(spacing: 10) {
+                    EveStatusToolbar(store: store)
+                    UserAvatarMenu()
+                }
             }
+        }
+    }
+}
+
+// MARK: - Multi-user avatar menu
+
+/// Top-bar avatar showing the active human's initial. Tap → menu with the
+/// active user's identity, list of other known sessions on this device,
+/// "Add another user" to launch a fresh auth, and "Sign Out".
+private struct UserAvatarMenu: View {
+    @EnvironmentObject var authRegistry: LumenAuthRegistry
+    @EnvironmentObject var auth: AuthManager
+    @State private var switchTargetEmail: String? = nil
+
+    var body: some View {
+        Menu {
+            if let active = authRegistry.activeHuman {
+                Section {
+                    Text(active.displayName)
+                    Text(active.email).font(.caption)
+                    Text("\(active.role.uppercased())\(active.isOwner ? " · OWNER" : "")")
+                        .font(.caption2)
+                }
+            }
+
+            // Other known sessions — switching requires PIN re-verify
+            let others = authRegistry.knownSessions.filter { $0.humanId != authRegistry.activeHuman?.humanId }
+            if !others.isEmpty {
+                Section("Switch User") {
+                    ForEach(others) { session in
+                        Button {
+                            switchTargetEmail = session.email
+                        } label: {
+                            Label("\(session.displayName) · \(session.email)", systemImage: "person.crop.circle")
+                        }
+                    }
+                }
+            }
+
+            Section {
+                Button {
+                    // Sign out the active user. AuthManager.signOut also calls
+                    // onSignOut → LumenAuthRegistry.signOutActive() so the
+                    // Keychain entry is dropped and AuthGate reappears.
+                    auth.signOut()
+                } label: {
+                    Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
+                }
+                Button {
+                    // "Add another user" — server-side logout invalidates the
+                    // current cookie, then routing back to AuthGate lets the
+                    // Director PIN/face into a different account. The prior
+                    // session stays in Keychain so they can switch back later.
+                    Task { @MainActor in
+                        await auth.signOut()
+                    }
+                } label: {
+                    Label("Add Another User", systemImage: "person.badge.plus")
+                }
+            }
+        } label: {
+            avatarLabel
+        }
+        .menuStyle(.borderlessButton)
+        .frame(width: 30, height: 30)
+        .sheet(item: Binding(
+            get: { switchTargetEmail.map { SwitchTarget(email: $0) } },
+            set: { switchTargetEmail = $0?.email }
+        )) { target in
+            SwitchUserSheet(targetEmail: target.email) { switchTargetEmail = nil }
+        }
+    }
+
+    @ViewBuilder
+    private var avatarLabel: some View {
+        let active = authRegistry.activeHuman
+        ZStack {
+            Circle()
+                .fill(active?.isOwner == true ? C.eve.opacity(0.25) : C.surfaceHi)
+            Circle()
+                .stroke(active?.isOwner == true ? C.eve.opacity(0.5) : C.hairline, lineWidth: 1)
+            Text(active?.avatarInitial ?? "?")
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .foregroundColor(active?.isOwner == true ? C.eve : .primary.opacity(0.7))
+        }
+        .frame(width: 28, height: 28)
+        .help(active.map { "\($0.displayName) · \($0.role)" } ?? "Not signed in")
+    }
+}
+
+/// `Identifiable` wrapper so we can drive a `.sheet(item:)` off an optional
+/// email string without rolling our own state.
+private struct SwitchTarget: Identifiable {
+    var id: String { email }
+    let email: String
+}
+
+/// PIN re-verify sheet that fires when the Director picks a different known
+/// user from the avatar menu. Calls `LumenAuthRegistry.switchUser` which
+/// hits `/api/auth/switch` — the server invalidates the current session
+/// and issues a fresh one for the target human.
+private struct SwitchUserSheet: View {
+    let targetEmail: String
+    let onDismiss: () -> Void
+
+    @EnvironmentObject var authRegistry: LumenAuthRegistry
+    @State private var pin = ""
+    @State private var status: Status = .idle
+    @State private var errorMsg = ""
+    @FocusState private var pinFocused: Bool
+
+    enum Status { case idle, loading, error }
+
+    var body: some View {
+        VStack(spacing: 18) {
+            VStack(spacing: 4) {
+                Text("Switch User").font(.system(size: 16, weight: .semibold))
+                Text("Enter PIN for \(targetEmail)")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+
+            HStack(spacing: 14) {
+                ForEach(0..<4, id: \.self) { i in
+                    Circle()
+                        .fill(i < pin.count
+                              ? (status == .error ? C.danger : C.eve)
+                              : Color.secondary.opacity(0.25))
+                        .frame(width: 12, height: 12)
+                }
+            }
+
+            if status == .error {
+                Text(errorMsg).font(.system(size: 10)).foregroundColor(C.danger)
+            } else if status == .loading {
+                Text("Switching…").font(.system(size: 10)).foregroundColor(C.eve)
+            }
+
+            HStack(spacing: 10) {
+                Button("Cancel") { onDismiss() }
+                    .buttonStyle(.bordered)
+            }
+
+            // Hidden text field captures keyboard input
+            TextField("", text: Binding(
+                get: { pin },
+                set: { newValue in
+                    guard status != .loading else { return }
+                    let digits = newValue.filter(\.isNumber)
+                    pin = String(digits.prefix(4))
+                    if pin.count == 4 { Task { await submit() } }
+                }
+            ))
+            .textFieldStyle(.plain)
+            .focused($pinFocused)
+            .opacity(0.001)
+            .frame(width: 1, height: 1)
+        }
+        .padding(28)
+        .frame(width: 280, height: 220)
+        .onAppear { pinFocused = true }
+    }
+
+    private func submit() async {
+        status = .loading
+        do {
+            try await authRegistry.switchUser(toEmail: targetEmail, pin: pin)
+            onDismiss()
+        } catch {
+            status = .error
+            errorMsg = "Invalid PIN"
+            pin = ""
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            status = .idle
         }
     }
 }
@@ -396,7 +619,16 @@ struct ComposerBar: View {
                 .padding(.horizontal, 14)
             }
 
-            HStack(spacing: 10) {
+            // Reply preview chip — appears when the Director picks "Reply"
+            // from an Eve message's right-click menu. Shows the quoted text
+            // and dismisses on click of the X.
+            if let target = store.replyTarget {
+                replyChip(target: target)
+                    .padding(.horizontal, 14)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+
+            HStack(alignment: .bottom, spacing: 10) {
                 Button(action: toggleMic) {
                     let active = store.fluidListening || store.eveStatus == .listening
                     Image(systemName: active ? "mic.fill" : "mic")
@@ -418,12 +650,15 @@ struct ComposerBar: View {
                 .buttonStyle(.plain)
                 .help("Attach image")
 
-                TextField("Send a directive…", text: $text, axis: .vertical)
-                    .textFieldStyle(.plain)
-                    .lineLimit(1...6)
-                    .focused($inputFocused)
-                    .onSubmit { onSubmit() }
-                    .font(.system(size: 14))
+                ChatComposerField(
+                    text: $text,
+                    placeholder: "Send a directive…  (⇧↩ for newline)",
+                    minHeight: 22,
+                    maxHeight: 160,
+                    onSubmit: onSubmit
+                )
+                .frame(minHeight: 22)
+                .padding(.vertical, 4)
 
                 if store.eveStatus == .speaking {
                     Button(action: { store.voice.stopSpeaking(); store.eveStatus = .idle }) {
@@ -497,6 +732,39 @@ struct ComposerBar: View {
                 store.attachImage(at: url)
             }
         }
+    }
+
+    /// Pinned-quote chip rendered above the composer when the Director has
+    /// chosen to reply to an Eve message. The composer's submit path consumes
+    /// `store.replyTarget` and prepends a quoted blockquote to the outgoing
+    /// turn so Eve sees what's being responded to.
+    @ViewBuilder
+    fileprivate func replyChip(target: ChatMessage) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Rectangle().fill(C.eve).frame(width: 2)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("REPLYING TO EVE")
+                    .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(1.5)
+                    .foregroundColor(C.eve.opacity(0.85))
+                Text(target.content)
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+            }
+            Spacer()
+            Button(action: { store.clearReplyTarget() }) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("Cancel reply")
+        }
+        .padding(8)
+        .background(C.surfaceHi)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(C.eve.opacity(0.25), lineWidth: 1))
     }
 }
 
@@ -633,6 +901,7 @@ struct HeroDeck: View {
 
     @Environment(\.openWindow) private var openWindow
     @EnvironmentObject var sync: LumenSync
+    @EnvironmentObject var apps: LumenAppRegistry
 
     private var statusColor: Color { store.eveStatus.color }
     private var messageCount: Int { store.messages.count }
@@ -749,6 +1018,17 @@ struct HeroDeck: View {
                 }, isSelected: {
                     activePanel == .files
                 }, onPopOut: { popOut(.files) })
+                WorkspaceNavButton(
+                    label: "Code",
+                    detail: apps.runningCodeCount > 0
+                        ? "\(apps.runningCodeCount) running · \(apps.runningCodeCount == 1 ? "session" : "sessions")"
+                        : "Claude Code in any folder",
+                    icon: "terminal.fill",
+                    tint: apps.runningCodeCount > 0 ? C.listen : C.eve,
+                    action: { activePanel = .code },
+                    isSelected: { activePanel == .code },
+                    onPopOut: { popOut(.code) }
+                )
                 WorkspaceNavButton(label: "System", detail: "Endpoints and datasets", icon: "cpu.fill", tint: C.listen, action: {
                     activePanel = .system
                 }, isSelected: {
@@ -854,6 +1134,10 @@ private struct WorkspaceCanvas: View {
             case .files:
                 WorkspaceSurface(title: "Files") {
                     FilesPanel(store: store) { activePanel = .none }
+                }
+            case .code:
+                WorkspaceSurface(title: "Code") {
+                    CodePanel(store: store) { activePanel = .none }
                 }
             case .system:
                 WorkspaceSurface(title: "System") {
@@ -1196,22 +1480,121 @@ struct ConversationThread: View {
     @ObservedObject var store: LumenStore
     @Environment(\.openWindow) private var openWindow
 
+    @State private var searchActive: Bool = false
+    @State private var searchQuery: String = ""
+    @State private var currentMatchIndex: Int = 0
+    @FocusState private var searchFocused: Bool
+
+    /// ⌘-click any message to toggle it in the selection. The floating
+    /// action bar at the bottom appears whenever this is non-empty and lets
+    /// you Read Aloud / Copy / Clear the chosen messages in chronological
+    /// order.
+    @State private var selectedMessageIds: Set<UUID> = []
+
+    private var selectedMessages: [ChatMessage] {
+        // Preserve message order regardless of selection order.
+        displayMessages.filter { selectedMessageIds.contains($0.id) }
+    }
+
     private var displayMessages: [ChatMessage] { store.messages }
 
+    /// Indices of messages that match the current query. Computed every render
+    /// — cheap at typical thread sizes (≤ a few hundred messages).
+    private var searchMatchIndices: [Int] {
+        let q = searchQuery.lowercased().trimmingCharacters(in: .whitespaces)
+        guard searchActive, !q.isEmpty else { return [] }
+        return displayMessages.indices.filter { displayMessages[$0].content.lowercased().contains(q) }
+    }
+
+    /// id of the currently-highlighted match (if any) — used by the
+    /// ScrollViewReader to scroll to it.
+    private var currentMatchId: UUID? {
+        let m = searchMatchIndices
+        guard !m.isEmpty else { return nil }
+        let idx = max(0, min(currentMatchIndex, m.count - 1))
+        return displayMessages[m[idx]].id
+    }
+
+    private var particleIntensity: Double {
+        switch store.eveStatus {
+        case .speaking:  return 1.0
+        case .thinking:  return 0.85
+        case .listening: return 0.55
+        case .idle:      return 0.32
+        }
+    }
+
+    /// Persisted toggle — Director can hide the right command-rail when
+    /// they want a chat-only view without losing the new layout entirely.
+    @AppStorage("lumen.commandCenter.railVisible") private var railVisible: Bool = true
+
+    /// Quick-view sheet target. When set, an overlay sheet slides in over
+    /// the chat (without dismissing it) showing the entity's detail.
+    enum QuickView: Identifiable, Hashable {
+        case operation(String)
+        case agent(String)
+        case directive(String)
+        var id: String {
+            switch self {
+            case .operation(let id):  return "op:\(id)"
+            case .agent(let id):      return "ag:\(id)"
+            case .directive(let id):  return "dir:\(id)"
+            }
+        }
+    }
+    @State private var quickView: QuickView? = nil
+
     var body: some View {
+        ZStack {
+        HStack(spacing: 0) {
         VStack(spacing: 0) {
+            liveThreadHeader
+            if searchActive { searchBar }
+
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 16) {
                         if displayMessages.isEmpty {
-                            EmptyState()
-                                .padding(.top, 80)
+                            // Show the rich Eve briefing dashboard when there's
+                            // nothing to display yet — way better than a blank
+                            // "standing by" pane.
+                            EveBriefingView(store: store)
                                 .frame(maxWidth: .infinity)
                         }
 
-                        ForEach(displayMessages) { msg in
+                        ForEach(Array(displayMessages.enumerated()), id: \.element.id) { idx, msg in
+                            let isMatch = searchMatchIndices.contains(idx)
+                            let isCurrent = (currentMatchId == msg.id)
+                            let isSelected = selectedMessageIds.contains(msg.id)
                             MessageRow(message: msg)
                                 .id(msg.id)
+                                .padding(.horizontal, (isMatch || isSelected) ? 6 : 0)
+                                .padding(.vertical, (isMatch || isSelected) ? 4 : 0)
+                                .background(
+                                    isCurrent ? C.listen.opacity(0.18) :
+                                    isSelected ? C.eve.opacity(0.12) :
+                                    (isMatch ? C.listen.opacity(0.08) : Color.clear)
+                                )
+                                .overlay(alignment: .leading) {
+                                    if isSelected {
+                                        Rectangle()
+                                            .fill(C.eve)
+                                            .frame(width: 3)
+                                    }
+                                }
+                                .overlay {
+                                    if isCurrent {
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(C.listen.opacity(0.6), lineWidth: 1)
+                                    }
+                                }
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .simultaneousGesture(
+                                    // ⌘-click toggles message in selection set
+                                    TapGesture().modifiers(.command).onEnded {
+                                        toggleSelection(msg.id)
+                                    }
+                                )
                                 .transition(.opacity)
                         }
 
@@ -1238,33 +1621,418 @@ struct ConversationThread: View {
                     .animation(.easeInOut(duration: 0.2), value: store.eveStatus)
                 }
                 .onChange(of: displayMessages.count) { _, _ in
-                    withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo("bottom") }
+                    if !searchActive {
+                        withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo("bottom") }
+                    }
                 }
                 .onChange(of: store.eveStatus) { _, s in
-                    if s == .thinking { withAnimation { proxy.scrollTo("bottom") } }
+                    if s == .thinking, !searchActive {
+                        withAnimation { proxy.scrollTo("bottom") }
+                    }
                 }
                 .onChange(of: store.partialTranscript) { _, _ in
-                    proxy.scrollTo("bottom")
+                    if !searchActive { proxy.scrollTo("bottom") }
+                }
+                .onChange(of: currentMatchIndex) { _, _ in
+                    if let id = currentMatchId {
+                        withAnimation(.easeOut(duration: 0.18)) {
+                            proxy.scrollTo(id, anchor: .center)
+                        }
+                    }
+                }
+                .onChange(of: searchQuery) { _, _ in
+                    // Reset cursor to first match whenever the query changes
+                    currentMatchIndex = 0
+                    if let id = currentMatchId {
+                        withAnimation(.easeOut(duration: 0.18)) {
+                            proxy.scrollTo(id, anchor: .center)
+                        }
+                    }
+                }
+                .onAppear {
+                    // Always land on the latest message when the chat opens.
+                    // Without this the scroll position is undefined and SwiftUI
+                    // tends to start at the top, which is wrong for a chat.
+                    DispatchQueue.main.async {
+                        proxy.scrollTo("bottom", anchor: .bottom)
+                    }
                 }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .toolbar {
             if let cid = store.currentConversationId {
-                ToolbarItem(placement: .secondaryAction) {
+                ToolbarItem(placement: .primaryAction) {
                     Button(action: { openWindow(id: "conversation-detail", value: cid) }) {
                         Label("Pop Out", systemImage: "rectangle.on.rectangle")
                     }
                     .help("Open this thread in its own window")
                 }
             }
-            ToolbarItem(placement: .secondaryAction) {
+            ToolbarItem(placement: .primaryAction) {
+                Button(action: { withAnimation(.easeInOut(duration: 0.25)) { railVisible.toggle() } }) {
+                    Label(railVisible ? "Hide Rail" : "Show Rail", systemImage: railVisible ? "sidebar.right" : "sidebar.right")
+                }
+                .help("Toggle the command-center rail")
+            }
+            ToolbarItem(placement: .primaryAction) {
                 Button(action: { store.newConversation() }) {
                     Label("New Thread", systemImage: "plus.bubble")
                 }
                 .help("Start a fresh conversation")
             }
         }
+
+        // ── Right rail: live command-center widgets ───────────────────────
+        if railVisible {
+            CommandCenterRail(
+                store: store,
+                onSelectOperation: { id in quickView = .operation(id) },
+                onSelectAgent:     { id in quickView = .agent(id) },
+                onSelectDirective: { id in quickView = .directive(id) }
+            )
+            .frame(width: 340)
+            .background(.ultraThinMaterial)
+            .overlay(Rectangle().frame(width: 1).foregroundColor(.secondary.opacity(0.18)), alignment: .leading)
+            .transition(.move(edge: .trailing).combined(with: .opacity))
+        }
+        }  // end HStack
+            // Selection action bar — appears when ⌘-click selection is non-empty
+            if !selectedMessageIds.isEmpty {
+                selectionActionBar
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    .padding(.bottom, 88)  // sit above the input bar
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .animation(.spring(response: 0.32, dampingFraction: 0.85), value: selectedMessageIds.count)
+            }
+        }  // end ZStack
+        // Quick-view sheet: a dashboard item slides up over the chat without
+        // dismissing it, so the Director can dig into something while still
+        // seeing Eve's stream.
+        .sheet(item: $quickView) { qv in
+            CommandCenterQuickView(
+                quickView: qv,
+                store: store,
+                onClose: { quickView = nil },
+                onOpenWindow: { type, id in
+                    quickView = nil
+                    openWindow(id: type, value: id)
+                }
+            )
+            .frame(minWidth: 540, minHeight: 480)
+        }
+    }
+
+    @ViewBuilder
+    private var selectionActionBar: some View {
+        HStack(spacing: 10) {
+            Text("\(selectedMessageIds.count) SELECTED")
+                .font(.system(size: 9, weight: .bold, design: .monospaced)).tracking(2)
+                .foregroundColor(C.eve)
+
+            Divider().frame(height: 16)
+
+            Button(action: readSelected) {
+                HStack(spacing: 5) {
+                    Image(systemName: "speaker.wave.2.fill").font(.system(size: 10, weight: .bold))
+                    Text("READ ALOUD")
+                        .font(.system(size: 9, weight: .bold, design: .monospaced)).tracking(1.5)
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 10).padding(.vertical, 6)
+                .background(C.eve)
+                .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+
+            Button(action: copySelected) {
+                HStack(spacing: 5) {
+                    Image(systemName: "doc.on.doc").font(.system(size: 10, weight: .bold))
+                    Text("COPY")
+                        .font(.system(size: 9, weight: .bold, design: .monospaced)).tracking(1.5)
+                }
+                .foregroundColor(.primary.opacity(0.85))
+                .padding(.horizontal, 10).padding(.vertical, 6)
+                .background(Color.secondary.opacity(0.15))
+                .overlay(Capsule().strokeBorder(Color.secondary.opacity(0.3), lineWidth: 1))
+                .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+
+            Button(action: { store.voice.stopSpeaking() }) {
+                HStack(spacing: 5) {
+                    Image(systemName: "stop.fill").font(.system(size: 10, weight: .bold))
+                    Text("STOP")
+                        .font(.system(size: 9, weight: .bold, design: .monospaced)).tracking(1.5)
+                }
+                .foregroundColor(.primary.opacity(0.7))
+                .padding(.horizontal, 10).padding(.vertical, 6)
+                .background(Color.secondary.opacity(0.10))
+                .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+
+            Button(action: clearSelection) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("Clear selection")
+        }
+        .padding(.horizontal, 14).padding(.vertical, 10)
+        .background(.regularMaterial)
+        .overlay(
+            RoundedRectangle(cornerRadius: 999)
+                .strokeBorder(C.eve.opacity(0.35), lineWidth: 1)
+        )
+        .clipShape(Capsule())
+        .shadow(color: .black.opacity(0.25), radius: 14, y: 6)
+    }
+
+    /// Search bar above the messages, only when active. Shows the query
+    /// field, match counter ("3 of 12"), prev/next buttons, and a close (✕).
+    /// ESC closes via a hidden button below.
+    @ViewBuilder
+    private var searchBar: some View {
+        let total = searchMatchIndices.count
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(C.listen)
+            TextField("Search this thread…", text: $searchQuery)
+                .textFieldStyle(.plain)
+                .font(.system(size: 13))
+                .focused($searchFocused)
+                .onSubmit { advanceMatch(by: +1) }
+
+            if !searchQuery.isEmpty {
+                Text(total == 0 ? "no matches" : "\(min(currentMatchIndex + 1, total)) of \(total)")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(.secondary)
+
+                Button(action: { advanceMatch(by: -1) }) {
+                    Image(systemName: "chevron.up")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.primary.opacity(0.85))
+                        .frame(width: 24, height: 22)
+                        .background(Color.secondary.opacity(0.10))
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(total == 0)
+
+                Button(action: { advanceMatch(by: +1) }) {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.primary.opacity(0.85))
+                        .frame(width: 24, height: 22)
+                        .background(Color.secondary.opacity(0.10))
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(total == 0)
+            }
+
+            Button(action: closeSearch) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial)
+        .overlay(Rectangle().frame(height: 1).foregroundColor(.secondary.opacity(0.18)), alignment: .bottom)
+        .background(
+            // ESC closes
+            Button("") { closeSearch() }
+                .keyboardShortcut(.escape, modifiers: [])
+                .opacity(0)
+        )
+    }
+
+    private func openSearch() {
+        withAnimation(.easeOut(duration: 0.15)) { searchActive = true }
+        DispatchQueue.main.async { searchFocused = true }
+    }
+
+    private func closeSearch() {
+        withAnimation(.easeOut(duration: 0.12)) {
+            searchActive = false
+            searchQuery = ""
+            currentMatchIndex = 0
+        }
+    }
+
+    private func advanceMatch(by step: Int) {
+        let total = searchMatchIndices.count
+        guard total > 0 else { return }
+        currentMatchIndex = (currentMatchIndex + step + total) % total
+    }
+
+    // MARK: - Multi-select
+
+    private func toggleSelection(_ id: UUID) {
+        withAnimation(.easeInOut(duration: 0.12)) {
+            if selectedMessageIds.contains(id) {
+                selectedMessageIds.remove(id)
+            } else {
+                selectedMessageIds.insert(id)
+            }
+        }
+    }
+
+    private func clearSelection() {
+        withAnimation(.easeOut(duration: 0.15)) { selectedMessageIds = [] }
+    }
+
+    private func readSelected() {
+        let joined = selectedMessages.map(\.content)
+            .joined(separator: ".\n\n")  // brief pause between messages
+        guard !joined.isEmpty else { return }
+        store.voice.speak(joined) {}
+    }
+
+    private func copySelected() {
+        let joined = selectedMessages.map(\.content)
+            .joined(separator: "\n\n")
+        guard !joined.isEmpty else { return }
+        MessageMeta.copyToClipboard(joined)
+    }
+
+    /// Always-visible thread header above the messages — gives the Director
+    /// clear "what thread am I in" status + one-click POP OUT / NEW / END+NEW.
+    @ViewBuilder
+    private var liveThreadHeader: some View {
+        let title = threadTitle
+        let isLive = store.currentConversationId != nil
+        let count = displayMessages.count
+
+        HStack(spacing: 10) {
+            // Back to Dashboard — returns to the briefing surface without
+            // dropping the active conversation. State is preserved so the
+            // Director can re-engage with one click.
+            Button(action: { store.returnToDashboard() }) {
+                Image(systemName: "rectangle.grid.2x2")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.secondary)
+                    .frame(width: 26, height: 26)
+                    .background(Color.secondary.opacity(0.08))
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .help("Back to Dashboard (mission report)")
+
+            // Status dot
+            Circle()
+                .fill(isLive ? C.eve : Color.secondary.opacity(0.4))
+                .frame(width: 7, height: 7)
+                .shadow(color: isLive ? C.eve : .clear, radius: 4)
+
+            // Title + meta
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.primary.opacity(0.92))
+                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(isLive ? "LIVE THREAD" : "FRESH START")
+                        .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(1.5)
+                        .foregroundColor(isLive ? C.eve : .secondary)
+                    if count > 0 {
+                        Text("·")
+                            .font(.system(size: 8, design: .monospaced))
+                            .foregroundColor(.secondary)
+                        Text("\(count) MSG\(count == 1 ? "" : "S")")
+                            .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(1.5)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+
+            Spacer()
+
+            // Search this thread — also bound to ⌘F via a hidden button below
+            if count > 0 {
+                threadHeaderButton(
+                    label: "SEARCH",
+                    icon: "magnifyingglass",
+                    color: C.listen
+                ) {
+                    if searchActive { closeSearch() } else { openSearch() }
+                }
+                .help("Search messages in this thread (⌘F)")
+            }
+
+            // Pop-out (only when there's something to pop)
+            if let cid = store.currentConversationId {
+                threadHeaderButton(
+                    label: "POP OUT",
+                    icon: "rectangle.on.rectangle",
+                    color: C.listen
+                ) {
+                    openWindow(id: "conversation-detail", value: cid)
+                }
+                .help("Open this thread in its own native window so you can run multiple conversations side by side")
+            }
+
+            // End-and-new (only meaningful if there's a live thread)
+            if isLive && count > 0 {
+                threadHeaderButton(
+                    label: "END & NEW",
+                    icon: "stop.circle",
+                    color: .secondary
+                ) {
+                    store.newConversation()
+                }
+                .help("End this conversation and start a fresh thread")
+            }
+
+            // New thread always available
+            threadHeaderButton(
+                label: isLive ? "+" : "NEW",
+                icon: "plus.bubble",
+                color: C.eve
+            ) {
+                store.newConversation()
+            }
+            .help("Start a brand-new conversation")
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 10)
+        .background(.ultraThinMaterial)
+        .overlay(Rectangle().frame(height: 1).foregroundColor(.secondary.opacity(0.18)), alignment: .bottom)
+        // Hidden button binds ⌘F to search toggle
+        .background(
+            Button("") {
+                if searchActive { closeSearch() } else { openSearch() }
+            }
+            .keyboardShortcut("f", modifiers: [.command])
+            .opacity(0)
+        )
+    }
+
+    /// Small, dense button for the thread header.
+    private func threadHeaderButton(
+        label: String,
+        icon: String,
+        color: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: icon).font(.system(size: 10, weight: .bold))
+                Text(label).font(.system(size: 9, weight: .bold, design: .monospaced)).tracking(1.5)
+            }
+            .foregroundColor(color)
+            .padding(.horizontal, 9).padding(.vertical, 5)
+            .background(color.opacity(0.12))
+            .overlay(Capsule().strokeBorder(color.opacity(0.4), lineWidth: 1))
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
     }
 
     private var threadTitle: String {
@@ -1342,6 +2110,991 @@ struct EmptyState: View {
     }
 }
 
+// MARK: - Eve Briefing
+//
+// Rich greeting + state summary shown when there's no active conversation.
+// Replaces the bland "standing by" empty state. Pulls everything from the
+// existing LumenStore — no new endpoint required.
+
+/// Right-rail "command center" widgets shown alongside the active chat.
+/// Mirrors the briefing sections but in a compact vertical strip so the
+/// Director can keep an eye on system pulse while talking to Eve.
+struct CommandCenterRail: View {
+    @ObservedObject var store: LumenStore
+    let onSelectOperation: (String) -> Void
+    let onSelectAgent: (String) -> Void
+    let onSelectDirective: (String) -> Void
+    @Environment(\.openWindow) private var openWindow
+
+    private var activeOps: [OperationItem] {
+        store.operations.filter { $0.status.lowercased() == "active" }
+    }
+    private var activeAgents: [AgentStatus] {
+        store.agents.filter { $0.status.lowercased() == "active" }
+    }
+    private var topDirectives: [DirectiveItem] {
+        store.directives
+            .filter { $0.isActive }
+            .sorted { $0.priority > $1.priority }
+            .prefix(4)
+            .map { $0 }
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                railHeader
+
+                // ── Eve orb — the centerpiece. Jarvis-style particle reticle
+                // with arcs, data ring, audio bloom. Always visible when the
+                // command center is open; pulses harder as Eve processes.
+                eveCenterpiece
+
+                // Pulse stats
+                pulseStrip
+
+                // Briefing delta — what changed since last visit
+                if let delta = store.briefingDelta, delta.hasAnyDelta {
+                    deltaSection(delta)
+                }
+
+                // Active operations — clickable
+                if !activeOps.isEmpty {
+                    sectionHeader("ACTIVE OPS", count: activeOps.count)
+                    VStack(spacing: 5) {
+                        ForEach(activeOps.prefix(8)) { op in
+                            opRow(op)
+                        }
+                    }
+                }
+
+                // Active agents — clickable
+                if !activeAgents.isEmpty {
+                    sectionHeader("ACTIVE AGENTS", count: activeAgents.count)
+                    VStack(spacing: 5) {
+                        ForEach(activeAgents.prefix(8)) { ag in
+                            agentRow(ag)
+                        }
+                    }
+                }
+
+                // Directives — clickable
+                if !topDirectives.isEmpty {
+                    sectionHeader("DIRECTIVES", count: topDirectives.count)
+                    VStack(spacing: 5) {
+                        ForEach(topDirectives) { d in
+                            directiveRow(d)
+                        }
+                    }
+                }
+
+                Spacer(minLength: 24)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 16)
+        }
+        .task {
+            await store.fetchBriefingDelta()
+        }
+    }
+
+    /// Centerpiece — large EveOrb (~200pt) plus status label below. Pulses
+    /// dramatically when Eve transitions through listen/think/speak states.
+    /// Hover or click the pop-out button to send the orb to its own window.
+    private var eveCenterpiece: some View {
+        VStack(spacing: 8) {
+            ZStack(alignment: .topTrailing) {
+                EveOrb(status: store.eveStatus, audioLevel: store.audioLevel)
+                    .scaleEffect(0.85)
+                    .frame(height: 204)
+
+                // Pop-out button — sends the orb to a dedicated window so the
+                // Director can pin it always-on-top or move it to a 2nd monitor
+                Button(action: { openWindow(id: "eve-orb") }) {
+                    Image(systemName: "rectangle.on.rectangle.angled")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.secondary)
+                        .padding(6)
+                        .background(.ultraThinMaterial)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 4).padding(.trailing, 8)
+                .help("Pop the orb into its own window (⌘⌥E)")
+            }
+
+            // Status label + audio meter
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(store.eveStatus.color)
+                    .frame(width: 6, height: 6)
+                    .shadow(color: store.eveStatus.color, radius: 4)
+                Text(store.eveStatus.label.uppercased())
+                    .font(.system(size: 9, weight: .bold, design: .monospaced)).tracking(2)
+                    .foregroundColor(store.eveStatus.color)
+                if store.eveStatus == .speaking || store.eveStatus == .listening || store.eveStatus == .thinking {
+                    HStack(spacing: 1) {
+                        ForEach(0..<6, id: \.self) { i in
+                            let bar = max(0.15, min(1.0, CGFloat(store.audioLevel) * CGFloat(i + 1) / 5.0))
+                            Capsule()
+                                .fill(store.eveStatus.color.opacity(0.7))
+                                .frame(width: 2, height: 4 + bar * 12)
+                        }
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 6)
+    }
+
+    // MARK: - Header
+    private var railHeader: some View {
+        HStack(spacing: 8) {
+            Circle().fill(C.eve).frame(width: 7, height: 7)
+                .shadow(color: C.eve, radius: 5)
+            Text("COMMAND CENTER")
+                .font(.system(size: 9, weight: .bold, design: .monospaced)).tracking(2.5)
+                .foregroundColor(C.eve)
+            Spacer()
+            if store.briefingLoading {
+                ProgressView().controlSize(.mini).tint(C.eve)
+            }
+        }
+    }
+
+    private var pulseStrip: some View {
+        HStack(spacing: 6) {
+            pulsePill(label: "OPS",   value: "\(activeOps.count)",       color: C.listen)
+            pulsePill(label: "AGT",   value: "\(activeAgents.count)",    color: C.eve)
+            pulsePill(label: "DIR",   value: "\(store.directives.filter(\.isActive).count)", color: C.think)
+            pulsePill(label: "MEM",   value: "\(store.memories.count)",  color: .secondary)
+        }
+    }
+
+    private func pulsePill(label: String, value: String, color: Color) -> some View {
+        VStack(spacing: 1) {
+            Text(value)
+                .font(.system(size: 14, weight: .bold, design: .monospaced))
+                .foregroundColor(color)
+            Text(label)
+                .font(.system(size: 7, weight: .bold, design: .monospaced)).tracking(1.5)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 5)
+        .background(color.opacity(0.06))
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(color.opacity(0.18), lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+    }
+
+    // MARK: - Sections
+
+    private func sectionHeader(_ label: String, count: Int?) -> some View {
+        HStack(spacing: 6) {
+            Text(label)
+                .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(2.5)
+                .foregroundColor(.secondary)
+            if let c = count {
+                Text("\(c)")
+                    .font(.system(size: 8, weight: .bold, design: .monospaced))
+                    .foregroundColor(.primary.opacity(0.7))
+            }
+            Rectangle().frame(height: 1).foregroundColor(.secondary.opacity(0.18))
+        }
+        .padding(.top, 4)
+    }
+
+    @ViewBuilder
+    private func deltaSection(_ delta: BriefingDelta) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            sectionHeader("WHAT CHANGED", count: nil)
+            HStack(spacing: 5) {
+                if !delta.newOperations.isEmpty {
+                    deltaPill("\(delta.newOperations.count)", "OPS",     color: C.eve)
+                }
+                if !delta.statusChangedOperations.isEmpty {
+                    deltaPill("\(delta.statusChangedOperations.count)", "Δ", color: C.think)
+                }
+                if !delta.newRecords.isEmpty {
+                    deltaPill("\(delta.newRecords.count)", "REC",       color: C.listen)
+                }
+                if delta.findingTotal > 0 {
+                    deltaPill("\(delta.findingTotal)",     "FND",       color: .red)
+                }
+                if !delta.completedResearch.isEmpty {
+                    deltaPill("\(delta.completedResearch.count)", "RSCH ✓", color: C.eve)
+                }
+            }
+        }
+    }
+
+    private func deltaPill(_ value: String, _ label: String, color: Color) -> some View {
+        HStack(spacing: 3) {
+            Text(value)
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .foregroundColor(color)
+            Text(label)
+                .font(.system(size: 7, weight: .bold, design: .monospaced)).tracking(1.2)
+                .foregroundColor(.secondary)
+        }
+        .padding(.horizontal, 5).padding(.vertical, 3)
+        .background(color.opacity(0.10))
+        .overlay(Capsule().strokeBorder(color.opacity(0.30), lineWidth: 1))
+        .clipShape(Capsule())
+    }
+
+    // MARK: - Rows (clickable)
+
+    private func opRow(_ op: OperationItem) -> some View {
+        Button { onSelectOperation(op.operationId) } label: {
+            HStack(spacing: 8) {
+                Circle().fill(priorityColor(op.priority)).frame(width: 5, height: 5)
+                Text(op.codename.isEmpty ? op.name : op.codename)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.primary.opacity(0.92))
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                Text(op.priority.uppercased())
+                    .font(.system(size: 7, weight: .bold, design: .monospaced)).tracking(1.5)
+                    .foregroundColor(priorityColor(op.priority))
+            }
+            .padding(.horizontal, 8).padding(.vertical, 5)
+            .background(Color.secondary.opacity(0.06))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func agentRow(_ ag: AgentStatus) -> some View {
+        Button { onSelectAgent(ag.agentId) } label: {
+            HStack(spacing: 8) {
+                Circle().fill(C.listen).frame(width: 5, height: 5)
+                    .shadow(color: C.listen, radius: 3)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(ag.name)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.primary.opacity(0.92))
+                        .lineLimit(1)
+                    Text(ag.role)
+                        .font(.system(size: 9))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
+                if ag.totalFindings > 0 {
+                    Text("\(ag.totalFindings)")
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .foregroundColor(C.listen)
+                        .padding(.horizontal, 4).padding(.vertical, 1)
+                        .background(C.listen.opacity(0.13))
+                        .clipShape(Capsule())
+                }
+            }
+            .padding(.horizontal, 8).padding(.vertical, 5)
+            .background(Color.secondary.opacity(0.06))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func directiveRow(_ d: DirectiveItem) -> some View {
+        Button { onSelectDirective(d.id) } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.right").font(.system(size: 8, weight: .bold)).foregroundColor(C.think)
+                Text(d.title)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.primary.opacity(0.92))
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                Text("P\(d.priority)")
+                    .font(.system(size: 7, weight: .bold, design: .monospaced))
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 8).padding(.vertical, 5)
+            .background(Color.secondary.opacity(0.06))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func priorityColor(_ p: String) -> Color {
+        switch p.lowercased() {
+        case "critical": return .red
+        case "high":     return .orange
+        case "normal":   return C.eve
+        case "low":      return .secondary
+        default:         return C.listen
+        }
+    }
+}
+
+/// Quick-view sheet that opens over the chat without dismissing it.
+/// Lightweight — shows the entity's title, key stats, and a "OPEN IN
+/// WINDOW" button to escalate to the full detail window.
+struct CommandCenterQuickView: View {
+    let quickView: ConversationThread.QuickView
+    @ObservedObject var store: LumenStore
+    let onClose: () -> Void
+    let onOpenWindow: (String, String) -> Void   // (window-id, entity-id)
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(headerLabel)
+                    .font(.system(size: 9, weight: .bold, design: .monospaced)).tracking(2.5)
+                    .foregroundColor(C.eve)
+                Spacer()
+                Button(action: { onOpenWindow(windowId, entityId) }) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "arrow.up.right.square").font(.system(size: 10, weight: .bold))
+                        Text("OPEN AS WINDOW")
+                            .font(.system(size: 9, weight: .bold, design: .monospaced)).tracking(1.5)
+                    }
+                    .foregroundColor(C.eve)
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .background(C.eve.opacity(0.12))
+                    .overlay(Capsule().strokeBorder(C.eve.opacity(0.4), lineWidth: 1))
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                Button(action: onClose) {
+                    Image(systemName: "xmark.circle.fill").font(.system(size: 16))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 18).padding(.top, 16)
+
+            Divider()
+
+            ScrollView {
+                quickContent
+                    .padding(.horizontal, 18).padding(.vertical, 12)
+            }
+        }
+    }
+
+    private var headerLabel: String {
+        switch quickView {
+        case .operation: return "OPERATION · QUICK VIEW"
+        case .agent:     return "AGENT · QUICK VIEW"
+        case .directive: return "DIRECTIVE · QUICK VIEW"
+        }
+    }
+
+    private var entityId: String {
+        switch quickView {
+        case .operation(let id): return id
+        case .agent(let id):     return id
+        case .directive(let id): return id
+        }
+    }
+
+    private var windowId: String {
+        switch quickView {
+        case .operation: return "operation-detail"
+        case .agent:     return "agent-detail"
+        case .directive: return "panel"  // directives don't have a dedicated window; route to panel
+        }
+    }
+
+    @ViewBuilder
+    private var quickContent: some View {
+        switch quickView {
+        case .operation(let id):
+            if let op = store.operations.first(where: { $0.operationId == id }) {
+                quickOpView(op)
+            } else {
+                Text("Operation not found").foregroundColor(.secondary)
+            }
+        case .agent(let id):
+            if let ag = store.agents.first(where: { $0.agentId == id }) {
+                quickAgentView(ag)
+            } else {
+                Text("Agent not found").foregroundColor(.secondary)
+            }
+        case .directive(let id):
+            if let d = store.directives.first(where: { $0.id == id }) {
+                quickDirectiveView(d)
+            } else {
+                Text("Directive not found").foregroundColor(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func quickOpView(_ op: OperationItem) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(op.codename.isEmpty ? op.name : op.codename)
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundColor(.primary)
+            if !op.codename.isEmpty {
+                Text(op.name).font(.system(size: 13)).foregroundColor(.secondary)
+            }
+            HStack(spacing: 14) {
+                statTile("STATUS",   op.status.uppercased(),   accent: op.status == "active" ? C.listen : .secondary)
+                statTile("PRIORITY", op.priority.uppercased(), accent: op.priority == "high" ? .orange : .secondary)
+            }
+            if !op.description.isEmpty {
+                Text("DESCRIPTION")
+                    .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(2)
+                    .foregroundColor(.secondary)
+                Text(op.description)
+                    .font(.system(size: 13))
+                    .foregroundColor(.primary.opacity(0.85))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func quickAgentView(_ ag: AgentStatus) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(ag.name)
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundColor(.primary)
+            Text(ag.role).font(.system(size: 13)).foregroundColor(.secondary)
+            HStack(spacing: 14) {
+                statTile("STATUS",   ag.status.uppercased(),   accent: ag.status == "active" ? C.listen : .secondary)
+                statTile("FINDINGS", "\(ag.totalFindings)",    accent: ag.totalFindings > 0 ? C.listen : .secondary)
+            }
+            Text("LAST ACTION")
+                .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(2)
+                .foregroundColor(.secondary)
+            Text(ag.lastAction)
+                .font(.system(size: 12))
+                .foregroundColor(.primary.opacity(0.85))
+        }
+    }
+
+    @ViewBuilder
+    private func quickDirectiveView(_ d: DirectiveItem) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(d.title)
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundColor(.primary)
+            HStack(spacing: 14) {
+                statTile("TYPE",     d.type.uppercased(),                  accent: C.think)
+                statTile("STATE",    d.isActive ? "ACTIVE" : "OFF",        accent: d.isActive ? C.listen : .secondary)
+                statTile("PRIORITY", "P\(d.priority)",                     accent: d.priority >= 8 ? C.danger : .secondary)
+            }
+            Text(d.content)
+                .font(.system(size: 13))
+                .foregroundColor(.primary.opacity(0.85))
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+        }
+    }
+
+    private func statTile(_ label: String, _ value: String, accent: Color) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(1.5)
+                .foregroundColor(.secondary)
+            Text(value)
+                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .foregroundColor(accent)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(8)
+        .background(accent.opacity(0.06))
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(accent.opacity(0.20), lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+    }
+}
+
+struct EveBriefingView: View {
+    @ObservedObject var store: LumenStore
+    @State private var now = Date()
+    @State private var revealStep: Int = 0   // 0…6 — drives staggered fade-in
+    private let timer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
+
+    private func revealed(_ step: Int) -> Bool { revealStep >= step }
+    private func revealOpacity(_ step: Int) -> Double { revealed(step) ? 1.0 : 0.0 }
+    private func revealOffset(_ step: Int) -> CGFloat { revealed(step) ? 0 : 8 }
+
+    private var greeting: String {
+        let hour = Calendar.current.component(.hour, from: now)
+        switch hour {
+        case 5..<12:  return "Good morning, sir"
+        case 12..<17: return "Good afternoon, sir"
+        case 17..<22: return "Good evening, sir"
+        default:      return "Standing by, sir"
+        }
+    }
+
+    private var activeOps: [OperationItem] {
+        store.operations.filter { $0.status.lowercased() == "active" }
+    }
+    private var activeAgents: [AgentStatus] {
+        store.agents.filter { $0.status.lowercased() == "active" }
+    }
+    private var topDirectives: [DirectiveItem] {
+        store.directives
+            .filter { $0.isActive }
+            .sorted { $0.priority > $1.priority }
+            .prefix(4)
+            .map { $0 }
+    }
+    private var lastConversation: ConversationSummary? {
+        store.conversations
+            .sorted { $0.updatedAt > $1.updatedAt }
+            .first
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                header
+                    .opacity(revealOpacity(1))
+                    .offset(y: revealOffset(1))
+                statsRow
+                    .opacity(revealOpacity(2))
+                    .offset(y: revealOffset(2))
+                if let delta = store.briefingDelta, delta.hasAnyDelta {
+                    deltaSection(delta)
+                        .opacity(revealOpacity(3))
+                        .offset(y: revealOffset(3))
+                }
+                if !topDirectives.isEmpty {
+                    directivesSection
+                        .opacity(revealOpacity(4))
+                        .offset(y: revealOffset(4))
+                }
+                if let conv = lastConversation {
+                    lastConvSection(conv)
+                        .opacity(revealOpacity(5))
+                        .offset(y: revealOffset(5))
+                }
+                if !activeOps.isEmpty {
+                    opsPreview
+                        .opacity(revealOpacity(6))
+                        .offset(y: revealOffset(6))
+                }
+                quickPrompts
+                    .opacity(revealOpacity(6))
+                    .offset(y: revealOffset(6))
+            }
+            .padding(.horizontal, 28).padding(.vertical, 24)
+            .frame(maxWidth: 820, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity)
+        .onReceive(timer) { val in now = val }
+        .onAppear {
+            runReveal()
+            Task { await store.fetchBriefingDelta() }
+        }
+    }
+
+    /// "What changed since last visit" — counts + key items pulled from the
+    /// /api/eve/briefing endpoint. Lights up only when there's actually new
+    /// activity to show.
+    @ViewBuilder
+    private func deltaSection(_ delta: BriefingDelta) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionHeader("WHAT CHANGED SINCE LAST VISIT", count: nil)
+
+            // Top counter row
+            HStack(spacing: 10) {
+                if !delta.newOperations.isEmpty {
+                    deltaPill(label: "NEW OPS",     value: "\(delta.newOperations.count)",     color: C.eve)
+                }
+                if !delta.statusChangedOperations.isEmpty {
+                    deltaPill(label: "STATUS Δ",    value: "\(delta.statusChangedOperations.count)", color: C.think)
+                }
+                if !delta.newRecords.isEmpty {
+                    deltaPill(label: "NEW RECORDS", value: "\(delta.newRecords.count)",        color: C.listen)
+                }
+                if delta.findingTotal > 0 {
+                    deltaPill(label: "FINDINGS",    value: "\(delta.findingTotal)",            color: .red)
+                }
+                if !delta.completedResearch.isEmpty {
+                    deltaPill(label: "RESEARCH ✓",  value: "\(delta.completedResearch.count)", color: C.eve)
+                }
+                Spacer()
+            }
+
+            // Inline list — top 3 of each meaningful type
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(delta.newOperations.prefix(3)) { op in
+                    deltaRow(icon: "plus.circle.fill", color: C.eve,
+                             primary: op.label,
+                             secondary: "operation · \(op.status.uppercased())")
+                }
+                ForEach(delta.statusChangedOperations.prefix(3)) { op in
+                    deltaRow(icon: "arrow.triangle.2.circlepath.circle.fill", color: C.think,
+                             primary: op.label,
+                             secondary: "moved to \(op.status.uppercased())")
+                }
+                ForEach(delta.newRecords.prefix(4)) { rec in
+                    deltaRow(icon: "doc.text.fill", color: C.listen,
+                             primary: rec.title,
+                             secondary: "\(rec.type.uppercased()) · \(rec.operationLabel)")
+                }
+                ForEach(Array(delta.findingsPerAgent.prefix(4)), id: \.name) { row in
+                    deltaRow(icon: "scope", color: .red,
+                             primary: "\(row.name) surfaced \(row.count) finding\(row.count == 1 ? "" : "s")",
+                             secondary: "")
+                }
+                ForEach(delta.completedResearch.prefix(2)) { r in
+                    deltaRow(icon: "checkmark.seal.fill", color: C.eve,
+                             primary: "Research complete \(r.operationLabel.isEmpty ? "" : "· \(r.operationLabel)")",
+                             secondary: r.summary)
+                }
+            }
+        }
+        .padding(14)
+        .background(C.eve.opacity(0.04))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(C.eve.opacity(0.22), lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func deltaPill(label: String, value: String, color: Color) -> some View {
+        HStack(spacing: 4) {
+            Text(value)
+                .font(.system(size: 13, weight: .bold, design: .monospaced))
+                .foregroundColor(color)
+            Text(label)
+                .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(1.5)
+                .foregroundColor(.secondary)
+        }
+        .padding(.horizontal, 8).padding(.vertical, 4)
+        .background(color.opacity(0.10))
+        .overlay(Capsule().strokeBorder(color.opacity(0.35), lineWidth: 1))
+        .clipShape(Capsule())
+    }
+
+    private func deltaRow(icon: String, color: Color, primary: String, secondary: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(color)
+                .frame(width: 16)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(primary)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.primary.opacity(0.9))
+                    .lineLimit(2)
+                if !secondary.isEmpty {
+                    Text(secondary)
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                }
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 6).padding(.vertical, 4)
+        .background(Color.secondary.opacity(0.04))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+    }
+
+    /// Cascade each section in via a 6-tick reveal — ~700ms total. Reads as
+    /// "Eve materializing the briefing" rather than a static dump.
+    private func runReveal() {
+        // If the user already saw it this lifecycle, skip the animation.
+        guard revealStep == 0 else { return }
+        for step in 1...6 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(step) * 0.10) {
+                withAnimation(.easeOut(duration: 0.32)) {
+                    revealStep = step
+                }
+            }
+        }
+    }
+
+    // MARK: Sections
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                Circle()
+                    .fill(C.eve)
+                    .frame(width: 9, height: 9)
+                    .shadow(color: C.eve, radius: 6)
+                Text("EVE · NEXUS BRIEFING")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced)).tracking(3)
+                    .foregroundColor(C.eve)
+                Spacer()
+                Text(now.formatted(.dateTime.weekday(.wide).month().day().hour().minute()))
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundColor(.secondary)
+            }
+            Text(greeting)
+                .font(.system(size: 28, weight: .semibold))
+                .foregroundColor(.primary)
+            Text("Here's where everything stands. Tap into anything, or open the input below to talk.")
+                .font(.system(size: 13))
+                .foregroundColor(.secondary)
+        }
+    }
+
+    private var statsRow: some View {
+        HStack(spacing: 10) {
+            briefStat(label: "OPERATIONS", value: "\(activeOps.count)", total: store.operations.count, color: C.listen)
+            briefStat(label: "AGENTS",     value: "\(activeAgents.count)", total: store.agents.count, color: C.eve)
+            briefStat(label: "DIRECTIVES", value: "\(store.directives.filter(\.isActive).count)", total: store.directives.count, color: C.think)
+            briefStat(label: "MEMORIES",   value: "\(store.memories.count)", total: store.memories.count, color: .secondary)
+            briefStat(label: "THREADS",    value: "\(store.conversations.count)", total: store.conversations.count, color: C.eve.opacity(0.7))
+        }
+    }
+
+    private var directivesSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionHeader("DIRECTIVES NEEDING ATTENTION", count: topDirectives.count)
+            ForEach(topDirectives) { d in
+                HStack(alignment: .top, spacing: 10) {
+                    Text("→")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(C.think)
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Text(d.title)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(.primary.opacity(0.92))
+                            Text(d.type.uppercased())
+                                .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(1.5)
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal, 5).padding(.vertical, 1)
+                                .background(Color.secondary.opacity(0.12))
+                                .clipShape(Capsule())
+                        }
+                        if !d.content.isEmpty {
+                            Text(d.content)
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                                .lineLimit(2)
+                        }
+                    }
+                    Spacer()
+                }
+                .padding(10)
+                .background(Color.secondary.opacity(0.06))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+        }
+    }
+
+    private func lastConvSection(_ conv: ConversationSummary) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionHeader("LAST CONVERSATION", count: nil)
+            HStack(alignment: .top, spacing: 12) {
+                Circle().fill(C.eve).frame(width: 8, height: 8)
+                    .padding(.top, 6)
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Text(conv.title.isEmpty ? "Untitled" : conv.title)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.primary)
+                        Text("\(conv.messageCount) MSG\(conv.messageCount == 1 ? "" : "S")")
+                            .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(1.5)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 5).padding(.vertical, 1)
+                            .background(Color.secondary.opacity(0.12))
+                            .clipShape(Capsule())
+                        Text(conv.updatedAt.lumenRelative)
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundColor(.secondary)
+                    }
+                    if !conv.preview.isEmpty {
+                        Text(conv.preview)
+                            .font(.system(size: 12))
+                            .foregroundColor(.primary.opacity(0.75))
+                            .lineLimit(3)
+                    }
+                    HStack(spacing: 8) {
+                        Button(action: {
+                            Task { await store.loadConversation(id: conv.id, title: conv.title) }
+                        }) {
+                            HStack(spacing: 5) {
+                                Image(systemName: "play.circle.fill")
+                                    .font(.system(size: 11))
+                                Text("CONTINUE THIS THREAD")
+                                    .font(.system(size: 9, weight: .bold, design: .monospaced)).tracking(1.5)
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 11).padding(.vertical, 6)
+                            .background(C.eve)
+                            .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        Button(action: { store.newConversation() }) {
+                            HStack(spacing: 5) {
+                                Image(systemName: "plus.bubble")
+                                    .font(.system(size: 11))
+                                Text("START FRESH")
+                                    .font(.system(size: 9, weight: .bold, design: .monospaced)).tracking(1.5)
+                            }
+                            .foregroundColor(.primary.opacity(0.85))
+                            .padding(.horizontal, 11).padding(.vertical, 6)
+                            .background(Color.secondary.opacity(0.15))
+                            .overlay(Capsule().strokeBorder(Color.secondary.opacity(0.4), lineWidth: 1))
+                            .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                Spacer()
+            }
+            .padding(12)
+            .background(C.eve.opacity(0.05))
+            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(C.eve.opacity(0.25), lineWidth: 1))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+    }
+
+    private var opsPreview: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionHeader("ACTIVE OPERATIONS", count: activeOps.count)
+            VStack(spacing: 6) {
+                ForEach(activeOps.prefix(4)) { op in
+                    HStack(spacing: 10) {
+                        Circle().fill(priorityColor(op.priority)).frame(width: 6, height: 6)
+                        Text(op.codename.isEmpty ? op.name : op.codename)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.primary.opacity(0.9))
+                        Text("·")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                        Text(op.name)
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                        Spacer()
+                        Text(op.priority.uppercased())
+                            .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(1.5)
+                            .foregroundColor(priorityColor(op.priority))
+                    }
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .background(Color.secondary.opacity(0.06))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                if activeOps.count > 4 {
+                    Text("+ \(activeOps.count - 4) more — open OPERATIONS panel")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(.secondary)
+                        .padding(.leading, 4)
+                }
+            }
+        }
+    }
+
+    private var quickPrompts: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionHeader("QUICK PROMPTS", count: nil)
+            FlowLayoutMV(spacing: 6) {
+                ForEach([
+                    "Brief me on current operations",
+                    "What did the agents find recently",
+                    "What needs my attention",
+                    "Summarize my open directives",
+                    "What's pending in the memory bank"
+                ], id: \.self) { prompt in
+                    Button(action: {
+                        // Send straight to Eve — fresh thread, no prefill step
+                        Task { await store.send(prompt) }
+                    }) {
+                        Text(prompt)
+                            .font(.system(size: 11))
+                            .foregroundColor(.primary.opacity(0.85))
+                            .padding(.horizontal, 10).padding(.vertical, 5)
+                            .background(Color.secondary.opacity(0.10))
+                            .overlay(Capsule().strokeBorder(Color.secondary.opacity(0.3), lineWidth: 1))
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    // MARK: helpers
+
+    private func sectionHeader(_ label: String, count: Int?) -> some View {
+        HStack(spacing: 6) {
+            Text(label)
+                .font(.system(size: 9, weight: .bold, design: .monospaced)).tracking(2.5)
+                .foregroundColor(.secondary)
+            if let c = count {
+                Text("\(c)")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .foregroundColor(.primary.opacity(0.7))
+            }
+            Rectangle().frame(height: 1).foregroundColor(.secondary.opacity(0.18))
+        }
+    }
+
+    private func briefStat(label: String, value: String, total: Int, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                Text(value)
+                    .font(.system(size: 22, weight: .semibold, design: .rounded))
+                    .foregroundColor(color)
+                if total > 0, "\(total)" != value {
+                    Text("/ \(total)")
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.secondary)
+                        .padding(.bottom, 4)
+                }
+            }
+            Text(label)
+                .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(1.5)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 12).padding(.vertical, 10)
+        .background(color.opacity(0.06))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(color.opacity(0.18), lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func priorityColor(_ p: String) -> Color {
+        switch p.lowercased() {
+        case "critical": return .red
+        case "high":     return .orange
+        case "normal":   return C.eve
+        case "low":      return .secondary
+        default:         return C.listen
+        }
+    }
+}
+
+// Local flow layout used by the briefing's quick-prompts row.
+private struct FlowLayoutMV: Layout {
+    let spacing: CGFloat
+    init(spacing: CGFloat = 4) { self.spacing = spacing }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxW = proposal.width ?? .infinity
+        var x: CGFloat = 0, y: CGFloat = 0, rowH: CGFloat = 0
+        for sv in subviews {
+            let s = sv.sizeThatFits(.unspecified)
+            if x + s.width > maxW {
+                x = 0; y += rowH + spacing; rowH = 0
+            }
+            x += s.width + spacing
+            rowH = max(rowH, s.height)
+        }
+        return CGSize(width: maxW, height: y + rowH)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX, y = bounds.minY, rowH: CGFloat = 0
+        for sv in subviews {
+            let s = sv.sizeThatFits(.unspecified)
+            if x + s.width > bounds.maxX {
+                x = bounds.minX; y += rowH + spacing; rowH = 0
+            }
+            sv.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(s))
+            x += s.width + spacing
+            rowH = max(rowH, s.height)
+        }
+    }
+}
+
 // MARK: - Message rows
 
 struct MessageRow: View {
@@ -1350,14 +3103,98 @@ struct MessageRow: View {
 
     var body: some View {
         Group {
-            if isEve { EveMessage(text: message.content) }
-            else      { UserMessage(text: message.content) }
+            if isEve { EveMessage(message: message) }
+            else      { UserMessage(message: message) }
+        }
+    }
+}
+
+/// Shared helpers for the brain badge + per-message hover actions.
+private enum MessageMeta {
+    static func brainStyle(_ b: String) -> (label: String, color: Color) {
+        switch b {
+        case "grok":    return ("GROK",    C.eve)
+        case "local":   return ("LOCAL",   C.listen)
+        case "claude":  return ("CLAUDE",  C.think)
+        case "vision":  return ("VISION",  C.listen)
+        case "offline": return ("OFFLINE", .secondary)
+        default:        return (b.uppercased(), .secondary)
+        }
+    }
+
+    static func clockTime(_ d: Date) -> String {
+        d.formatted(.dateTime.hour().minute())
+    }
+
+    static func copyToClipboard(_ s: String) {
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(s, forType: .string)
+    }
+}
+
+private struct BrainPill: View {
+    let brain: String
+    var body: some View {
+        let (label, color) = MessageMeta.brainStyle(brain)
+        Text(label)
+            .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(1.5)
+            .foregroundColor(color)
+            .padding(.horizontal, 5).padding(.vertical, 1)
+            .background(color.opacity(0.13))
+            .overlay(Capsule().strokeBorder(color.opacity(0.35), lineWidth: 0.5))
+            .clipShape(Capsule())
+    }
+}
+
+private struct HoverActions: View {
+    let timestamp: Date
+    let copyText: String
+    let alignTrailing: Bool
+    /// Optional speak handler — when present a 🔊 button is shown.
+    var onSpeak: (() -> Void)? = nil
+
+    @State private var copied: Bool = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(MessageMeta.clockTime(timestamp))
+                .font(.system(size: 9, design: .monospaced))
+                .foregroundColor(.secondary)
+            if let onSpeak {
+                Button(action: onSpeak) {
+                    Image(systemName: "speaker.wave.2.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Read aloud")
+            }
+            Button(action: doCopy) {
+                Image(systemName: copied ? "checkmark.circle.fill" : "doc.on.doc")
+                    .font(.system(size: 10))
+                    .foregroundColor(copied ? C.listen : .secondary)
+            }
+            .buttonStyle(.plain)
+            .help("Copy message")
+        }
+        .frame(maxWidth: .infinity, alignment: alignTrailing ? .trailing : .leading)
+        .transition(.opacity)
+    }
+
+    private func doCopy() {
+        MessageMeta.copyToClipboard(copyText)
+        withAnimation(.easeInOut(duration: 0.12)) { copied = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+            withAnimation(.easeInOut(duration: 0.18)) { copied = false }
         }
     }
 }
 
 struct EveMessage: View {
-    let text: String
+    let message: ChatMessage
+    @EnvironmentObject var store: LumenStore
+    @State private var hovering: Bool = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -1366,22 +3203,93 @@ struct EveMessage: View {
                 .frame(width: 8, height: 8)
                 .padding(.top, 7)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Eve")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(C.eve)
-                Text(MentionRenderer.attributed(text))
-                    .font(.system(size: 14))
-                    .foregroundStyle(.primary)
-                    .lineSpacing(4)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .environment(\.openURL, OpenURLAction { url in
-                        if MentionRenderer.handle(url: url) { return .handled }
-                        return .systemAction
-                    })
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Text("Eve")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(C.eve)
+                    if let b = message.brain {
+                        BrainPill(brain: b)
+                    }
+                    if !message.toolCalls.isEmpty {
+                        Text("\(message.toolCalls.count) ACTION\(message.toolCalls.count == 1 ? "" : "S")")
+                            .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(1.5)
+                            .foregroundColor(C.listen)
+                            .padding(.horizontal, 5).padding(.vertical, 1)
+                            .background(C.listen.opacity(0.13))
+                            .clipShape(Capsule())
+                    }
+                    if hovering {
+                        Spacer(minLength: 0)
+                        HoverActions(
+                            timestamp: message.timestamp,
+                            copyText: message.content,
+                            alignTrailing: true,
+                            onSpeak: { store.voice.speak(message.content) {} }
+                        )
+                    } else {
+                        Spacer(minLength: 0)
+                    }
+                }
+
+                // Tool action chips — render before prose so the Director sees
+                // what Eve actually did before reading her summary.
+                if !message.toolCalls.isEmpty {
+                    VStack(spacing: 6) {
+                        ForEach(message.toolCalls) { tc in
+                            ToolCallCardView(summary: tc)
+                        }
+                    }
+                }
+
+                // Render Eve's reply as ordered segments — prose with markdown
+                // + mention chips, fenced code blocks as styled boxes.
+                ForEach(Array(MentionRenderer.segmented(message.content).enumerated()), id: \.offset) { _, seg in
+                    switch seg {
+                    case .prose(let text):
+                        if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Text(MentionRenderer.attributedRich(text))
+                                .font(.system(size: 14))
+                                .foregroundStyle(.primary)
+                                .lineSpacing(4)
+                                .textSelection(.enabled)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .environment(\.openURL, OpenURLAction { url in
+                                    if MentionRenderer.handle(url: url) { return .handled }
+                                    return .systemAction
+                                })
+                        }
+                    case .code(let lang, let body):
+                        CodeBlockView(language: lang, code: body)
+                    }
+                }
             }
             Spacer(minLength: 0)
+        }
+        .onHover { hovering = $0 }
+        .contextMenu {
+            Button {
+                store.setReplyTarget(message)
+            } label: {
+                Label("Reply to This", systemImage: "arrowshape.turn.up.left.fill")
+            }
+            Divider()
+            Button {
+                store.voice.speak(message.content) {}
+            } label: {
+                Label("Read Aloud", systemImage: "speaker.wave.2.fill")
+            }
+            Button {
+                store.voice.stopSpeaking()
+            } label: {
+                Label("Stop Speaking", systemImage: "stop.fill")
+            }
+            Divider()
+            Button {
+                MessageMeta.copyToClipboard(message.content)
+            } label: {
+                Label("Copy Message", systemImage: "doc.on.doc")
+            }
         }
     }
 }
@@ -1446,6 +3354,12 @@ enum MentionRenderer {
     }
 
     private static func color(for type: String) -> Color {
+        publicColor(for: type)
+    }
+
+    /// Same mapping as the inline chip color but exposed for other UI
+    /// (mention autocomplete popup, etc.) so they share a single source.
+    static func publicColor(for type: String) -> Color {
         switch type {
         case "operation":        return C.think
         case "agent":            return C.listen
@@ -1457,25 +3371,357 @@ enum MentionRenderer {
         default:                 return .secondary.opacity(0.7)
         }
     }
+
+    /// Rich rendering: parses inline markdown (**bold**, *italic*, `code`,
+    /// [text](url), bullet lists) AND nexus mention chips. Used by
+    /// EveMessage etc. so Eve's replies don't show literal asterisks.
+    static func attributedRich(_ raw: String) -> AttributedString {
+        // 1. Rewrite our @[label](type:id) tokens into markdown links pointing
+        //    at our custom URL scheme so the markdown parser turns them into
+        //    addressable links we can recolor afterward.
+        let pattern = #"\@\[([^\]]+)\]\(([a-z_]+):([a-zA-Z0-9\-]+)\)"#
+        let nsRaw = raw as NSString
+        var transformed = ""
+        var cursor = 0
+
+        if let re = try? NSRegularExpression(pattern: pattern) {
+            re.enumerateMatches(in: raw, range: NSRange(location: 0, length: nsRaw.length)) { m, _, _ in
+                guard let m, m.numberOfRanges == 4 else { return }
+                if m.range.location > cursor {
+                    transformed += nsRaw.substring(with: NSRange(location: cursor, length: m.range.location - cursor))
+                }
+                let label = nsRaw.substring(with: m.range(at: 1))
+                let type  = nsRaw.substring(with: m.range(at: 2))
+                let id    = nsRaw.substring(with: m.range(at: 3))
+                transformed += "[@\(label)](nexus://mention/\(type)/\(id))"
+                cursor = m.range.location + m.range.length
+            }
+        }
+        if cursor < nsRaw.length { transformed += nsRaw.substring(from: cursor) }
+        if transformed.isEmpty { transformed = raw }
+
+        // 2. Parse markdown. inlineOnlyPreservingWhitespace keeps newlines intact
+        //    so multi-line replies render correctly without losing structure.
+        var attr: AttributedString
+        do {
+            attr = try AttributedString(
+                markdown: transformed,
+                options: .init(allowsExtendedAttributes: true,
+                               interpretedSyntax: .inlineOnlyPreservingWhitespace)
+            )
+        } catch {
+            attr = AttributedString(transformed)
+        }
+
+        // 3. Recolor any mention links by entity type.
+        for run in attr.runs {
+            if let url = run.link, url.scheme == "nexus", url.host == "mention" {
+                let parts = url.pathComponents.filter { $0 != "/" }
+                let type = parts.first ?? ""
+                attr[run.range].foregroundColor = publicColor(for: type)
+                attr[run.range].underlineStyle = .single
+            }
+        }
+
+        return attr
+    }
+
+    /// Strip fenced code blocks out of `raw` and return ordered segments.
+    /// Each segment is either plain prose (rendered with attributedRich)
+    /// or a code block (rendered as a styled monospace box).
+    enum Segment {
+        case prose(String)
+        case code(language: String, body: String)
+    }
+
+    static func segmented(_ raw: String) -> [Segment] {
+        // Walk through the string, splitting on ``` fences.
+        var segments: [Segment] = []
+        var i = raw.startIndex
+        while i < raw.endIndex {
+            // Look for the next ``` fence
+            if let fenceStart = raw.range(of: "```", range: i..<raw.endIndex) {
+                // Emit prose before the fence
+                if fenceStart.lowerBound > i {
+                    segments.append(.prose(String(raw[i..<fenceStart.lowerBound])))
+                }
+                // Find closing fence
+                let bodyStart = fenceStart.upperBound
+                if let fenceEnd = raw.range(of: "```", range: bodyStart..<raw.endIndex) {
+                    let block = String(raw[bodyStart..<fenceEnd.lowerBound])
+                    // First line after ``` may be a language tag
+                    var lang = ""
+                    var body = block
+                    if let nl = block.firstIndex(of: "\n") {
+                        let firstLine = String(block[..<nl]).trimmingCharacters(in: .whitespaces)
+                        if !firstLine.isEmpty && firstLine.count <= 24 && firstLine.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "-" || $0 == "+" || $0 == "_" }) {
+                            lang = firstLine
+                            body = String(block[block.index(after: nl)...])
+                        }
+                    }
+                    segments.append(.code(language: lang, body: body))
+                    i = fenceEnd.upperBound
+                } else {
+                    // Unterminated fence — treat the rest as prose
+                    segments.append(.prose(String(raw[fenceStart.lowerBound..<raw.endIndex])))
+                    i = raw.endIndex
+                }
+            } else {
+                segments.append(.prose(String(raw[i..<raw.endIndex])))
+                i = raw.endIndex
+            }
+        }
+        return segments
+    }
+}
+
+/// Visible chip rendered above Eve's prose when she fires a tool. Makes
+/// her actions concrete instead of invisible behind a natural-language
+/// summary. One card per tool call, in invocation order.
+private struct ToolCallCardView: View {
+    let summary: ToolCallSummary
+
+    private var accent: Color {
+        if !summary.success { return C.danger }
+        switch summary.name {
+        case _ where summary.name.hasPrefix("arena_task"):    return C.listen
+        case _ where summary.name.hasPrefix("arena_payment"): return C.danger
+        case _ where summary.name.hasPrefix("arena_sync"):    return C.eve
+        case _ where summary.name.hasPrefix("arena_recent"):  return .secondary
+        default:                                              return C.eve
+        }
+    }
+
+    private var icon: String {
+        if !summary.success { return "exclamationmark.triangle.fill" }
+        switch summary.name {
+        case "arena_task_create": return "checkmark.seal.fill"
+        case "arena_task_update": return "pencil.circle.fill"
+        case "arena_payment_route": return "dollarsign.circle.fill"
+        case "arena_sync_push":   return "arrow.up.to.line.circle.fill"
+        case "arena_recent":      return "list.bullet.rectangle.portrait.fill"
+        default:                  return "wrench.and.screwdriver.fill"
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(accent)
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 6) {
+                    Text(summary.humanLabel.uppercased())
+                        .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(1.5)
+                        .foregroundColor(accent)
+                    if !summary.success {
+                        Text("FAILED")
+                            .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(1.5)
+                            .foregroundColor(C.danger)
+                            .padding(.horizontal, 4).padding(.vertical, 1)
+                            .background(C.danger.opacity(0.18))
+                            .clipShape(Capsule())
+                    }
+                }
+                Text(summary.primary)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.primary.opacity(0.92))
+                    .lineLimit(1)
+                if !summary.detail.isEmpty {
+                    Text(summary.detail)
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10).padding(.vertical, 8)
+        .background(accent.opacity(0.08))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(accent.opacity(0.35), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+/// Styled fenced-code block — monospace body + copy button.
+private struct CodeBlockView: View {
+    let language: String
+    let code: String
+    @State private var copied = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 6) {
+                Text(language.isEmpty ? "CODE" : language.uppercased())
+                    .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(2)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Button(action: copy) {
+                    HStack(spacing: 4) {
+                        Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                            .font(.system(size: 9, weight: .bold))
+                        Text(copied ? "COPIED" : "COPY")
+                            .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(1.5)
+                    }
+                    .foregroundColor(copied ? C.listen : .secondary)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 10).padding(.vertical, 5)
+            .background(Color.secondary.opacity(0.10))
+
+            Text(code)
+                .font(.system(size: 12, design: .monospaced))
+                .foregroundColor(.primary.opacity(0.92))
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(10)
+        }
+        .background(Color.secondary.opacity(0.06))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(C.hairline, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func copy() {
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(code, forType: .string)
+        withAnimation(.easeInOut(duration: 0.12)) { copied = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+            withAnimation(.easeInOut(duration: 0.18)) { copied = false }
+        }
+    }
 }
 
 struct UserMessage: View {
-    let text: String
+    let message: ChatMessage
+    @EnvironmentObject var store: LumenStore
+    @State private var hovering: Bool = false
+    @State private var isEditing: Bool = false
+    @State private var editText: String = ""
 
     var body: some View {
-        HStack(alignment: .top, spacing: 0) {
-            Spacer(minLength: 80)
-            Text(text)
-                .font(.system(size: 14))
-                .foregroundStyle(.primary)
-                .lineSpacing(4)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-                .textSelection(.enabled)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(C.eve.opacity(0.18), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        VStack(alignment: .trailing, spacing: 4) {
+            if hovering && !isEditing {
+                HStack(spacing: 6) {
+                    Spacer()
+                    Text(MessageMeta.clockTime(message.timestamp))
+                        .font(.system(size: 9, design: .monospaced))
+                        .foregroundColor(.secondary)
+                    Button(action: { store.voice.speak(message.content) {} }) {
+                        Image(systemName: "speaker.wave.2.fill").font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Read aloud")
+                    Button(action: startEdit) {
+                        Image(systemName: "pencil").font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Edit this prompt and regenerate Eve's reply")
+                    Button(action: { MessageMeta.copyToClipboard(message.content) }) {
+                        Image(systemName: "doc.on.doc").font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Copy")
+                }
+                .padding(.trailing, 4)
+                .transition(.opacity)
+            }
+            HStack(alignment: .top, spacing: 0) {
+                Spacer(minLength: 80)
+                if isEditing {
+                    HStack(alignment: .top, spacing: 8) {
+                        TextField("", text: $editText, axis: .vertical)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 14))
+                            .lineLimit(1...6)
+                            .onSubmit(saveEdit)
+                            .padding(.horizontal, 14).padding(.vertical, 10)
+                            .background(C.eve.opacity(0.18), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .stroke(C.eve, lineWidth: 1.2)
+                            )
+                            .frame(minWidth: 220)
+                        VStack(spacing: 6) {
+                            Button(action: saveEdit) {
+                                Image(systemName: "arrow.up.circle.fill")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(C.eve)
+                            }
+                            .buttonStyle(.plain)
+                            .help("Re-send with edits")
+                            Button(action: cancelEdit) {
+                                Image(systemName: "xmark.circle")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .help("Cancel")
+                        }
+                    }
+                } else {
+                    Text(message.content)
+                        .font(.system(size: 14))
+                        .foregroundStyle(.primary)
+                        .lineSpacing(4)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(C.eve.opacity(0.18), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .contextMenu {
+                            Button {
+                                store.voice.speak(message.content) {}
+                            } label: {
+                                Label("Read Aloud", systemImage: "speaker.wave.2.fill")
+                            }
+                            Button {
+                                store.voice.stopSpeaking()
+                            } label: {
+                                Label("Stop Speaking", systemImage: "stop.fill")
+                            }
+                            Divider()
+                            Button { startEdit() } label: {
+                                Label("Edit & Regenerate", systemImage: "pencil")
+                            }
+                            Button {
+                                MessageMeta.copyToClipboard(message.content)
+                            } label: {
+                                Label("Copy Message", systemImage: "doc.on.doc")
+                            }
+                        }
+                }
+            }
         }
+        .onHover { hovering = $0 }
+    }
+
+    private func startEdit() {
+        editText = message.content
+        withAnimation(.easeOut(duration: 0.12)) { isEditing = true }
+    }
+
+    private func cancelEdit() {
+        withAnimation(.easeOut(duration: 0.12)) { isEditing = false }
+        editText = ""
+    }
+
+    private func saveEdit() {
+        let cleaned = editText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleaned.isEmpty, cleaned != message.content else {
+            cancelEdit(); return
+        }
+        let id = message.id
+        isEditing = false
+        Task { await store.regenerate(fromUserMessageId: id, newText: cleaned) }
     }
 }
 
@@ -1531,6 +3777,369 @@ struct ErrorRow: View {
     }
 }
 
+// MARK: - Cosmic particle field
+//
+// SwiftUI Canvas + TimelineView. Particles drift slowly when Eve is idle,
+// quicken and brighten when she's listening / thinking / speaking. Cheap —
+// pseudo-random per-particle parameters, no allocation per frame.
+
+struct CosmicParticles: View {
+    /// 0…1. 0 = barely visible drift, 1 = swirling, bright. Animates smoothly.
+    var intensity: Double = 0.35
+    var tint: Color = C.eve
+
+    private let seed: Double
+
+    init(intensity: Double = 0.35, tint: Color = C.eve) {
+        self.intensity = intensity
+        self.tint = tint
+        self.seed = Double.random(in: 0...1000)
+    }
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { tl in
+            let t = tl.date.timeIntervalSinceReferenceDate
+            Canvas { ctx, size in
+                let intensity = max(0, min(1, intensity))
+                let count = 60 + Int(intensity * 80)              // 60…140 motes
+                let speed = 0.4 + intensity * 1.6
+                let baseAlpha = 0.05 + 0.18 * intensity
+
+                // Drift particles
+                for i in 0..<count {
+                    let phase = Double(i) * 1.234 + seed
+                    let baseX = sin(phase * 0.71) * 0.5 + 0.5         // 0…1
+                    let baseY = cos(phase * 0.93) * 0.5 + 0.5
+                    let driftX = sin(t * speed * 0.30 + phase) * 0.10
+                    let driftY = cos(t * speed * 0.40 + phase * 1.7) * 0.08
+                    let x = (baseX + driftX) * size.width
+                    let y = (baseY + driftY) * size.height
+                    let twink = sin(t * 1.8 + phase * 1.3) * 0.5 + 0.5
+                    let r = 0.6 + 1.4 * twink
+                    let alpha = baseAlpha + 0.14 * intensity * twink
+                    let path = Path(ellipseIn: CGRect(x: x - r, y: y - r,
+                                                       width: r * 2, height: r * 2))
+                    ctx.fill(path, with: .color(tint.opacity(alpha)))
+                }
+
+                // Brighter "stars" with bigger twinkle
+                let starCount = 12 + Int(intensity * 10)
+                for i in 0..<starCount {
+                    let phase = Double(i) * 7.13 + seed * 0.5
+                    let baseX = sin(phase * 0.41) * 0.5 + 0.5
+                    let baseY = cos(phase * 0.79) * 0.5 + 0.5
+                    let twink = max(0, sin(t * 1.2 + phase))
+                    let x = baseX * size.width
+                    let y = baseY * size.height
+                    let r = 1.0 + 1.6 * twink * intensity
+                    let alpha = 0.10 + 0.40 * twink * intensity
+                    let path = Path(ellipseIn: CGRect(x: x - r, y: y - r,
+                                                       width: r * 2, height: r * 2))
+                    ctx.fill(path, with: .color(.white.opacity(alpha * 0.5)))
+                }
+
+                // Speaking-state: a few slow comet streaks across the canvas
+                if intensity > 0.7 {
+                    let streaks = 3
+                    for i in 0..<streaks {
+                        let phase = Double(i) * 23.7 + seed
+                        let cycle = (t * 0.18 + phase).truncatingRemainder(dividingBy: 4.0) / 4.0  // 0…1
+                        let y = (sin(phase * 1.3) * 0.5 + 0.5) * size.height
+                        let x = cycle * (size.width + 200) - 100
+                        let len: CGFloat = 60 + 20 * sin(t * 2 + phase)
+                        var p = Path()
+                        p.move(to: CGPoint(x: x, y: y))
+                        p.addLine(to: CGPoint(x: x - len, y: y - len * 0.2))
+                        ctx.stroke(p, with: .color(tint.opacity(0.25 * intensity)),
+                                   lineWidth: 0.8)
+                    }
+                }
+            }
+            .blur(radius: intensity > 0.6 ? 0.4 : 0)
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+// MARK: - Mention autocomplete (nexus-web parity)
+
+struct MentionCandidate: Identifiable, Hashable {
+    let id: String          // "type:entityId" — stable for ForEach
+    let type: String        // operation | agent | record | conversation | directive | memory
+    let entityId: String
+    let label: String
+    let subtitle: String
+}
+
+enum MentionCatalog {
+    /// Build a flat list of taggable entities from the store, filtered by query.
+    static func candidates(store: LumenStore, query: String, limit: Int = 8) -> [MentionCandidate] {
+        var out: [MentionCandidate] = []
+
+        for op in store.operations {
+            let label = op.codename.isEmpty ? op.name : op.codename
+            out.append(MentionCandidate(id: "operation:\(op.operationId)",
+                                         type: "operation",
+                                         entityId: op.operationId,
+                                         label: label,
+                                         subtitle: op.codename.isEmpty ? "" : op.name))
+        }
+        for ag in store.agents {
+            out.append(MentionCandidate(id: "agent:\(ag.agentId)",
+                                         type: "agent",
+                                         entityId: ag.agentId,
+                                         label: ag.name,
+                                         subtitle: ag.role))
+        }
+        for d in store.directives {
+            out.append(MentionCandidate(id: "directive:\(d.id)",
+                                         type: "directive",
+                                         entityId: d.id,
+                                         label: d.title.isEmpty ? "Untitled directive" : d.title,
+                                         subtitle: d.type.uppercased()))
+        }
+        for m in store.memories {
+            let preview = String(m.content.prefix(48))
+            out.append(MentionCandidate(id: "memory:\(m.id)",
+                                         type: "memory",
+                                         entityId: m.id,
+                                         label: preview.isEmpty ? "Empty memory" : preview,
+                                         subtitle: m.type.uppercased()))
+        }
+        for c in store.conversations.prefix(40) {
+            out.append(MentionCandidate(id: "conversation:\(c.id)",
+                                         type: "conversation",
+                                         entityId: c.id,
+                                         label: c.title.isEmpty ? "Untitled thread" : c.title,
+                                         subtitle: c.preview.isEmpty ? c.source.uppercased()
+                                                                     : String(c.preview.prefix(60))))
+        }
+
+        let q = query.lowercased().trimmingCharacters(in: .whitespaces)
+        let filtered = q.isEmpty ? out : out.filter {
+            $0.label.lowercased().contains(q) || $0.subtitle.lowercased().contains(q)
+        }
+        return Array(filtered.prefix(limit))
+    }
+
+    /// Locate trailing `@<query>` token in the input. Returns the @ position
+    /// and the query text after it, or nil if not in mention-mode.
+    /// Triggers on @ at start-of-string OR preceded by whitespace.
+    static func detectQuery(in text: String) -> (atIndex: String.Index, query: String)? {
+        // Scan from end backwards looking for @
+        guard let atIdx = text.range(of: "@", options: .backwards)?.lowerBound else { return nil }
+        // Bail if the character before @ is alphanumeric (likely an email/something else)
+        if atIdx > text.startIndex {
+            let prev = text[text.index(before: atIdx)]
+            if prev.isLetter || prev.isNumber { return nil }
+        }
+        let after = text[text.index(after: atIdx)...]
+        // Stop at any whitespace/newline within the query
+        if after.contains(where: { $0.isWhitespace || $0.isNewline }) { return nil }
+        // Don't fire for already-formed @[label](...) — those start with [
+        if after.hasPrefix("[") { return nil }
+        return (atIdx, String(after))
+    }
+
+    /// Replace the trailing `@query` token with a fully-formed mention chip.
+    static func insert(_ candidate: MentionCandidate, into text: String) -> String {
+        guard let (atIdx, _) = detectQuery(in: text) else { return text }
+        let prefix = text[..<atIdx]
+        // Render as @[label](type:id) — exactly the format Eve uses already.
+        let chip = "@[\(candidate.label)](\(candidate.type):\(candidate.entityId)) "
+        return String(prefix) + chip
+    }
+}
+
+private struct MentionAutocompletePopup: View {
+    let candidates: [MentionCandidate]
+    let onSelect: (MentionCandidate) -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 6) {
+                Image(systemName: "at").font(.system(size: 9, weight: .bold))
+                    .foregroundColor(C.eve)
+                Text("MENTION")
+                    .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(2)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text("Esc to dismiss")
+                    .font(.system(size: 8, design: .monospaced))
+                    .foregroundColor(.secondary.opacity(0.6))
+            }
+            .padding(.horizontal, 10).padding(.vertical, 6)
+            Divider()
+            if candidates.isEmpty {
+                Text("No matches")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 10).padding(.vertical, 8)
+            } else {
+                ForEach(candidates) { c in
+                    Button(action: { onSelect(c) }) {
+                        HStack(spacing: 8) {
+                            Circle()
+                                .fill(MentionRenderer.publicColor(for: c.type))
+                                .frame(width: 7, height: 7)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(c.label)
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(.primary.opacity(0.9))
+                                    .lineLimit(1)
+                                if !c.subtitle.isEmpty {
+                                    Text(c.subtitle)
+                                        .font(.system(size: 9, design: .monospaced))
+                                        .foregroundColor(.secondary)
+                                        .lineLimit(1)
+                                }
+                            }
+                            Spacer()
+                            Text(c.type.uppercased())
+                                .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(1.5)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 10).padding(.vertical, 6)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .background(Color.clear)
+                }
+            }
+        }
+        .frame(width: 380)
+        .background(.regularMaterial)
+        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(C.hairline, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .shadow(color: .black.opacity(0.25), radius: 12, y: 4)
+    }
+}
+
+// MARK: - Slash commands
+
+struct SlashCommand: Identifiable, Hashable {
+    let id: String           // "/new"
+    let label: String
+    let detail: String
+}
+
+enum SlashCommandRegistry {
+    /// Built-in actions (run on selection).
+    static let actions: [SlashCommand] = [
+        SlashCommand(id: "/new",    label: "/new",    detail: "End this thread and start a new one"),
+        SlashCommand(id: "/end",    label: "/end",    detail: "Same as /new — explicit ending of the current thread"),
+        SlashCommand(id: "/local",  label: "/local",  detail: "Switch to local Ollama brain"),
+        SlashCommand(id: "/cloud",  label: "/cloud",  detail: "Switch back to nexus-web Grok brain"),
+        SlashCommand(id: "/pop",    label: "/pop",    detail: "Pop the active thread out into its own window"),
+        SlashCommand(id: "/clear",  label: "/clear",  detail: "Clear visible messages without ending the thread"),
+        SlashCommand(id: "/help",   label: "/help",   detail: "Print available slash commands"),
+    ]
+
+    static var all: [SlashCommand] {
+        actions + TemplateLibrary.asSlashCommands
+    }
+
+    static func filter(_ q: String) -> [SlashCommand] {
+        let qq = q.lowercased()
+        guard !qq.isEmpty, qq.first == "/" else { return [] }
+        if qq == "/" { return all }
+        return all.filter { $0.id.hasPrefix(qq) }
+    }
+}
+
+/// Saved prompt templates — pick one with a slash command, body gets
+/// inserted into the input ready to be sent (or further edited).
+enum TemplateLibrary {
+    struct Template {
+        let id: String        // matches SlashCommand id, e.g. "/standup"
+        let detail: String    // shown in popup
+        let body: String      // text inserted into input
+    }
+
+    static let templates: [Template] = [
+        Template(
+            id: "/standup",
+            detail: "Template: morning standup brief",
+            body: "Give me a brief morning standup: yesterday's wins, today's priorities, blockers, and anything I'm forgetting."
+        ),
+        Template(
+            id: "/review",
+            detail: "Template: weekly review",
+            body: "Help me run a weekly review. Pull all operations updated this week, agent findings, completed research, and surface what I might have missed."
+        ),
+        Template(
+            id: "/dump",
+            detail: "Template: brain-dump capture",
+            body: "I'm about to brain-dump. Capture what I say as memories or operations as appropriate. Ask only if something is genuinely ambiguous."
+        ),
+        Template(
+            id: "/morning",
+            detail: "Template: morning brief",
+            body: "Morning brief: what's overdue, what's important today, status pulse on active operations, anything that needs my attention."
+        ),
+        Template(
+            id: "/eod",
+            detail: "Template: end-of-day wrap",
+            body: "End-of-day wrap: summarize what I worked on today across operations and conversations, what's still open, and one thing I should sleep on."
+        ),
+    ]
+
+    static var asSlashCommands: [SlashCommand] {
+        templates.map { SlashCommand(id: $0.id, label: $0.id, detail: $0.detail) }
+    }
+
+    static func body(for id: String) -> String? {
+        templates.first(where: { $0.id == id })?.body
+    }
+}
+
+private struct SlashCommandPopup: View {
+    let commands: [SlashCommand]
+    let onSelect: (SlashCommand) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 6) {
+                Image(systemName: "command").font(.system(size: 9, weight: .bold))
+                    .foregroundColor(C.think)
+                Text("COMMAND")
+                    .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(2)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Text("Enter to run")
+                    .font(.system(size: 8, design: .monospaced))
+                    .foregroundColor(.secondary.opacity(0.6))
+            }
+            .padding(.horizontal, 10).padding(.vertical, 6)
+            Divider()
+            ForEach(commands) { c in
+                Button(action: { onSelect(c) }) {
+                    HStack(spacing: 10) {
+                        Text(c.label)
+                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .foregroundColor(C.think)
+                            .frame(minWidth: 64, alignment: .leading)
+                        Text(c.detail)
+                            .font(.system(size: 11))
+                            .foregroundColor(.primary.opacity(0.8))
+                            .lineLimit(1)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 10).padding(.vertical, 6)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .frame(width: 380)
+        .background(.regularMaterial)
+        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(C.hairline, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .shadow(color: .black.opacity(0.25), radius: 12, y: 4)
+    }
+}
+
 // MARK: - Input bar
 
 struct InputBar: View {
@@ -1541,8 +4150,41 @@ struct InputBar: View {
     @ObservedObject var store: LumenStore
     let onSubmit: () -> Void
 
+    @Environment(\.openWindow) private var openWindow
+    @State private var mentionQuery: String? = nil
+    @State private var slashQuery: String? = nil
+
+    private var mentionCandidates: [MentionCandidate] {
+        guard let q = mentionQuery else { return [] }
+        return MentionCatalog.candidates(store: store, query: q)
+    }
+
+    private var slashCommands: [SlashCommand] {
+        guard let q = slashQuery else { return [] }
+        return SlashCommandRegistry.filter(q)
+    }
+
     var body: some View {
         VStack(spacing: 6) {
+            // Slash command popup — sits above the input, only when typing /…
+            if let _ = slashQuery, !slashCommands.isEmpty {
+                SlashCommandPopup(commands: slashCommands, onSelect: runSlashCommand)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 110)  // align under the text field
+            }
+            // Mention autocomplete popup
+            else if mentionQuery != nil {
+                MentionAutocompletePopup(
+                    candidates: mentionCandidates,
+                    onSelect: insertMention,
+                    onDismiss: { mentionQuery = nil }
+                )
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, 110)
+            }
+
             // Attached-image strip — shown above the input when vision pending
             if !store.pendingImages.isEmpty {
                 HStack(spacing: 8) {
@@ -1588,6 +4230,27 @@ struct InputBar: View {
                 .frame(width: 46, height: 46)
             }
             .buttonStyle(.plain)
+            .help(store.fluidListening ? "Voice mode is on — tap to stop" : "Tap to start voice mode")
+
+            // Mute toggle — only shown while a voice session is active.
+            // Lets Director silence themselves so Eve can finish uninterrupted
+            // without ending the session entirely.
+            if store.fluidListening {
+                Button(action: { store.toggleUserMute() }) {
+                    let muted = store.userMuted
+                    ZStack {
+                        Circle().fill(muted ? C.danger.opacity(0.18) : C.surfaceHi)
+                        Circle().stroke(muted ? C.danger.opacity(0.5) : C.hairline, lineWidth: 1)
+                        Image(systemName: muted ? "mic.slash.fill" : "speaker.wave.2.fill")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(muted ? C.danger : .secondary.opacity(0.6))
+                    }
+                    .frame(width: 38, height: 38)
+                }
+                .buttonStyle(.plain)
+                .help(store.userMuted ? "You're muted — tap to unmute" : "Tap to mute (Eve keeps talking, you stay quiet)")
+                .transition(.opacity.combined(with: .scale))
+            }
 
             Button(action: pickImage) {
                 ZStack {
@@ -1628,7 +4291,25 @@ struct InputBar: View {
                     .foregroundColor(.primary.opacity(0.92))
                     .textFieldStyle(.plain)
                     .focused($inputFocused)
-                    .onSubmit(onSubmit)
+                    .onSubmit {
+                        // If the slash popup is open with at least one match,
+                        // Enter runs the top match instead of submitting the
+                        // raw "/whatever" text to Eve.
+                        if let _ = slashQuery, let first = slashCommands.first {
+                            runSlashCommand(first)
+                            return
+                        }
+                        // If the mention popup is open, Enter inserts the top
+                        // candidate rather than sending half-formed @text.
+                        if let _ = mentionQuery, let first = mentionCandidates.first {
+                            insertMention(first)
+                            return
+                        }
+                        onSubmit()
+                    }
+                    .onChange(of: text) { _, new in
+                        handleTextChange(new)
+                    }
                 }
 
                 Spacer(minLength: 0)
@@ -1748,6 +4429,81 @@ struct InputBar: View {
                 store.attachImage(at: url)
             }
         }
+    }
+
+    // MARK: - Mention + slash detection
+    //
+    // Called every keystroke via .onChange(of: text) on the field.
+    func handleTextChange(_ new: String) {
+        // Slash takes precedence and only when input begins with "/"
+        let trimmed = new.trimmingCharacters(in: .whitespaces)
+        if trimmed.hasPrefix("/") && !trimmed.contains(" ") {
+            withAnimation(.easeOut(duration: 0.12)) {
+                slashQuery = trimmed
+                mentionQuery = nil
+            }
+            return
+        }
+
+        // Mention query
+        if let (_, q) = MentionCatalog.detectQuery(in: new) {
+            withAnimation(.easeOut(duration: 0.12)) {
+                mentionQuery = q
+                slashQuery = nil
+            }
+        } else {
+            withAnimation(.easeOut(duration: 0.12)) {
+                mentionQuery = nil
+                slashQuery = nil
+            }
+        }
+    }
+
+    private func insertMention(_ candidate: MentionCandidate) {
+        text = MentionCatalog.insert(candidate, into: text)
+        withAnimation(.easeOut(duration: 0.12)) { mentionQuery = nil }
+    }
+
+    private func runSlashCommand(_ cmd: SlashCommand) {
+        // Templates insert their body into the input rather than firing an action.
+        if let body = TemplateLibrary.body(for: cmd.id) {
+            text = body
+            withAnimation(.easeOut(duration: 0.12)) { slashQuery = nil }
+            return
+        }
+
+        switch cmd.id {
+        case "/new", "/end":
+            store.newConversation()
+        case "/local":
+            store.preferLocalBrain = true
+        case "/cloud":
+            store.preferLocalBrain = false
+        case "/pop":
+            if let cid = store.currentConversationId {
+                openWindow(id: "conversation-detail", value: cid)
+            }
+        case "/clear":
+            store.messages.removeAll()
+        case "/help":
+            // Stuff a help message into the chat — fast feedback, no API call.
+            let help = """
+            Slash commands:
+              /new      end thread, start fresh
+              /end      same as /new
+              /local    use local Ollama brain
+              /cloud    use nexus-web (Grok + tools)
+              /pop      pop the active thread into a window
+              /clear    clear visible messages
+              /help     this list
+            Type @ for mentions across operations, agents, records, conversations, directives, and memories.
+            """
+            store.messages.append(ChatMessage(role: .assistant, content: help, brain: "local"))
+        default:
+            break
+        }
+        text = ""
+        withAnimation(.easeOut(duration: 0.12)) { slashQuery = nil }
     }
 }
 
@@ -1903,6 +4659,7 @@ struct PanelSheet: View {
                     case .chats:      ChatsPanel(store: store, onDismiss: onDismiss)
                     case .nexusMap:   NexusMapView(store: store)
                     case .files:      FilesPanel(store: store, onDismiss: onDismiss)
+                    case .code:       CodePanel(store: store, onClose: onDismiss)
                     case .system:     SystemPanel(store: store, onDismiss: onDismiss)
                     case .settings:   SettingsPanel(store: store, auth: auth, onDismiss: onDismiss)
                     case .none:       EmptyView()
@@ -1943,6 +4700,8 @@ private struct WorkspaceInspector: View {
                 ChatsPanel(store: store, onDismiss: onDismiss)
             case .files:
                 FilesPanel(store: store, onDismiss: onDismiss)
+            case .code:
+                CodePanel(store: store, onClose: onDismiss)
             case .system:
                 SystemPanel(store: store, onDismiss: onDismiss)
             case .settings:
@@ -2166,11 +4925,47 @@ struct AgentDetailCard: View {
 
     @State private var chatInput: String = ""
 
+    // Activity-derived metrics
+    private var scanCount: Int {
+        activity.filter { $0.action.lowercased().contains("scan") }.count
+    }
+    private var findingCount: Int {
+        activity.filter { $0.action.lowercased().contains("finding") }.count
+    }
+    private var failureCount: Int {
+        activity.filter { $0.action.lowercased().contains("fail") || $0.action.lowercased().contains("error") }.count
+    }
+    private var lastActionRelative: String {
+        guard let recent = activity.first?.createdAt else { return "—" }
+        let isoFull = ISO8601DateFormatter()
+        isoFull.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let date = isoFull.date(from: recent) ?? ISO8601DateFormatter().date(from: recent)
+        return date?.lumenRelative ?? "—"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            // Four-tile metric grid for richer at-a-glance.
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                DetailMetric(title: "FINDINGS", value: "\(agent.totalFindings)", accent: .primary)
-                DetailMetric(title: "STATUS", value: agent.status.uppercased(), accent: agent.status == "active" ? C.listen : C.eve)
+                DetailMetric(title: "FINDINGS", value: "\(agent.totalFindings)", accent: agent.totalFindings > 0 ? C.listen : .primary)
+                DetailMetric(title: "STATUS",   value: agent.status.uppercased(), accent: agent.status == "active" ? C.listen : C.eve)
+                DetailMetric(title: "SCANS",    value: "\(scanCount)", accent: scanCount > 0 ? C.eve : .secondary)
+                DetailMetric(title: "LAST SEEN", value: lastActionRelative, accent: .primary)
+            }
+
+            // Activity breakdown bar
+            if !activity.isEmpty {
+                HStack(spacing: 8) {
+                    activityBadge(label: "EVENTS", value: "\(activity.count)", color: C.eve)
+                    if findingCount > 0 {
+                        activityBadge(label: "FINDINGS", value: "\(findingCount)", color: C.listen)
+                    }
+                    if failureCount > 0 {
+                        activityBadge(label: "FAILED", value: "\(failureCount)", color: C.danger)
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 4)
             }
 
             DetailSection(title: "ROLE", text: agent.role)
@@ -2308,6 +5103,22 @@ struct AgentDetailCard: View {
         guard !text.isEmpty, !isSendingChat else { return }
         chatInput = ""
         onSendChat(text)
+    }
+
+    @ViewBuilder
+    private func activityBadge(label: String, value: String, color: Color) -> some View {
+        HStack(spacing: 4) {
+            Text(value)
+                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                .foregroundColor(color)
+            Text(label)
+                .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(1.5)
+                .foregroundColor(.secondary)
+        }
+        .padding(.horizontal, 8).padding(.vertical, 4)
+        .background(color.opacity(0.10))
+        .overlay(Capsule().strokeBorder(color.opacity(0.35), lineWidth: 1))
+        .clipShape(Capsule())
     }
 }
 
@@ -2605,13 +5416,40 @@ private struct OpsDetailCard: View {
     private let statuses = ["active", "planning", "complete", "standby"]
     private let recordTypes = ["note", "intel", "finding", "data", "alert"]
 
+    // Derived counts for the at-a-glance bar
+    private var pinnedCount: Int { records.filter(\.pinned).count }
+    private var criticalCount: Int { records.filter { $0.priority.lowercased() == "critical" || $0.priority.lowercased() == "high" }.count }
+    private var briefsCount: Int { briefs.values.filter { !$0.content.isEmpty }.count }
+    private var recordsByType: [(String, Int)] {
+        Dictionary(grouping: records, by: \.type)
+            .map { ($0.key, $0.value.count) }
+            .sorted { $0.1 > $1.1 }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                DetailMetric(title: "CODENAME", value: op.codename, accent: C.eve)
-                DetailMetric(title: "PRIORITY", value: op.priority.uppercased(), accent: priorityColor)
-                DetailMetric(title: "STATUS", value: op.status.uppercased(), accent: op.status == "active" ? C.listen : .primary)
-                DetailMetric(title: "RECORDS", value: "\(records.count)", accent: C.think)
+            // Three-row metric grid: 6 tiles total for richer at-a-glance.
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                DetailMetric(title: "CODENAME",  value: op.codename, accent: C.eve)
+                DetailMetric(title: "PRIORITY",  value: op.priority.uppercased(), accent: priorityColor)
+                DetailMetric(title: "STATUS",    value: op.status.uppercased(), accent: op.status == "active" ? C.listen : .primary)
+                DetailMetric(title: "RECORDS",   value: "\(records.count)", accent: C.think)
+                DetailMetric(title: "BRIEFS",    value: "\(briefsCount)/\(briefKinds.count)", accent: C.eve)
+                DetailMetric(title: "PINNED",    value: "\(pinnedCount)", accent: pinnedCount > 0 ? C.listen : .secondary)
+            }
+
+            // At-a-glance stripe — type distribution + critical count
+            if !records.isEmpty {
+                HStack(spacing: 10) {
+                    if criticalCount > 0 {
+                        statBadge(label: "CRITICAL", value: "\(criticalCount)", color: .red)
+                    }
+                    ForEach(recordsByType.prefix(4), id: \.0) { typ, n in
+                        statBadge(label: typ.uppercased(), value: "\(n)", color: typeColor(typ))
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 4)
             }
 
             PanelActionButton(
@@ -2817,6 +5655,33 @@ private struct OpsDetailCard: View {
         default:
             return .secondary.opacity(0.6)
         }
+    }
+
+    private func typeColor(_ t: String) -> Color {
+        switch t.lowercased() {
+        case "intel":   return C.listen
+        case "finding": return C.danger
+        case "data":    return C.think
+        case "alert":   return .red
+        case "note":    return .secondary
+        default:        return C.eve
+        }
+    }
+
+    @ViewBuilder
+    private func statBadge(label: String, value: String, color: Color) -> some View {
+        HStack(spacing: 4) {
+            Text(value)
+                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                .foregroundColor(color)
+            Text(label)
+                .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(1.5)
+                .foregroundColor(.secondary)
+        }
+        .padding(.horizontal, 8).padding(.vertical, 4)
+        .background(color.opacity(0.10))
+        .overlay(Capsule().strokeBorder(color.opacity(0.35), lineWidth: 1))
+        .clipShape(Capsule())
     }
 }
 
@@ -3100,6 +5965,27 @@ private struct DirectiveRow: View {
 private struct DirectiveDetail: View {
     let item: DirectiveItem
     let onToggle: () -> Void
+    @EnvironmentObject var store: LumenStore
+
+    private var typeColor: Color {
+        switch item.type { case "protocol": return C.think; case "rule": return C.danger; default: return C.eve }
+    }
+
+    /// Rough "weight" indicator — combines priority and active state into a
+    /// single visible number so the Director can see at a glance how heavily
+    /// this directive will steer Eve's behavior.
+    private var influenceScore: Int {
+        guard item.isActive else { return 0 }
+        return item.priority * 10
+    }
+
+    private var siblingsOfType: Int {
+        store.directives.filter { $0.type == item.type }.count
+    }
+
+    private var totalActive: Int {
+        store.directives.filter(\.isActive).count
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -3108,13 +5994,10 @@ private struct DirectiveDetail: View {
                     Text(item.type.uppercased())
                         .font(.system(size: 9, weight: .bold, design: .monospaced))
                         .tracking(2)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(typeColor)
                     Text(item.title)
                         .font(.system(size: 22, weight: .semibold, design: .rounded))
                         .foregroundColor(.primary.opacity(0.92))
-                    Text("Priority \(item.priority) · target: \(item.target)")
-                        .font(.system(size: 10, design: .monospaced))
-                        .foregroundColor(.secondary)
                 }
                 Spacer()
                 Button(action: onToggle) {
@@ -3131,6 +6014,26 @@ private struct DirectiveDetail: View {
                 .buttonStyle(.plain)
             }
 
+            // Density: 4 metric tiles in a row
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()),
+                                GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                DetailMetric(title: "STATE",     value: item.isActive ? "ACTIVE" : "OFF",
+                             accent: item.isActive ? C.listen : .secondary)
+                DetailMetric(title: "PRIORITY",  value: "P\(item.priority)",
+                             accent: item.priority >= 8 ? C.danger : (item.priority >= 5 ? C.think : .secondary))
+                DetailMetric(title: "TARGET",    value: item.target.isEmpty ? "ALL" : item.target.uppercased(),
+                             accent: typeColor)
+                DetailMetric(title: "INFLUENCE", value: item.isActive ? "\(influenceScore)" : "—",
+                             accent: item.isActive ? typeColor : .secondary)
+            }
+
+            // At-a-glance bar — context across the full directive set
+            HStack(spacing: 8) {
+                statBadge(label: "OF \(item.type.uppercased())S", value: "\(siblingsOfType)", color: typeColor)
+                statBadge(label: "TOTAL ACTIVE", value: "\(totalActive)", color: C.listen)
+                Spacer()
+            }
+
             Text(item.content)
                 .font(.system(size: 13))
                 .foregroundColor(.primary.opacity(0.75))
@@ -3145,6 +6048,22 @@ private struct DirectiveDetail: View {
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
+    }
+
+    @ViewBuilder
+    private func statBadge(label: String, value: String, color: Color) -> some View {
+        HStack(spacing: 4) {
+            Text(value)
+                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                .foregroundColor(color)
+            Text(label)
+                .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(1.5)
+                .foregroundColor(.secondary)
+        }
+        .padding(.horizontal, 8).padding(.vertical, 4)
+        .background(color.opacity(0.10))
+        .overlay(Capsule().strokeBorder(color.opacity(0.35), lineWidth: 1))
+        .clipShape(Capsule())
     }
 }
 
@@ -3412,12 +6331,104 @@ struct ChatsPanel: View {
     @State private var selectedConversationId: String? = nil
     @Environment(\.openWindow) private var openWindow
 
+    // Cross-thread search across all conversations + message content
+    @State private var searchText: String = ""
+    @State private var searchResults: [CrossThreadSearchHit] = []
+    @State private var searching: Bool = false
+
+    /// Debounce token — only the last query's task should mutate state.
+    @State private var searchTaskId: UUID = UUID()
+
+    private func runSearch(_ q: String) {
+        let trimmed = q.trimmingCharacters(in: .whitespaces)
+        guard trimmed.count >= 2 else {
+            searchResults = []
+            searching = false
+            return
+        }
+        let myId = UUID()
+        searchTaskId = myId
+        searching = true
+        Task {
+            // Debounce ~250ms
+            try? await Task.sleep(nanoseconds: 250_000_000)
+            guard searchTaskId == myId else { return }
+            let results = await store.crossThreadSearch(query: trimmed)
+            await MainActor.run {
+                guard searchTaskId == myId else { return }
+                searchResults = results
+                searching = false
+            }
+        }
+    }
+
     var body: some View {
         GeometryReader { proxy in
             let splitLayout = proxy.size.width > 860
 
             VStack(spacing: 0) {
                 SheetHeader(title: "CONVERSATIONS", subtitle: "\(store.conversations.count) THREADS", onDismiss: onDismiss)
+
+                // Search bar — searches titles + all message content
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 11)).foregroundColor(C.listen)
+                    TextField("Search every thread… (titles + content)", text: $searchText)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 12))
+                        .onChange(of: searchText) { _, q in runSearch(q) }
+                        .onSubmit { runSearch(searchText) }
+                    if searching {
+                        ProgressView().controlSize(.mini).tint(C.listen)
+                    }
+                    if !searchText.isEmpty {
+                        Button(action: { searchText = ""; searchResults = [] }) {
+                            Image(systemName: "xmark.circle.fill").font(.system(size: 11)).foregroundColor(.secondary)
+                        }.buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 14).padding(.vertical, 10)
+                .background(C.surfaceHi)
+                .overlay(Rectangle().frame(height: 1).foregroundColor(C.hairline), alignment: .bottom)
+
+                // Search results — when query yields hits, swap them in for
+                // the regular conversation list.
+                if !searchText.trimmingCharacters(in: .whitespaces).isEmpty {
+                    if !searchResults.isEmpty {
+                        ScrollView {
+                            LazyVStack(spacing: 1) {
+                                ForEach(searchResults) { hit in
+                                    Button {
+                                        Task {
+                                            await store.loadConversation(id: hit.conversationId, title: hit.title)
+                                            onDismiss()
+                                        }
+                                    } label: {
+                                        SearchHitRow(hit: hit, query: searchText)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                Text("\(searchResults.count) THREAD\(searchResults.count == 1 ? "" : "S") MATCH \"\(searchText)\"")
+                                    .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(2)
+                                    .foregroundColor(.secondary)
+                                    .padding(.vertical, 14)
+                            }
+                        }
+                    } else if !searching {
+                        VStack(spacing: 8) {
+                            Image(systemName: "doc.text.magnifyingglass")
+                                .font(.system(size: 24))
+                                .foregroundColor(.secondary.opacity(0.5))
+                            Text("No threads match \"\(searchText)\"")
+                                .font(.system(size: 11, design: .monospaced))
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(.vertical, 60)
+                    } else {
+                        Spacer()
+                    }
+                } else {
 
                 Button {
                     store.newConversation()
@@ -3504,6 +6515,7 @@ struct ChatsPanel: View {
                         .padding(.bottom, 20)
                     }
                 }
+                }  // close `else` from search-active branch
             }
         }
         .task { await store.fetchConversations() }
@@ -3519,6 +6531,76 @@ struct ChatsPanel: View {
             return store.conversations.first(where: { $0.id == selectedConversationId })
         }
         return store.conversations.first
+    }
+}
+
+/// Row for cross-thread search results. Highlights the matched substring
+/// inline in the snippet so the Director sees WHY a thread was returned.
+private struct SearchHitRow: View {
+    let hit: CrossThreadSearchHit
+    let query: String
+
+    private var matchAccent: Color {
+        switch hit.matchType {
+        case "title":   return C.eve
+        case "both":    return C.eve
+        default:        return C.listen
+        }
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Circle().fill(matchAccent).frame(width: 6, height: 6)
+                .padding(.top, 6)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(hit.title.isEmpty ? "Untitled" : hit.title)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.primary.opacity(0.92))
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                    Text(hit.matchType.uppercased())
+                        .font(.system(size: 7, weight: .bold, design: .monospaced)).tracking(1.5)
+                        .foregroundColor(matchAccent)
+                        .padding(.horizontal, 4).padding(.vertical, 1)
+                        .background(matchAccent.opacity(0.13))
+                        .clipShape(Capsule())
+                }
+                if !hit.snippet.isEmpty {
+                    Text(highlight(hit.snippet, query: query))
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Text(hit.source.uppercased())
+                    .font(.system(size: 7, weight: .bold, design: .monospaced)).tracking(1.5)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.horizontal, 14).padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+    }
+
+    private func highlight(_ text: String, query: String) -> AttributedString {
+        var out = AttributedString(text)
+        let q = query.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !q.isEmpty else { return out }
+        // Mark each occurrence of q in the snippet with a yellow background
+        let nsText = text as NSString
+        var searchRange = NSRange(location: 0, length: nsText.length)
+        while searchRange.length > 0 {
+            let r = nsText.range(of: q, options: [.caseInsensitive], range: searchRange)
+            if r.location == NSNotFound { break }
+            if let attrRange = Range(r, in: text), let aRange = out.range(of: text[attrRange]) {
+                out[aRange].foregroundColor = matchAccent
+                out[aRange].font = .system(size: 11, weight: .semibold)
+            }
+            searchRange.location = r.location + r.length
+            searchRange.length = nsText.length - searchRange.location
+        }
+        return out
     }
 }
 
@@ -4766,6 +7848,7 @@ struct DetachedPanelWindow: View {
         case .chats:      ChatsPanel(store: store, onDismiss: closeWindow)
         case .nexusMap:   NexusMapView(store: store)
         case .files:      FilesPanel(store: store, onDismiss: closeWindow)
+        case .code:       CodePanel(store: store, onClose: closeWindow)
         case .system:     SystemPanel(store: store, onDismiss: closeWindow)
         case .settings:   SettingsPanel(store: store, auth: auth, onDismiss: closeWindow)
         }
@@ -4784,6 +7867,7 @@ struct DetachedPanelWindow: View {
         case .chats:      return "bubble.left.and.bubble.right.fill"
         case .nexusMap:   return "globe"
         case .files:      return "folder.fill"
+        case .code:       return "terminal.fill"
         case .system:     return "cpu.fill"
         case .settings:   return "gearshape.fill"
         case .none:       return "questionmark"

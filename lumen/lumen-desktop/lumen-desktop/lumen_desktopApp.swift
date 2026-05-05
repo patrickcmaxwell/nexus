@@ -4,6 +4,7 @@ import AppKit
 extension Notification.Name {
     static let lumenCommandPaletteToggle = Notification.Name("lumen.commandPalette.toggle")
     static let lumenMentionTap           = Notification.Name("lumen.mention.tap")
+    static let lumenComposerFocus        = Notification.Name("lumen.composer.focus")
 }
 
 @main
@@ -12,12 +13,38 @@ struct LumenApp: App {
     @StateObject private var store: LumenStore
     @StateObject private var auth: AuthManager
     @StateObject private var sync: LumenSync
+    @StateObject private var apps: LumenAppRegistry
+    @StateObject private var authRegistry: LumenAuthRegistry
 
     init() {
         let store = LumenStore()
+        let registry = LumenAppRegistry()
+        let authReg = LumenAuthRegistry()
+        let auth = AuthManager()
+        // Wire the registry into AuthManager so any cookie that lands via
+        // face/PIN/passphrase paths becomes a known multi-user session.
+        auth.onCookieAdopted = { [weak authReg] cookie in
+            Task { @MainActor in
+                await authReg?.adoptFreshSession(cookie: cookie)
+            }
+        }
+        auth.onSignOut = { [weak authReg] in
+            Task { @MainActor in await authReg?.signOutActive() }
+        }
+        // When the active human flips (login, switch, restore), flush
+        // per-user state in the store and refetch under the new cookie.
+        authReg.onActiveHumanChanged = { [weak store] profile in
+            // Skip the initial nil → restore case; switching away from a
+            // valid user OR switching to a different valid user should both
+            // flush. The store's reload guards an empty fetch result.
+            if profile != nil { store?.reloadForActiveUserSwitch() }
+        }
         self._store = StateObject(wrappedValue: store)
-        self._auth  = StateObject(wrappedValue: AuthManager())
+        self._auth  = StateObject(wrappedValue: auth)
         self._sync  = StateObject(wrappedValue: LumenSync(store: store))
+        self._apps  = StateObject(wrappedValue: registry)
+        self._authRegistry = StateObject(wrappedValue: authReg)
+        AppDelegate.appRegistry = registry
     }
 
     var body: some Scene {
@@ -28,13 +55,23 @@ struct LumenApp: App {
                         .environmentObject(store)
                         .environmentObject(auth)
                         .environmentObject(sync)
+                        .environmentObject(apps)
+                        .environmentObject(authRegistry)
                 } else {
                     AuthGate()
                         .environmentObject(auth)
+                        .environmentObject(authRegistry)
                 }
             }
             .frame(minWidth: 1200, minHeight: 800)
-            .task { await store.startup() }
+            .task {
+                // Restore active session from Keychain BEFORE startup runs —
+                // startup uses the cookie for its initial fetches.
+                if await authRegistry.restoreActiveSession() {
+                    auth.isAuthenticated = true
+                }
+                await store.startup()
+            }
             .onChange(of: auth.isAuthenticated) { _, authenticated in
                 if authenticated {
                     Task {
@@ -62,6 +99,7 @@ struct LumenApp: App {
                 .environmentObject(store)
                 .environmentObject(auth)
                 .environmentObject(sync)
+                .environmentObject(apps)
                 .frame(minWidth: 720, minHeight: 540)
         }
         .windowStyle(.hiddenTitleBar)
@@ -97,6 +135,29 @@ struct LumenApp: App {
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 760, height: 680)
 
+        // Quick Capture — floating mini-window for drop-a-thought interactions.
+        // Sends to Eve with full tool access, fades out after a brief reply.
+        Window("Quick Capture", id: "quick-capture") {
+            QuickCaptureWindow()
+                .environmentObject(store)
+                .environmentObject(auth)
+        }
+        .windowStyle(.hiddenTitleBar)
+        .windowResizability(.contentSize)
+        .defaultPosition(.top)
+        .defaultSize(width: 580, height: 240)
+
+        // Eve orb popout — dedicated status window. Director can pin it to a
+        // second monitor or floating-on-top while working in another app.
+        Window("Eve", id: "eve-orb") {
+            EveOrbWindow()
+                .environmentObject(store)
+                .environmentObject(auth)
+        }
+        .windowResizability(.contentSize)
+        .defaultPosition(.topTrailing)
+        .defaultSize(width: 380, height: 460)
+
         // Menu bar item — Eve always available from the system menu bar.
         // Click the icon for a popover with status, last reply, and quick
         // jump-to-main-window. Useful when Lumen's main window is hidden.
@@ -117,6 +178,14 @@ struct PanelCommands: Commands {
 
     var body: some Commands {
         CommandMenu("Panels") {
+            Button("Quick Capture…") {
+                openWindow(id: "quick-capture")
+            }
+            .keyboardShortcut("n", modifiers: [.command, .option])
+            Button("Eve Orb Window") {
+                openWindow(id: "eve-orb")
+            }
+            .keyboardShortcut("e", modifiers: [.command, .option])
             Button("Command Palette…") {
                 NotificationCenter.default.post(name: .lumenCommandPaletteToggle, object: nil)
             }
@@ -146,11 +215,27 @@ struct PanelCommands: Commands {
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
+    /// Static weak handle — App.init sets this so applicationWillTerminate
+    /// can clean up child processes. Weak so the registry isn't kept alive
+    /// past the App's StateObject lifetime.
+    static weak var appRegistry: LumenAppRegistry?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
+    }
+
+    /// Kill any in-flight Claude Code (or future) sessions before the
+    /// process actually exits. Without this, PTY children become orphans
+    /// reparented to launchd until they happen to read EOF.
+    func applicationWillTerminate(_ notification: Notification) {
+        // applicationWillTerminate runs on main, but @MainActor isolation
+        // on the registry is established at the type level — call inside
+        // a Task to satisfy the isolation requirement.
+        let registry = AppDelegate.appRegistry
+        Task { @MainActor in registry?.terminateAll() }
     }
 }

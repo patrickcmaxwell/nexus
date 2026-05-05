@@ -13,12 +13,21 @@
 import SwiftUI
 import SceneKit
 
+enum NexusMapMode: String, CaseIterable, Identifiable {
+    case twoD, threeD
+    var id: String { rawValue }
+    var label: String { self == .twoD ? "2D" : "3D" }
+}
+
 struct NexusMapView: View {
     @ObservedObject var store: LumenStore
     @State private var search: String = ""
     @State private var typeFilter: String = "all"
     @State private var selected: NexusMapNode?
+    @State private var anchorId: String?    // node currently in focus mode — drives dimming + cycle list
     @State private var sceneRefreshKey = UUID()  // re-creates scene when filter/data changes
+    @State private var mode: NexusMapMode = .twoD  // Director's pref — readable map, 3D as alt
+    @AppStorage("lumen.map.mode") private var persistedMode: String = NexusMapMode.twoD.rawValue
 
     private let allTypes: [String] = ["all", "operation", "agent", "record", "conversation", "research", "directive", "topic", "human"]
 
@@ -36,20 +45,82 @@ struct NexusMapView: View {
         return counts
     }
 
+    /// Anchor node (focus target) + its 1-hop neighbors. Used to dim
+    /// everything else on the map and to drive the prev/next cycle list.
+    private var focusContext: (anchor: NexusMapNode, cycle: [NexusMapNode], focusIds: Set<String>)? {
+        guard let aid = anchorId,
+              let anchor = store.nexusMap.nodes.first(where: { $0.id == aid }) else { return nil }
+        let nodesById = Dictionary(uniqueKeysWithValues: store.nexusMap.nodes.map { ($0.id, $0) })
+        var neighborIds: [String] = []
+        var seen = Set<String>([anchor.id])
+        for e in store.nexusMap.edges {
+            if e.source == anchor.id, !seen.contains(e.target) {
+                seen.insert(e.target); neighborIds.append(e.target)
+            } else if e.target == anchor.id, !seen.contains(e.source) {
+                seen.insert(e.source); neighborIds.append(e.source)
+            }
+        }
+        let neighbors = neighborIds.compactMap { nodesById[$0] }
+        let cycle = [anchor] + neighbors
+        return (anchor, cycle, Set(cycle.map(\.id)))
+    }
+
+    private var cycleIndex: Int {
+        guard let ctx = focusContext else { return 0 }
+        return ctx.cycle.firstIndex(where: { $0.id == selected?.id }) ?? 0
+    }
+
+    private func handleSelect(_ node: NexusMapNode) {
+        // Tapping a node on the map sets it as the anchor (focus mode).
+        anchorId = node.id
+        selected = node
+        NotificationCenter.default.post(
+            name: .lumenMapNodeTap,
+            object: nil,
+            userInfo: ["type": node.type, "id": node.id]
+        )
+    }
+
+    private func cyclePrev() {
+        guard let ctx = focusContext, !ctx.cycle.isEmpty else { return }
+        let i = (cycleIndex - 1 + ctx.cycle.count) % ctx.cycle.count
+        withAnimation(.easeInOut(duration: 0.15)) { selected = ctx.cycle[i] }
+    }
+
+    private func cycleNext() {
+        guard let ctx = focusContext, !ctx.cycle.isEmpty else { return }
+        let i = (cycleIndex + 1) % ctx.cycle.count
+        withAnimation(.easeInOut(duration: 0.15)) { selected = ctx.cycle[i] }
+    }
+
+    private func clearFocus() {
+        withAnimation(.easeOut(duration: 0.18)) {
+            selected = nil
+            anchorId = nil
+        }
+    }
+
     var body: some View {
         ZStack(alignment: .topLeading) {
-            NexusMap3DScene(
-                nodes: filteredNodes,
-                edges: store.nexusMap.edges,
-                onSelectNode: { node in
-                    selected = node
-                    NotificationCenter.default.post(
-                        name: .lumenMapNodeTap,
-                        object: nil,
-                        userInfo: ["type": node.type, "id": node.id]
+            Group {
+                if mode == .twoD {
+                    NexusMap2DScene(
+                        nodes: filteredNodes,
+                        edges: store.nexusMap.edges,
+                        selectedId: selected?.id,
+                        anchorId: anchorId,
+                        focusedIds: focusContext?.focusIds ?? [],
+                        onSelectNode: handleSelect
+                    )
+                } else {
+                    NexusMap3DScene(
+                        nodes: filteredNodes,
+                        edges: store.nexusMap.edges,
+                        focusedIds: focusContext?.focusIds ?? [],
+                        onSelectNode: handleSelect
                     )
                 }
-            )
+            }
             .id(sceneRefreshKey)
             .ignoresSafeArea()
 
@@ -105,6 +176,28 @@ struct NexusMapView: View {
                         .tracking(2)
                         .foregroundColor(.secondary)
                     Spacer(minLength: 14)
+                    // Mode toggle: 2D ⇄ 3D
+                    HStack(spacing: 0) {
+                        ForEach(NexusMapMode.allCases) { m in
+                            Button(action: {
+                                mode = m
+                                persistedMode = m.rawValue
+                                sceneRefreshKey = UUID()
+                            }) {
+                                Text(m.label)
+                                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                    .tracking(1.5)
+                                    .foregroundColor(mode == m ? .primary : .secondary)
+                                    .padding(.horizontal, 10).padding(.vertical, 5)
+                                    .background(mode == m ? Color.secondary.opacity(0.18) : Color.clear)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .background(.ultraThinMaterial)
+                    .overlay(Capsule().strokeBorder(Color.secondary.opacity(0.45), lineWidth: 1))
+                    .clipShape(Capsule())
+
                     Button(action: { Task { await store.fetchNexusMap(); sceneRefreshKey = UUID() } }) {
                         HStack(spacing: 4) {
                             Image(systemName: "arrow.clockwise").font(.system(size: 9, weight: .bold))
@@ -165,86 +258,56 @@ struct NexusMapView: View {
             }
             .padding(20)
 
-            // ── Bottom-right: selected node card ──────────────────────────
+            // ── Right side panel: selected node detail ────────────────────
             if let sel = selected {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 8) {
-                        Circle().fill(NexusMapColors.color(for: sel.type)).frame(width: 8, height: 8)
-                        Text(sel.type.uppercased())
-                            .font(.system(size: 8, weight: .bold, design: .monospaced))
-                            .tracking(2)
-                            .foregroundColor(NexusMapColors.color(for: sel.type))
-                        Spacer()
-                        Button(action: { selected = nil }) {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 9, weight: .bold))
-                                .foregroundColor(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    Text(sel.title)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.primary.opacity(0.95))
-                        .lineLimit(2)
-                    if !sel.subtitle.isEmpty {
-                        Text(sel.subtitle)
-                            .font(.system(size: 10, design: .monospaced))
-                            .foregroundColor(.secondary)
-                    }
-                    if !sel.preview.isEmpty {
-                        Text(sel.preview)
-                            .font(.system(size: 12))
-                            .foregroundColor(.primary.opacity(0.7))
-                            .lineLimit(4)
-                    }
-                    if !sel.tags.isEmpty {
-                        HStack(spacing: 4) {
-                            ForEach(sel.tags.prefix(5), id: \.self) { tag in
-                                Text(tag)
-                                    .font(.system(size: 8, weight: .medium, design: .monospaced))
-                                    .foregroundColor(.primary.opacity(0.6))
-                                    .padding(.horizontal, 6).padding(.vertical, 2)
-                                    .background(Color.secondary)
-                                    .clipShape(Capsule())
-                            }
+                let cycle = focusContext?.cycle ?? []
+                let cycleCount = cycle.count
+                let cycleIdx = cycleIndex
+                let isAnchor = (sel.id == anchorId)
+
+                NexusMapDetailPanel(
+                    node: sel,
+                    isAnchor: isAnchor,
+                    cycleIndex: cycleIdx,
+                    cycleCount: cycleCount,
+                    edges: store.nexusMap.edges,
+                    allNodes: store.nexusMap.nodes,
+                    onClose: clearFocus,
+                    onOpen: {
+                        NotificationCenter.default.post(
+                            name: .lumenMapNodeOpen,
+                            object: nil,
+                            userInfo: ["type": sel.type, "id": sel.id]
+                        )
+                    },
+                    onJump: { other in
+                        // Clicking a connection in the panel just changes the
+                        // panel view — the anchor (focus mode) stays put.
+                        withAnimation(.easeInOut(duration: 0.15)) { selected = other }
+                    },
+                    onPrev: cyclePrev,
+                    onNext: cycleNext,
+                    onMakeAnchor: {
+                        // Promote the currently-viewed node to the new anchor.
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            anchorId = sel.id
                         }
                     }
-                    HStack {
-                        Text("Updated \(sel.updatedAt.prefix(10))")
-                            .font(.system(size: 9, design: .monospaced))
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        Button(action: {
-                            NotificationCenter.default.post(
-                                name: .lumenMapNodeOpen,
-                                object: nil,
-                                userInfo: ["type": sel.type, "id": sel.id]
-                            )
-                        }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "arrow.up.right.square").font(.system(size: 10, weight: .bold))
-                                Text("OPEN").font(.system(size: 9, weight: .bold, design: .monospaced)).tracking(1.5)
-                            }
-                            .foregroundColor(C.eve)
-                            .padding(.horizontal, 10).padding(.vertical, 5)
-                            .background(C.eve.opacity(0.15))
-                            .overlay(Capsule().strokeBorder(C.eve.opacity(0.5), lineWidth: 1))
-                            .clipShape(Capsule())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(14)
-                .frame(width: 360)
+                )
+                .frame(width: 420)
+                .frame(maxHeight: .infinity)
                 .background(.ultraThinMaterial)
-                .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(NexusMapColors.color(for: sel.type).opacity(0.5), lineWidth: 1))
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-                .padding(20)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                .overlay(Rectangle().frame(width: 1).foregroundColor(NexusMapColors.color(for: sel.type).opacity(0.4)), alignment: .leading)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
-        .background(Color.black)
+        .animation(.easeInOut(duration: 0.18), value: selected?.id)
+        .background(mode == .threeD ? Color.black : Color(.windowBackgroundColor))
+        .onAppear {
+            // Restore persisted mode preference
+            if let m = NexusMapMode(rawValue: persistedMode) { mode = m }
+        }
         .task {
             if store.nexusMap.nodes.isEmpty {
                 await store.fetchNexusMap()
@@ -282,6 +345,7 @@ enum NexusMapColors {
 private struct NexusMap3DScene: NSViewRepresentable {
     let nodes: [NexusMapNode]
     let edges: [NexusMapEdge]
+    let focusedIds: Set<String>      // anchor + 1-hop neighbors. Empty = no focus.
     let onSelectNode: (NexusMapNode) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(onSelectNode: onSelectNode) }
@@ -406,9 +470,7 @@ private struct NexusMap3DScene: NSViewRepresentable {
 
     private func makeSceneNode(for node: NexusMapNode, at position: SCNVector3) -> SCNNode {
         // Size tied to importance: higher messageCount or pinned = bigger.
-        // Bumped from previous (2.4-4.5) so nodes are visible at auto-fit
-        // camera distances of 600+ units.
-        let baseRadius: CGFloat = {
+        let baseSize: CGFloat = {
             switch node.type {
             case "operation": return 8.0
             case "agent":     return 7.0
@@ -418,35 +480,81 @@ private struct NexusMap3DScene: NSViewRepresentable {
             }
         }()
         let bonus = min(CGFloat(node.messageCount) * 0.08, 5.0) + (node.pinned ? 2.0 : 0)
-        let radius = baseRadius + bonus
-        let dimmed = node.archived
+        let size = baseSize + bonus
+        // Focus dim: when there's an active anchor (focusedIds non-empty),
+        // anything outside the focus set gets visually muted.
+        let focusMuted = !focusedIds.isEmpty && !focusedIds.contains(node.id)
+        let dimmed = node.archived || focusMuted
 
-        let sphere = SCNSphere(radius: radius)
-        sphere.segmentCount = 20
+        // Pulse classification (mirrors 2D logic).
+        let pulse: NexusMap2DScene.NodePulse = {
+            if node.archived { return .dormant }
+            let s = (node.status ?? "").lowercased()
+            if s == "active" || s == "running" { return .active }
+            if ["queued", "in_progress", "in-progress", "scanning"].contains(s) { return .inProgress }
+            return .idle
+        }()
 
+        // Cube body — tesseract feel.
+        let box = SCNBox(width: size * 1.6, height: size * 1.6,
+                         length: size * 1.6, chamferRadius: size * 0.18)
         let mat = SCNMaterial()
         let nsColor = NexusMapColors.nsColor(for: node.type)
         mat.diffuse.contents  = nsColor
-        mat.emission.contents = nsColor.withAlphaComponent(dimmed ? 0.15 : 0.55)
+        mat.emission.contents = nsColor.withAlphaComponent(dimmed ? 0.15 : 0.45)
         mat.specular.contents = NSColor.white
-        mat.shininess         = 0.4
+        mat.shininess         = 0.5
         mat.transparency      = dimmed ? 0.45 : 1.0
-        sphere.firstMaterial  = mat
+        box.firstMaterial = mat
 
-        let scn = SCNNode(geometry: sphere)
+        let scn = SCNNode(geometry: box)
         scn.position = position
         scn.name = "node:\(node.id)"
 
-        // Halo glow
-        let halo = SCNSphere(radius: radius * 1.6)
-        let haloMat = SCNMaterial()
-        haloMat.diffuse.contents = NSColor.clear
-        haloMat.emission.contents = nsColor.withAlphaComponent(0.18)
-        haloMat.transparency = 0.25
-        halo.firstMaterial = haloMat
-        halo.segmentCount = 14
-        let haloNode = SCNNode(geometry: halo)
-        scn.addChildNode(haloNode)
+        // Wireframe cage — slightly bigger box, edges only, constant lit.
+        let cage = SCNBox(width: size * 2.4, height: size * 2.4,
+                          length: size * 2.4, chamferRadius: 0)
+        let cageMat = SCNMaterial()
+        cageMat.diffuse.contents = NSColor.clear
+        cageMat.emission.contents = nsColor.withAlphaComponent(dimmed ? 0.10 : 0.30)
+        cageMat.lightingModel = .constant
+        cageMat.transparency = 0.6
+        cageMat.fillMode = .lines  // wireframe!
+        cage.firstMaterial = cageMat
+        let cageNode = SCNNode(geometry: cage)
+        scn.addChildNode(cageNode)
+
+        // Pulse animations for live nodes.
+        switch pulse {
+        case .active:
+            let pulseScale = SCNAction.sequence([
+                SCNAction.scale(to: 1.18, duration: 0.6),
+                SCNAction.scale(to: 1.0,  duration: 0.6),
+            ])
+            scn.runAction(SCNAction.repeatForever(pulseScale))
+            // Cage spins to telegraph "live"
+            cageNode.runAction(SCNAction.repeatForever(
+                SCNAction.rotate(by: .pi * 2, around: SCNVector3(0, 1, 0), duration: 6)
+            ))
+        case .inProgress:
+            // Faster scan-style pulse
+            let scan = SCNAction.sequence([
+                SCNAction.scale(to: 1.10, duration: 0.35),
+                SCNAction.scale(to: 0.95, duration: 0.35),
+            ])
+            scn.runAction(SCNAction.repeatForever(scan))
+            cageNode.runAction(SCNAction.repeatForever(
+                SCNAction.rotate(by: .pi * 2, around: SCNVector3(0.3, 1, 0.2), duration: 2.2)
+            ))
+        case .recent:
+            let soft = SCNAction.sequence([
+                SCNAction.scale(to: 1.06, duration: 1.2),
+                SCNAction.scale(to: 1.0,  duration: 1.2),
+            ])
+            scn.runAction(SCNAction.repeatForever(soft))
+        case .idle, .dormant:
+            break
+        }
 
         // Title text floating slightly above (only for major types so we don't
         // overload the scene with 525 labels)
@@ -458,7 +566,7 @@ private struct NexusMap3DScene: NSViewRepresentable {
             text.firstMaterial?.isDoubleSided = true
             text.flatness = 0.4
             let label = SCNNode(geometry: text)
-            label.position = SCNVector3(-Float(radius), Float(radius) + 4, 0)
+            label.position = SCNVector3(-Float(size), Float(size) + 4, 0)
             label.scale = SCNVector3(0.85, 0.85, 0.85)
             let bb = SCNBillboardConstraint()
             bb.freeAxes = .Y
@@ -573,4 +681,730 @@ private struct NexusMap3DScene: NSViewRepresentable {
 extension Notification.Name {
     static let lumenMapNodeTap  = Notification.Name("lumen.map.nodeTap")
     static let lumenMapNodeOpen = Notification.Name("lumen.map.nodeOpen")
+}
+
+// MARK: - Detail Panel (replaces small popup)
+
+private struct NexusMapDetailPanel: View {
+    let node: NexusMapNode
+    let isAnchor: Bool                 // currently-shown node is the focus anchor
+    let cycleIndex: Int                // 0-based position in [anchor, neighbor1, neighbor2, …]
+    let cycleCount: Int                // total cycle length (1 = anchor only, no siblings)
+    let edges: [NexusMapEdge]
+    let allNodes: [NexusMapNode]
+    let onClose: () -> Void
+    let onOpen: () -> Void
+    let onJump: (NexusMapNode) -> Void
+    let onPrev: () -> Void
+    let onNext: () -> Void
+    let onMakeAnchor: () -> Void
+
+    private var connections: [(NexusMapNode, String)] {
+        let nodesById = Dictionary(uniqueKeysWithValues: allNodes.map { ($0.id, $0) })
+        var out: [(NexusMapNode, String)] = []
+        for e in edges {
+            if e.source == node.id, let other = nodesById[e.target] {
+                out.append((other, e.type))
+            } else if e.target == node.id, let other = nodesById[e.source] {
+                out.append((other, e.type))
+            }
+        }
+        return out
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header — type pill, anchor badge, close
+            HStack(spacing: 8) {
+                Circle().fill(NexusMapColors.color(for: node.type)).frame(width: 10, height: 10)
+                    .shadow(color: NexusMapColors.color(for: node.type), radius: 4)
+                Text(node.type.uppercased())
+                    .font(.system(size: 9, weight: .bold, design: .monospaced)).tracking(2)
+                    .foregroundColor(NexusMapColors.color(for: node.type))
+                if isAnchor {
+                    Text("ANCHOR")
+                        .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(1.5)
+                        .foregroundColor(.primary.opacity(0.85))
+                        .padding(.horizontal, 5).padding(.vertical, 2)
+                        .background(Color.primary.opacity(0.12))
+                        .clipShape(Capsule())
+                }
+                Spacer()
+                Button(action: onClose) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 18).padding(.top, 18).padding(.bottom, 8)
+
+            // Cycle navigator — only meaningful when there's > 1 in the set
+            if cycleCount > 1 {
+                HStack(spacing: 6) {
+                    Button(action: onPrev) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.primary.opacity(0.85))
+                            .frame(width: 28, height: 24)
+                            .background(Color.secondary.opacity(0.10))
+                            .overlay(Capsule().strokeBorder(Color.secondary.opacity(0.3), lineWidth: 1))
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .help("Previous in this neighborhood")
+
+                    Text("\(cycleIndex + 1) / \(cycleCount)")
+                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .foregroundColor(.primary.opacity(0.75))
+                        .frame(minWidth: 44)
+
+                    Button(action: onNext) {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.primary.opacity(0.85))
+                            .frame(width: 28, height: 24)
+                            .background(Color.secondary.opacity(0.10))
+                            .overlay(Capsule().strokeBorder(Color.secondary.opacity(0.3), lineWidth: 1))
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .help("Next in this neighborhood")
+
+                    Spacer()
+
+                    if !isAnchor {
+                        Button(action: onMakeAnchor) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "scope").font(.system(size: 9, weight: .bold))
+                                Text("FOCUS HERE")
+                                    .font(.system(size: 9, weight: .bold, design: .monospaced)).tracking(1.5)
+                            }
+                            .foregroundColor(NexusMapColors.color(for: node.type))
+                            .padding(.horizontal, 9).padding(.vertical, 5)
+                            .background(NexusMapColors.color(for: node.type).opacity(0.14))
+                            .overlay(Capsule().strokeBorder(NexusMapColors.color(for: node.type).opacity(0.45), lineWidth: 1))
+                            .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .help("Make this node the new focus anchor")
+                    }
+                }
+                .padding(.horizontal, 18).padding(.bottom, 8)
+            }
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Title
+                    Text(node.title.isEmpty ? "Untitled" : node.title)
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+
+                    // Stat row
+                    HStack(spacing: 14) {
+                        if !node.subtitle.isEmpty {
+                            statTile(label: "STATUS", value: node.subtitle)
+                        }
+                        if node.messageCount > 0 {
+                            statTile(label: "MESSAGES", value: "\(node.messageCount)")
+                        }
+                        if !node.updatedAt.isEmpty {
+                            statTile(label: "UPDATED", value: String(node.updatedAt.prefix(10)))
+                        }
+                    }
+
+                    if node.pinned || node.archived || (node.priority?.isEmpty == false) || (node.status?.isEmpty == false) {
+                        HStack(spacing: 6) {
+                            if node.pinned { pill("PINNED", color: NexusMapColors.color(for: "directive")) }
+                            if node.archived { pill("ARCHIVED", color: .secondary) }
+                            if let p = node.priority, !p.isEmpty { pill(p.uppercased(), color: NexusMapColors.color(for: "operation")) }
+                            if let s = node.status, !s.isEmpty, s != node.subtitle { pill(s.uppercased(), color: NexusMapColors.color(for: "agent")) }
+                        }
+                    }
+
+                    if !node.preview.isEmpty {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("PREVIEW")
+                                .font(.system(size: 9, weight: .bold, design: .monospaced)).tracking(2)
+                                .foregroundColor(.secondary)
+                            Text(node.preview)
+                                .font(.system(size: 13))
+                                .foregroundColor(.primary.opacity(0.85))
+                                .fixedSize(horizontal: false, vertical: true)
+                                .textSelection(.enabled)
+                        }
+                    }
+
+                    if !node.tags.isEmpty {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("TAGS")
+                                .font(.system(size: 9, weight: .bold, design: .monospaced)).tracking(2)
+                                .foregroundColor(.secondary)
+                            FlowLayout(spacing: 5) {
+                                ForEach(node.tags, id: \.self) { tag in
+                                    Text(tag)
+                                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                                        .foregroundColor(.primary.opacity(0.7))
+                                        .padding(.horizontal, 7).padding(.vertical, 3)
+                                        .background(Color.secondary.opacity(0.18))
+                                        .clipShape(Capsule())
+                                }
+                            }
+                        }
+                    }
+
+                    if !connections.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("CONNECTIONS")
+                                    .font(.system(size: 9, weight: .bold, design: .monospaced)).tracking(2)
+                                    .foregroundColor(.secondary)
+                                Text("\(connections.count)")
+                                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                    .foregroundColor(.primary.opacity(0.7))
+                            }
+                            ForEach(Array(connections.prefix(12).enumerated()), id: \.offset) { _, conn in
+                                Button(action: { onJump(conn.0) }) {
+                                    HStack(spacing: 8) {
+                                        Circle().fill(NexusMapColors.color(for: conn.0.type))
+                                            .frame(width: 7, height: 7)
+                                        VStack(alignment: .leading, spacing: 1) {
+                                            Text(conn.0.title.isEmpty ? "Untitled" : conn.0.title)
+                                                .font(.system(size: 12))
+                                                .foregroundColor(.primary.opacity(0.9))
+                                                .lineLimit(1)
+                                            Text("\(conn.0.type) · \(conn.1)")
+                                                .font(.system(size: 8, weight: .medium, design: .monospaced)).tracking(1)
+                                                .foregroundColor(.secondary)
+                                        }
+                                        Spacer()
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 9))
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .padding(.horizontal, 10).padding(.vertical, 6)
+                                    .background(Color.secondary.opacity(0.06))
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            if connections.count > 12 {
+                                Text("+ \(connections.count - 12) more")
+                                    .font(.system(size: 10, design: .monospaced))
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+
+                    Spacer(minLength: 8)
+                }
+                .padding(.horizontal, 18).padding(.bottom, 18)
+            }
+
+            // Footer: open in detail window
+            Divider()
+            Button(action: onOpen) {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.up.right.square.fill").font(.system(size: 12, weight: .bold))
+                    Text("OPEN IN DETAIL WINDOW")
+                        .font(.system(size: 11, weight: .bold, design: .monospaced)).tracking(2)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(NexusMapColors.color(for: node.type))
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func statTile(label: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(1.5)
+                .foregroundColor(.secondary)
+            Text(value)
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundColor(.primary.opacity(0.85))
+                .lineLimit(1)
+        }
+    }
+
+    private func pill(_ text: String, color: Color) -> some View {
+        Text(text)
+            .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(1.5)
+            .foregroundColor(color)
+            .padding(.horizontal, 6).padding(.vertical, 2)
+            .background(color.opacity(0.15))
+            .overlay(Capsule().strokeBorder(color.opacity(0.4), lineWidth: 1))
+            .clipShape(Capsule())
+    }
+}
+
+// Simple flow layout for tags
+private struct FlowLayout: Layout {
+    let spacing: CGFloat
+    init(spacing: CGFloat = 4) { self.spacing = spacing }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxW = proposal.width ?? .infinity
+        var x: CGFloat = 0, y: CGFloat = 0, rowH: CGFloat = 0
+        for sv in subviews {
+            let s = sv.sizeThatFits(.unspecified)
+            if x + s.width > maxW {
+                x = 0; y += rowH + spacing; rowH = 0
+            }
+            x += s.width + spacing
+            rowH = max(rowH, s.height)
+        }
+        return CGSize(width: maxW, height: y + rowH)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX, y = bounds.minY, rowH: CGFloat = 0
+        for sv in subviews {
+            let s = sv.sizeThatFits(.unspecified)
+            if x + s.width > bounds.maxX {
+                x = bounds.minX; y += rowH + spacing; rowH = 0
+            }
+            sv.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(s))
+            x += s.width + spacing
+            rowH = max(rowH, s.height)
+        }
+    }
+}
+
+// MARK: - 2D Scene (default mode)
+//
+// SwiftUI Canvas-based renderer. Pan with drag, zoom with magnification.
+// Type-clustered layout: each entity type sits in its own region of the
+// 2D plane, with nodes spread inside the cluster on a Fibonacci spiral so
+// they don't overlap. Edges drawn as thin lines under nodes; labels visible
+// at all zoom levels for major types, only when zoomed in for the rest.
+
+private struct NexusMap2DScene: View {
+    let nodes: [NexusMapNode]
+    let edges: [NexusMapEdge]
+    let selectedId: String?
+    let anchorId: String?
+    let focusedIds: Set<String>      // anchor + 1-hop neighbors. Empty = no focus.
+    let onSelectNode: (NexusMapNode) -> Void
+
+    @State private var offset: CGSize = .zero
+    @State private var dragStart: CGSize = .zero
+    @State private var scale: CGFloat = 1.0
+    @State private var scaleStart: CGFloat = 1.0
+
+    private static let clusterCenters: [String: CGPoint] = [
+        "operation":    CGPoint(x:    0, y:    0),
+        "agent":        CGPoint(x:  450, y: -200),
+        "record":       CGPoint(x: -380, y:  120),
+        "conversation": CGPoint(x:    0, y:  500),
+        "research":     CGPoint(x:  280, y:  380),
+        "directive":    CGPoint(x: -460, y: -260),
+        "topic":        CGPoint(x:  500, y:  140),
+        "human":        CGPoint(x: -200, y: -380),
+    ]
+
+    private var positions: [String: CGPoint] {
+        // Pre-compute node positions: cluster center + Fibonacci spiral offset.
+        // Stable ordering means positions don't jiggle on filter changes.
+        let grouped = Dictionary(grouping: nodes, by: \.type)
+        var out: [String: CGPoint] = [:]
+        for (type, list) in grouped {
+            let center = Self.clusterCenters[type] ?? .zero
+            let radius = max(40, CGFloat(list.count).squareRoot() * 18)
+            for (idx, n) in list.enumerated() {
+                let golden = (1 + 5.0.squareRoot()) / 2
+                let theta = 2 * .pi * Double(idx) / golden
+                let r = radius * CGFloat(sqrt(Double(idx) / max(1, Double(list.count))))
+                out[n.id] = CGPoint(
+                    x: center.x + r * CGFloat(cos(theta)),
+                    y: center.y + r * CGFloat(sin(theta))
+                )
+            }
+        }
+        return out
+    }
+
+    private var nodesById: [String: NexusMapNode] {
+        Dictionary(uniqueKeysWithValues: nodes.map { ($0.id, $0) })
+    }
+
+    private func nodeRadius(for n: NexusMapNode) -> CGFloat {
+        // Slightly larger than circles so the hex shape is readable.
+        let base: CGFloat = {
+            switch n.type {
+            case "operation": return 12
+            case "agent":     return 11
+            case "human":     return 13
+            case "directive": return 10
+            default:          return 8
+            }
+        }()
+        let bonus = min(CGFloat(n.messageCount) * 0.07, 5) + (n.pinned ? 2 : 0)
+        return base + bonus
+    }
+
+    private static let alwaysLabeled: Set<String> = ["operation", "agent", "human", "directive"]
+
+    /// Animate offset + scale so the focus set fits the viewport. When the
+    /// set is empty (focus cleared), restore the default 1× world view.
+    private func animateFit(to ids: Set<String>, in viewport: CGSize) {
+        let pos = positions
+        // Empty focus = reset to home
+        if ids.isEmpty {
+            withAnimation(.easeInOut(duration: 0.35)) {
+                offset = .zero
+                dragStart = .zero
+                scale = 1.0
+                scaleStart = 1.0
+            }
+            return
+        }
+
+        let pts = ids.compactMap { pos[$0] }
+        guard !pts.isEmpty else { return }
+
+        let xs = pts.map(\.x), ys = pts.map(\.y)
+        let minX = xs.min()!, maxX = xs.max()!
+        let minY = ys.min()!, maxY = ys.max()!
+        let cx = (minX + maxX) / 2
+        let cy = (minY + maxY) / 2
+
+        // Padding so the anchor halo + labels don't get clipped
+        let padding: CGFloat = 200
+        let bw = max(80, maxX - minX) + padding * 2
+        let bh = max(80, maxY - minY) + padding * 2
+
+        // Don't zoom in past 2.0× (gets cartoonish) or out past 0.4×
+        let target = min(viewport.width / bw, viewport.height / bh)
+        let clamped = max(0.4, min(2.0, target))
+
+        let targetOffset = CGSize(width: -cx * clamped, height: -cy * clamped)
+        withAnimation(.easeInOut(duration: 0.45)) {
+            offset = targetOffset
+            dragStart = targetOffset
+            scale = clamped
+            scaleStart = clamped
+        }
+    }
+
+    /// Pulse / signal classification — drives animated treatment in the
+    /// Canvas. Active = strong heartbeat, in-progress = scanning, recent =
+    /// soft glow, dormant = archived (very dim).
+    enum NodePulse { case dormant, active, inProgress, recent, idle }
+
+    private static let isoFormatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+    private static let isoFormatterBasic: ISO8601DateFormatter = ISO8601DateFormatter()
+
+    private func pulseFor(_ n: NexusMapNode) -> NodePulse {
+        if n.archived { return .dormant }
+        let s = (n.status ?? "").lowercased()
+        if s == "active" || s == "running" { return .active }
+        if ["queued", "in_progress", "in-progress", "scanning"].contains(s) { return .inProgress }
+        if let d = Self.isoFormatter.date(from: n.updatedAt) ?? Self.isoFormatterBasic.date(from: n.updatedAt),
+           Date().timeIntervalSince(d) < 86400 {
+            return .recent
+        }
+        return .idle
+    }
+
+    /// Builds a pointy-top hexagon path centered at `c` with vertex distance `r`.
+    private func hexagonPath(center c: CGPoint, radius r: CGFloat) -> Path {
+        var path = Path()
+        let angles: [Double] = [-90, -30, 30, 90, 150, 210]
+        for (i, a) in angles.enumerated() {
+            let rad = a * .pi / 180
+            let p = CGPoint(x: c.x + r * CGFloat(cos(rad)),
+                            y: c.y + r * CGFloat(sin(rad)))
+            if i == 0 { path.move(to: p) } else { path.addLine(to: p) }
+        }
+        path.closeSubpath()
+        return path
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            // TimelineView drives steady redraws so pulse animations work
+            // inside a Canvas (which is otherwise static between state changes).
+            TimelineView(.animation(minimumInterval: 0.05, paused: false)) { context in
+                let t = context.date.timeIntervalSinceReferenceDate
+                let slow = sin(t * .pi / 1.2)             // ~2.4s period
+                let fast = sin(t * .pi / 0.6)             // ~1.2s period
+                let scanPhase = (t.truncatingRemainder(dividingBy: 1.6)) / 1.6  // 0…1 each 1.6s
+
+                Canvas { ctx, size in
+                    let cxBase = size.width / 2 + offset.width
+                    let cyBase = size.height / 2 + offset.height
+
+                    // World → screen
+                    func screen(_ p: CGPoint) -> CGPoint {
+                        CGPoint(x: cxBase + p.x * scale, y: cyBase + p.y * scale)
+                    }
+
+                    let pos = positions
+                    let nById = nodesById
+
+                    // ── Background grid (subtle, only at moderate zoom) ────
+                    if scale > 0.55 {
+                        let cellSize: CGFloat = 60 * scale
+                        let gridAlpha: Double = 0.045
+                        let originX = cxBase.truncatingRemainder(dividingBy: cellSize)
+                        let originY = cyBase.truncatingRemainder(dividingBy: cellSize)
+                        var x = originX
+                        while x < size.width {
+                            var p = Path()
+                            p.move(to: CGPoint(x: x, y: 0))
+                            p.addLine(to: CGPoint(x: x, y: size.height))
+                            ctx.stroke(p, with: .color(.secondary.opacity(gridAlpha)), lineWidth: 0.5)
+                            x += cellSize
+                        }
+                        var y = originY
+                        while y < size.height {
+                            var p = Path()
+                            p.move(to: CGPoint(x: 0, y: y))
+                            p.addLine(to: CGPoint(x: size.width, y: y))
+                            ctx.stroke(p, with: .color(.secondary.opacity(gridAlpha)), lineWidth: 0.5)
+                            y += cellSize
+                        }
+                    }
+
+                    // Focus mode: when focusedIds is non-empty, dim everything
+                    // outside the focus set so the connection web is obvious.
+                    let inFocusMode = !focusedIds.isEmpty
+
+                    // ── Edges ───────────────────────────────────────────────
+                    // Brighter when either endpoint is active. Static
+                    // otherwise so the eye gravitates toward live signal lines.
+                    for e in edges {
+                        guard let a = pos[e.source], let b = pos[e.target] else { continue }
+                        let pA = screen(a), pB = screen(b)
+                        let aActive = (nById[e.source].map(pulseFor) ?? .idle) == .active
+                        let bActive = (nById[e.target].map(pulseFor) ?? .idle) == .active
+                        let live = aActive || bActive
+                        var path = Path()
+                        path.move(to: pA)
+                        path.addLine(to: pB)
+                        let inFocus = !inFocusMode || (focusedIds.contains(e.source) && focusedIds.contains(e.target))
+                        let edgeAlpha: Double
+                        let lw: CGFloat
+                        if inFocusMode {
+                            // Focus highlight: anchor↔neighbor edges glow; everything else fades way out.
+                            if inFocus {
+                                edgeAlpha = (e.source == anchorId || e.target == anchorId)
+                                    ? 0.7 + 0.20 * slow
+                                    : 0.35
+                                lw = (e.source == anchorId || e.target == anchorId) ? 1.6 : 0.9
+                            } else {
+                                edgeAlpha = 0.04
+                                lw = 0.4
+                            }
+                        } else {
+                            edgeAlpha = live ? 0.45 + 0.25 * slow : 0.16
+                            lw = live ? 1.0 : 0.6
+                        }
+                        ctx.stroke(path, with: .color(.secondary.opacity(edgeAlpha)), lineWidth: lw)
+                    }
+
+                    // ── Hexagonal nodes ────────────────────────────────────
+                    for n in nodes {
+                        guard let p = pos[n.id] else { continue }
+                        let s = screen(p)
+                        let r = nodeRadius(for: n)
+                        let color = NexusMapColors.color(for: n.type)
+                        let isSel = (n.id == selectedId)
+                        let isAnchorNode = (n.id == anchorId)
+                        let pulse = pulseFor(n)
+
+                        // Focus dim: nodes outside the focus set render at ~0.18 alpha
+                        // so the anchor's neighborhood pops without losing global context.
+                        let muted = inFocusMode && !focusedIds.contains(n.id)
+                        let muteFactor: Double = muted ? 0.22 : 1.0
+
+                        // Animated halo for active / in-progress / recent
+                        // (suppressed when muted to keep the focus set the only animated thing)
+                        if !muted {
+                            switch pulse {
+                            case .active:
+                                let alpha = (0.20 + 0.18 * (slow * 0.5 + 0.5)) * muteFactor
+                                let hr = r * (1.85 + 0.15 * slow)
+                                ctx.fill(hexagonPath(center: s, radius: hr),
+                                         with: .color(color.opacity(alpha)))
+                            case .inProgress:
+                                let alpha = (0.18 + 0.22 * (fast * 0.5 + 0.5)) * muteFactor
+                                let hr = r * (1.7 + 0.2 * fast)
+                                ctx.stroke(hexagonPath(center: s, radius: hr),
+                                           with: .color(color.opacity(alpha)),
+                                           lineWidth: 1.4)
+                            case .recent:
+                                let alpha = (0.10 + 0.10 * (slow * 0.5 + 0.5)) * muteFactor
+                                let hr = r * 1.6
+                                ctx.fill(hexagonPath(center: s, radius: hr),
+                                         with: .color(color.opacity(alpha)))
+                            case .idle, .dormant:
+                                break
+                            }
+                        }
+
+                        // Anchor halo — extra emphasis on the focused-on node
+                        if isAnchorNode {
+                            ctx.fill(hexagonPath(center: s, radius: r * 2.6),
+                                     with: .color(color.opacity(0.16 + 0.10 * slow)))
+                            ctx.stroke(hexagonPath(center: s, radius: r * 2.0),
+                                       with: .color(color.opacity(0.55)),
+                                       lineWidth: 1.5)
+                        }
+
+                        // Selected highlight (drawn under static stroke)
+                        if isSel && !isAnchorNode {
+                            ctx.fill(hexagonPath(center: s, radius: r * 2.1),
+                                     with: .color(color.opacity(0.22 * muteFactor)))
+                        }
+
+                        // Outer hex frame (always drawn — the "tile" feel)
+                        let bodyAlphaBase = n.archived ? 0.18 : (pulse == .idle ? 0.42 : 0.62)
+                        let bodyAlpha = bodyAlphaBase * muteFactor
+                        ctx.fill(hexagonPath(center: s, radius: r),
+                                 with: .color(color.opacity(bodyAlpha)))
+                        ctx.stroke(hexagonPath(center: s, radius: r),
+                                   with: .color(color.opacity((n.archived ? 0.35 : 1.0) * muteFactor)),
+                                   lineWidth: isSel ? 2.0 : 1.2)
+
+                        // Inner core dot — always-on indicator
+                        let coreR = max(1.5, r * 0.30)
+                        ctx.fill(
+                            Path(ellipseIn: CGRect(x: s.x - coreR, y: s.y - coreR,
+                                                    width: coreR * 2, height: coreR * 2)),
+                            with: .color(color.opacity((n.archived ? 0.5 : 1.0) * muteFactor))
+                        )
+
+                        // In-progress: rotating scan dot inside cell
+                        if pulse == .inProgress && !muted {
+                            let scanRad = scanPhase * 2 * .pi
+                            let scanX = s.x + (r * 0.55) * CGFloat(cos(scanRad))
+                            let scanY = s.y + (r * 0.55) * CGFloat(sin(scanRad))
+                            ctx.fill(
+                                Path(ellipseIn: CGRect(x: scanX - 1.5, y: scanY - 1.5,
+                                                        width: 3, height: 3)),
+                                with: .color(color)
+                            )
+                        }
+
+                        // Title rules:
+                        //   - Focus mode: always show titles for focus-set nodes
+                        //   - Otherwise: major types or zoom > 1.4
+                        let showLabel = (inFocusMode && focusedIds.contains(n.id))
+                            || Self.alwaysLabeled.contains(n.type)
+                            || scale > 1.4
+                        if showLabel, !n.title.isEmpty {
+                            let label = String(n.title.prefix(28))
+                            let text = Text(label)
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundColor(.primary.opacity(0.85 * muteFactor))
+                            ctx.draw(text, at: CGPoint(x: s.x, y: s.y + r + 6), anchor: .top)
+                        }
+                    }
+                }
+            }
+            .background(Color(.windowBackgroundColor))
+            .gesture(
+                DragGesture()
+                    .onChanged { v in
+                        offset = CGSize(
+                            width: dragStart.width + v.translation.width,
+                            height: dragStart.height + v.translation.height
+                        )
+                    }
+                    .onEnded { _ in dragStart = offset }
+            )
+            .gesture(
+                MagnificationGesture()
+                    .onChanged { v in
+                        scale = max(0.3, min(4.0, scaleStart * v))
+                    }
+                    .onEnded { _ in scaleStart = scale }
+            )
+            .onTapGesture { tapPoint in
+                let cx = geo.size.width / 2 + offset.width
+                let cy = geo.size.height / 2 + offset.height
+                let pos = positions
+                // Find nearest node within hit-radius (in screen pixels)
+                var bestId: String?
+                var bestDist: CGFloat = .infinity
+                for n in nodes {
+                    guard let p = pos[n.id] else { continue }
+                    let s = CGPoint(x: cx + p.x * scale, y: cy + p.y * scale)
+                    let dx = s.x - tapPoint.x
+                    let dy = s.y - tapPoint.y
+                    let d = (dx * dx + dy * dy).squareRoot()
+                    let hitR = nodeRadius(for: n) * scale + 4
+                    if d < hitR && d < bestDist {
+                        bestDist = d
+                        bestId = n.id
+                    }
+                }
+                if let id = bestId, let n = nodesById[id] {
+                    onSelectNode(n)
+                }
+            }
+            // Auto-fit camera when focus engages: animate offset + scale so the
+            // anchor + neighbors fit the viewport with margin. Triggered every
+            // time the focus set changes (anchor change or anchor cleared).
+            .onChange(of: focusedIds) { _, new in
+                animateFit(to: new, in: geo.size)
+            }
+            .onChange(of: anchorId) { _, _ in
+                animateFit(to: focusedIds, in: geo.size)
+            }
+            .overlay(alignment: .bottomLeading) {
+                // Zoom controls + reset
+                VStack(spacing: 6) {
+                    Button(action: { scale = min(4, scale * 1.25); scaleStart = scale }) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.primary.opacity(0.8))
+                            .frame(width: 28, height: 28)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    Button(action: { scale = max(0.3, scale / 1.25); scaleStart = scale }) {
+                        Image(systemName: "minus")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.primary.opacity(0.8))
+                            .frame(width: 28, height: 28)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    Button(action: {
+                        withAnimation(.easeOut(duration: 0.25)) {
+                            offset = .zero; dragStart = .zero
+                            scale = 1.0; scaleStart = 1.0
+                        }
+                    }) {
+                        Image(systemName: "scope")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.primary.opacity(0.8))
+                            .frame(width: 28, height: 28)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .help("Reset view")
+                    Text(String(format: "%.0f%%", Double(scale * 100)))
+                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                        .foregroundColor(.secondary)
+                }
+                .padding(.leading, 18).padding(.bottom, 22)
+            }
+        }
+    }
 }

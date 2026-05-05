@@ -2,16 +2,28 @@ import Foundation
 import WebKit
 import Combine
 
+/// Lightweight auth state holder. The actual identity lives in
+/// `LumenAuthRegistry` (Operation Multi-User) — this class is just the
+/// `isAuthenticated` boolean that drives whether MainView or AuthGate is
+/// visible, plus the bridge that lets registry observe cookie adoption.
 @MainActor
 class AuthManager: ObservableObject {
     @Published var isAuthenticated = false
 
+    /// Hooks the App root injects so any cookie that lands via face/PIN/
+    /// passphrase flows is also adopted as a multi-user session.
+    var onCookieAdopted: ((String) -> Void)?
+    var onSignOut: (() -> Void)?
+
     private var nexusBase: String { LumenAPIManager.shared.nexusBase }
 
-    // Called by NativePinView or FaceWebView on successful auth
+    /// Called by NativePinView, FaceWebView, or any other auth path on success.
+    /// Wires the cookie into LumenAPIManager and notifies the registry so
+    /// the human's profile gets fetched + cached in Keychain.
     func handleSessionCookie(_ value: String) {
         LumenAPIManager.shared.sessionCookie = value
         isAuthenticated = true
+        onCookieAdopted?(value)
     }
 
     func signOut() {
@@ -31,6 +43,7 @@ class AuthManager: ObservableObject {
             LumenAPIManager.shared.sessionCookie = nil
             UserDefaults.standard.removeObject(forKey: "lumen.currentConversationId")
             isAuthenticated = false
+            onSignOut?()
         }
     }
 

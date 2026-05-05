@@ -22,6 +22,7 @@ struct EveOrb: View {
                 let t = tl.date.timeIntervalSinceReferenceDate
                 Canvas { ctx, size in
                     let c = CGPoint(x: size.width / 2, y: size.height / 2)
+                    drawAudioWaves (ctx, c, t, isSpeaking, isListening, isThinking)  // Perplexity-style ripples
                     drawReticle    (ctx, c, t)
                     drawParticles  (ctx, c, t, speedMult)
                     drawArcs       (ctx, c, t, speedMult)
@@ -34,6 +35,92 @@ struct EveOrb: View {
         }
         .frame(width: 240, height: 240)
         .animation(.easeInOut(duration: 0.5), value: status)
+    }
+
+    // MARK: - Canvas: state-driven wave rings
+    //
+    // Per-state behavior (so Director sees AT A GLANCE which state Eve is in):
+    //   .idle        — no rings (clean)
+    //   .listening   — 4 expanding rings, modulated by mic audioLevel, listen color
+    //   .thinking    — single big "heartbeat" ring breathing 1Hz (synthetic),
+    //                  no audio modulation, think color. Distinct from speaking.
+    //   .speaking    — 4 expanding rings + audio-reactive inner pulse, modulated
+    //                  by TTS amplitude. Color lerps toward white at peak.
+    private func drawAudioWaves(_ ctx: GraphicsContext, _ c: CGPoint, _ t: Double,
+                                  _ isSpeaking: Bool, _ isListening: Bool, _ isThinking: Bool) {
+        // Idle: skip wave rings entirely. Reticle + particles + arcs still
+        // animate so the orb isn't completely dead — just calm.
+        if !isSpeaking && !isListening && !isThinking { return }
+
+        // Thinking: ONE heartbeat ring breathing in/out at the 1Hz cadence
+        // the LumenStore heartbeat timer is already driving via audioLevel.
+        // No expansion — the ring just inflates and deflates, like a held
+        // breath. Visually distinct from speaking's outward ripples.
+        if isThinking && !isSpeaking {
+            let baseR: CGFloat = 56
+            let breathe: CGFloat = baseR + aud * 28        // aud is 0.20…0.75 from heartbeat
+            let alpha: Double = 0.30 + Double(aud) * 0.45
+            ctx.stroke(
+                Circle().path(in: CGRect(x: c.x - breathe, y: c.y - breathe,
+                                          width: breathe * 2, height: breathe * 2)),
+                with: .color(col.opacity(alpha)),
+                style: StrokeStyle(lineWidth: 2.0)
+            )
+            // Subtle inner echo so the "breathing" reads even at low aud
+            let inner: CGFloat = breathe * 0.55
+            ctx.stroke(
+                Circle().path(in: CGRect(x: c.x - inner, y: c.y - inner,
+                                          width: inner * 2, height: inner * 2)),
+                with: .color(col.opacity(alpha * 0.5)),
+                style: StrokeStyle(lineWidth: 1.0)
+            )
+            return
+        }
+
+        // Listening / Speaking: four concurrent expanding rings (sonar pattern).
+        let count: Int = 4
+        let speed: Double = isSpeaking ? 1.4 : 0.9
+        let baseAmp: Double = isSpeaking ? 0.55 : 0.42
+        let audioBoost: Double = Double(aud) * (isSpeaking ? 0.55 : 0.35)
+        let amplitude = baseAmp + audioBoost
+
+        let maxRadius: CGFloat = 116 + CGFloat(audioBoost) * 18
+        let minRadius: CGFloat = 8
+        let cycle: Double = 2.6 / max(speed, 0.1)
+
+        // Speaking: lerp color toward white as amplitude rises. Peak speech →
+        // bright white-eve. Quiet → solid eve. Mirrors IRIS-AI's lerpColors.
+        let highlightAmt: Double = isSpeaking ? min(1.0, Double(aud) * 1.4) : 0
+        let drawColor: Color = isSpeaking
+            ? Color(.sRGB, red: 0.4 + 0.6 * highlightAmt + 0.0,
+                          green: 0.5 + 0.5 * highlightAmt,
+                          blue: 0.95, opacity: 1.0)
+            : col
+
+        for i in 0..<count {
+            let phase = (t / cycle + Double(i) / Double(count)).truncatingRemainder(dividingBy: 1.0)
+            let radius = minRadius + (maxRadius - minRadius) * CGFloat(phase)
+            let envelope = sin(phase * .pi)
+            let alpha = amplitude * envelope
+            ctx.stroke(
+                Circle().path(in: CGRect(x: c.x - radius, y: c.y - radius,
+                                          width: radius * 2, height: radius * 2)),
+                with: .color(drawColor.opacity(alpha)),
+                style: StrokeStyle(lineWidth: 1.6)
+            )
+        }
+
+        // Speaking only: snap pulse — small bright ring tracks each audio
+        // peak. Without TTS amplitude this stays at base radius; with it,
+        // it visibly inflates on each loud syllable.
+        if isSpeaking {
+            let r: CGFloat = 18 + aud * 36
+            ctx.stroke(
+                Circle().path(in: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2)),
+                with: .color(drawColor.opacity(0.55 + Double(aud) * 0.4)),
+                style: StrokeStyle(lineWidth: 1.6)
+            )
+        }
     }
 
     // MARK: - SwiftUI glow layers (blur requires native views)

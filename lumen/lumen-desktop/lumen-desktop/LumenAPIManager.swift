@@ -92,7 +92,7 @@ class LumenAPIManager {
 
     // MARK: - Nexus-web Eve (preferred path)
 
-    func callNexusEve(message: String, conversationId: String?, history: ArraySlice<ChatMessage>) async throws -> (content: String, conversationId: String?) {
+    func callNexusEve(message: String, conversationId: String?, history: ArraySlice<ChatMessage>) async throws -> (content: String, conversationId: String?, toolCalls: [ToolCallSummary]) {
         guard let cookie = sessionCookie, !cookie.isEmpty else { throw APIError.noAPIKey }
         guard let url = URL(string: "\(nexusBase)/api/eve") else { throw APIError.invalidURL }
 
@@ -114,8 +114,20 @@ class LumenAPIManager {
         let json       = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         let content    = json?["content"]        as? String ?? ""
         let newConvId  = json?["conversationId"] as? String
+
+        // Parse tool_calls trace (if any). Each entry: {name, args, result}.
+        var toolCalls: [ToolCallSummary] = []
+        if let raw = json?["tool_calls"] as? [[String: Any]] {
+            for tc in raw {
+                let name   = (tc["name"]   as? String) ?? "unknown"
+                let args   = (tc["args"]   as? [String: Any]) ?? [:]
+                let result = (tc["result"] as? [String: Any]) ?? [:]
+                toolCalls.append(.from(rawName: name, args: args, result: result))
+            }
+        }
+
         guard !content.isEmpty else { throw APIError.requestFailed }
-        return (content, newConvId)
+        return (content, newConvId, toolCalls)
     }
 
     // MARK: - Chat (local Ollama → Claude fallback)
@@ -293,6 +305,81 @@ class LumenAPIManager {
         }
         guard !full.isEmpty else { throw APIError.requestFailed }
         return full
+    }
+
+    /// Streaming variant of callNexusEve — consumes SSE from /api/eve when
+    /// `stream: true` is in the body. Forwards content deltas via `onChunk`,
+    /// tool-call cards via `onToolCall`, and returns final assembled content
+    /// + conversationId + the full tool-call trace.
+    func callNexusEveStreaming(
+        message: String,
+        conversationId: String?,
+        history: ArraySlice<ChatMessage>,
+        onChunk: @escaping (String) -> Void,
+        onToolCall: @escaping (ToolCallSummary) -> Void
+    ) async throws -> (content: String, conversationId: String?, toolCalls: [ToolCallSummary]) {
+        guard let cookie = sessionCookie, !cookie.isEmpty else { throw APIError.noAPIKey }
+        guard let url = URL(string: "\(nexusBase)/api/eve") else { throw APIError.invalidURL }
+
+        let body: [String: Any] = [
+            "userMessage":    message,
+            "conversationId": conversationId as Any,
+            "source":         "lumen",
+            "stream":         true,
+        ]
+        var req = URLRequest(url: url, timeoutInterval: 60)
+        req.httpMethod = "POST"
+        req.setValue("application/json",       forHTTPHeaderField: "Content-Type")
+        req.setValue("text/event-stream",      forHTTPHeaderField: "Accept")
+        req.setValue("Bearer \(cookie)",       forHTTPHeaderField: "Authorization")
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (bytes, response) = try await URLSession.shared.bytes(for: req)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            throw APIError.requestFailed
+        }
+
+        var full = ""
+        var newConvId: String? = nil
+        var collectedToolCalls: [ToolCallSummary] = []
+
+        for try await line in bytes.lines {
+            guard line.hasPrefix("data: ") else { continue }
+            let payload = String(line.dropFirst(6))
+            guard let data  = payload.data(using: .utf8),
+                  let json  = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let type  = json["type"] as? String
+            else { continue }
+
+            switch type {
+            case "meta":
+                newConvId = json["conversationId"] as? String
+            case "delta":
+                if let chunk = json["content"] as? String, !chunk.isEmpty {
+                    full += chunk
+                    await MainActor.run { onChunk(chunk) }
+                }
+            case "tool_call":
+                let name   = (json["name"]   as? String) ?? "unknown"
+                let args   = (json["args"]   as? [String: Any]) ?? [:]
+                let result = (json["result"] as? [String: Any]) ?? [:]
+                let summary = ToolCallSummary.from(rawName: name, args: args, result: result)
+                collectedToolCalls.append(summary)
+                await MainActor.run { onToolCall(summary) }
+            case "done":
+                if let final = json["content"] as? String, !final.isEmpty {
+                    full = final
+                }
+                if let cid = json["conversationId"] as? String { newConvId = cid }
+            case "error":
+                throw APIError.requestFailed
+            default:
+                break
+            }
+        }
+
+        guard !full.isEmpty else { throw APIError.requestFailed }
+        return (full, newConvId, collectedToolCalls)
     }
 
     private func callClaude(message: String, history: ArraySlice<ChatMessage>) async throws -> String {
