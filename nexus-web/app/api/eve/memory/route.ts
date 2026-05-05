@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/service"
 import { checkDesktopAuth } from "@/lib/desktop-auth"
 
-const USER_ID = "e9d9a15b-0e5a-4631-9b50-6225ee03a44f"
+import { getActiveAuthId } from "@/lib/auth/session"
 
 // GET — fetch all active memories for system prompt injection
 export async function GET(req: NextRequest) {
+  const USER_ID = await getActiveAuthId()
+  if (!USER_ID) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   if (!await checkDesktopAuth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const supabase = createServiceClient()
@@ -23,6 +25,8 @@ export async function GET(req: NextRequest) {
 
 // POST — save a new memory entry
 export async function POST(req: NextRequest) {
+  const USER_ID = await getActiveAuthId()
+  if (!USER_ID) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   if (!await checkDesktopAuth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { type, content, priority, source } = await req.json()
@@ -48,6 +52,8 @@ export async function POST(req: NextRequest) {
 
 // DELETE — deactivate a memory
 export async function DELETE(req: NextRequest) {
+  const USER_ID = await getActiveAuthId()
+  if (!USER_ID) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   if (!await checkDesktopAuth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { id } = await req.json()

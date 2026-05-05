@@ -1,22 +1,24 @@
 import OpenAI from "openai"
 import type { createServiceClient } from "@/lib/supabase/service"
 
-const USER_ID = "e9d9a15b-0e5a-4631-9b50-6225ee03a44f"
-
 /**
  * Best-effort: extract durable memories from the most recent unsummarized
- * Eve history rows and insert them into `eve_memory`. Marks the rows as
- * summarized once processed. Used by both `/api/eve` (Grok) and
- * `/api/eve/local` (Ollama) so memory grows from any conversation source.
+ * Eve history rows for `userId` and insert them into `eve_memory`. Marks
+ * the rows as summarized once processed. Used by both `/api/eve` (Grok)
+ * and `/api/eve/local` (Ollama) so memory grows from any conversation source.
+ *
+ * `userId` is the active human's `auth_id` (passed in from the route's
+ * `getActiveAuthId()` resolution) so memories land under the correct user.
  */
 export async function summarizeInBackground(
-  supabase: ReturnType<typeof createServiceClient>
+  supabase: ReturnType<typeof createServiceClient>,
+  userId: string,
 ): Promise<void> {
   try {
     const { data: rows } = await supabase
       .from("eve_history")
       .select("id, role, content")
-      .eq("user_id", USER_ID)
+      .eq("user_id", userId)
       .eq("summarized", false)
       .order("created_at", { ascending: true })
       .limit(60)
@@ -43,7 +45,7 @@ export async function summarizeInBackground(
     if (memories.length > 0) {
       await supabase.from("eve_memory").insert(
         memories.map(m => ({
-          user_id: USER_ID,
+          user_id: userId,
           type: m.type ?? "fact",
           content: m.content,
           priority: Math.min(10, Math.max(1, m.importance ?? 5)),
@@ -60,21 +62,23 @@ export async function summarizeInBackground(
 }
 
 /**
- * Fires the summarizer if the unsummarized count is at or above the threshold.
- * Default trigger is every 20 messages. Returns the current count for telemetry.
+ * Fires the summarizer if the unsummarized count for this user is at or
+ * above the threshold. Default trigger is every 20 messages. Returns the
+ * current count for telemetry.
  */
 export async function maybeSummarize(
   supabase: ReturnType<typeof createServiceClient>,
+  userId: string,
   threshold: number = 20
 ): Promise<number> {
   const { count } = await supabase
     .from("eve_history")
     .select("*", { count: "exact", head: true })
-    .eq("user_id", USER_ID)
+    .eq("user_id", userId)
     .eq("summarized", false)
   const c = count ?? 0
   if (c >= threshold) {
-    summarizeInBackground(supabase).catch(() => {})
+    summarizeInBackground(supabase, userId).catch(() => {})
   }
   return c
 }

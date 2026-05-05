@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/service"
 import { resolveHumanId } from "@/lib/desktop-auth"
 
-const USER_ID = "e9d9a15b-0e5a-4631-9b50-6225ee03a44f"
+import { getActiveAuthId } from "@/lib/auth/session"
 
 export async function GET(req: NextRequest) {
+  const USER_ID = await getActiveAuthId()
+  if (!USER_ID) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   const currentHumanId = await resolveHumanId(req)
   if (!currentHumanId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const supabase = createServiceClient()
@@ -18,6 +20,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const USER_ID = await getActiveAuthId()
+  if (!USER_ID) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   const currentHumanId = await resolveHumanId(req)
   if (!currentHumanId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const body = await req.json()
@@ -50,6 +54,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const USER_ID = await getActiveAuthId()
+  if (!USER_ID) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   const currentHumanId = await resolveHumanId(req)
   if (!currentHumanId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const body = await req.json()
@@ -68,6 +74,8 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const USER_ID = await getActiveAuthId()
+  if (!USER_ID) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   const currentHumanId = await resolveHumanId(req)
   if (!currentHumanId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { id } = await req.json()

@@ -2,7 +2,7 @@ import { createServiceClient } from "@/lib/supabase/service"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 
-const USER_ID = "e9d9a15b-0e5a-4631-9b50-6225ee03a44f"
+import { getActiveAuthId } from "@/lib/auth/session"
 
 async function checkAuth() {
   const cookieStore = await cookies()
@@ -19,6 +19,8 @@ async function checkAuth() {
 }
 
 export async function POST(req: Request) {
+  const USER_ID = await getActiveAuthId()
+  if (!USER_ID) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   if (!await checkAuth()) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }

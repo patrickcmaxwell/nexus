@@ -2,7 +2,16 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/service"
 import { checkDesktopAuth } from "@/lib/desktop-auth"
 
-const USER_ID = "e9d9a15b-0e5a-4631-9b50-6225ee03a44f"
+import { getActiveAuthId } from "@/lib/auth/session"
+
+// Sources used by smoke tests / curl QA loops. Conversations with these
+// sources are real DB rows but they're test fixtures, not real chats — hide
+// them from list UIs so the sidebar stays clean. Tests that want a hidden
+// thread should use one of these source values, OR pass ?includeTests=1.
+//
+// Migration 018 introduces an `is_test` boolean for a structural fix; until
+// it's applied this allowlist is the operative filter. Keep both in sync.
+const TEST_SOURCES = ["qa-thread-test", "lumen-qa-fresh", "floating", "smoke-test", "test"] as const
 
 async function checkAuth(req: NextRequest) {
   return checkDesktopAuth(req)
@@ -10,54 +19,70 @@ async function checkAuth(req: NextRequest) {
 
 // GET — list all conversations, augmented with last-message preview + count
 // so list UIs can render a meaningful row without opening the thread.
-// Pass ?withPreviews=1 to include them (slightly heavier query). Default off
-// for compatibility, on for ~most callers.
+// Pass ?withPreviews=0 to skip previews. Pass ?includeTests=1 to include
+// smoke-test conversations (default: hidden).
 export async function GET(req: NextRequest) {
+  const USER_ID = await getActiveAuthId()
+  if (!USER_ID) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   if (!await checkAuth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const supabase = createServiceClient()
   const { searchParams } = new URL(req.url)
   const withPreviews = searchParams.get("withPreviews") !== "0"  // default ON
+  const includeTests = searchParams.get("includeTests") === "1"
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("eve_conversations")
     .select("id, title, source, created_at, updated_at")
     .eq("user_id", USER_ID)
     .order("updated_at", { ascending: false })
     .limit(500)
+
+  if (!includeTests) {
+    query = query.not("source", "in", `(${TEST_SOURCES.join(",")})`)
+  }
+
+  const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   type Conv = NonNullable<typeof data>[number]
   let conversations: Array<Conv & { preview?: string; message_count?: number }> = data ?? []
 
   if (withPreviews && conversations.length > 0) {
-    // Latest assistant line per conversation in one query (window-free filter)
     const ids = conversations.map(c => c.id)
-    const [previewRes, countRes] = await Promise.all([
-      supabase
-        .from("eve_history")
-        .select("conversation_id, content, created_at, role")
-        .eq("user_id", USER_ID)
-        .eq("role", "assistant")
-        .in("conversation_id", ids)
-        .order("created_at", { ascending: false })
-        .limit(2000),
-      supabase
-        .from("eve_history")
-        .select("conversation_id")
-        .eq("user_id", USER_ID)
-        .in("conversation_id", ids),
+
+    // Per-conversation queries in parallel for both preview and count. A
+    // single global `.limit(N)` query truncated long threads — a 446-msg
+    // conversation showed message_count=0 and older threads got no preview.
+    // Per-conversation is N round trips (~265 for current data) but each is
+    // tiny, runs in parallel, and survives any data-volume growth.
+    const [previewResults, countResults] = await Promise.all([
+      Promise.all(
+        ids.map(async (id) => {
+          const { data } = await supabase
+            .from("eve_history")
+            .select("content")
+            .eq("user_id", USER_ID)
+            .eq("conversation_id", id)
+            .eq("role", "assistant")
+            .order("created_at", { ascending: false })
+            .limit(1)
+          return [id, (data?.[0]?.content ?? "").slice(0, 220)] as const
+        })
+      ),
+      Promise.all(
+        ids.map(async (id) => {
+          const { count } = await supabase
+            .from("eve_history")
+            .select("*", { count: "exact", head: true })
+            .eq("user_id", USER_ID)
+            .eq("conversation_id", id)
+          return [id, count ?? 0] as const
+        })
+      ),
     ])
 
-    const previewByConv = new Map<string, string>()
-    for (const row of previewRes.data ?? []) {
-      if (!previewByConv.has(row.conversation_id)) {
-        previewByConv.set(row.conversation_id, (row.content ?? "").slice(0, 220))
-      }
-    }
-    const countByConv = new Map<string, number>()
-    for (const row of countRes.data ?? []) {
-      countByConv.set(row.conversation_id, (countByConv.get(row.conversation_id) ?? 0) + 1)
-    }
+    const previewByConv = new Map(previewResults)
+    const countByConv = new Map(countResults)
 
     conversations = conversations.map(c => ({
       ...c,
@@ -71,6 +96,8 @@ export async function GET(req: NextRequest) {
 
 // POST — create new conversation, returns id
 export async function POST(req: NextRequest) {
+  const USER_ID = await getActiveAuthId()
+  if (!USER_ID) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   if (!await checkAuth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { title } = await req.json().catch(() => ({}))
   const supabase = createServiceClient()
@@ -88,6 +115,8 @@ export async function POST(req: NextRequest) {
 
 // PATCH — update conversation title
 export async function PATCH(req: NextRequest) {
+  const USER_ID = await getActiveAuthId()
+  if (!USER_ID) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   if (!await checkAuth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { id, title } = await req.json()
   if (!id || !title) return NextResponse.json({ error: "Missing id or title" }, { status: 400 })
@@ -98,6 +127,8 @@ export async function PATCH(req: NextRequest) {
 
 // DELETE — delete conversation and its messages
 export async function DELETE(req: NextRequest) {
+  const USER_ID = await getActiveAuthId()
+  if (!USER_ID) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   if (!await checkAuth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { id } = await req.json()
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 })

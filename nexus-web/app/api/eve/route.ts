@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server"
 export const maxDuration = 60
 
 import { createServiceClient } from "@/lib/supabase/service"
@@ -8,7 +9,7 @@ import { buildMentionsBlock } from "@/lib/mentions/context"
 import { summarizeInBackground } from "@/lib/eve/summarize"
 import { callArena } from "@/lib/arena/client"
 
-const USER_ID = "e9d9a15b-0e5a-4631-9b50-6225ee03a44f"
+import { getActiveAuthId } from "@/lib/auth/session"
 
 async function checkAuth(req?: Request) {
   const supabase = createServiceClient()
@@ -55,11 +56,20 @@ You also have ARENA tools (arena_task_create, arena_task_update, arena_payment_r
 DIRECTIVE 6 — NO DUPLICATES:
 NEVER call create_agent or create_operation more than once per name. If a function returns already_exists: true, acknowledge the existing record and do NOT call the function again.
 
-DIRECTIVE 7 — NEXUS MAP:
-When the Director says "add this to the map", "map that", or "put that on the map" — immediately call add_to_nexus_map with a concise label, description, and relevant tags. Confirm by saying what you added.
+DIRECTIVE 7 — NEXUS MAP (EXPLICIT ONLY):
+ONLY call add_to_nexus_map when the Director uses an explicit imperative: "add this to the map", "map that", "put that on the map", or similar. Do NOT add things to the map on your own initiative when the Director mentions a person, place, or topic in passing. Casual reference is NOT a map-add trigger.
 
-DIRECTIVE 8 — TOPIC MARKING:
-When the Director says "mark this as a topic", "start a new subject", "flag this section", or shifts to a clearly new subject — call mark_topic with a short label, description, and color.
+DIRECTIVE 8 — TOPIC MARKING (EXPLICIT ONLY):
+NEVER call mark_topic on your own initiative based on subject shifts, keywords, or your interpretation of the conversation. The Director must explicitly ask: phrases like "mark this as a topic", "make this a topic", "tag this", "save this as a topic", "create a topic for X", or similar direct request. Casual conversation about any subject (food, weather, news, family, etc.) is NEVER a topic-creation trigger. When in doubt, do not call mark_topic.
+
+DIRECTIVE 8b — NO UNSOLICITED CREATION:
+Never call create_agent, create_operation, add_to_nexus_map, mark_topic, or any tool that creates a persistent entity unless the Director explicitly requests it. Phrases like "I had breakfast", "let me think", "let's discuss X" are NOT creation triggers — they are conversation. Default behavior is fluid conversation. Only fire creation tools when the Director uses imperative language directly aimed at the system: "create…", "make…", "add… to the map", "save this to…", "mark…". If you're unsure whether the Director wants something created, ASK FIRST per Directive 9b. Bloat in the system from premature auto-creation is a worse failure than missing one creation opportunity.
+
+DIRECTIVE 11 — CASUAL CONVERSATION IS DEFAULT:
+Most of what the Director says is just conversation. Engage like a person, not a filing clerk. NEVER ask "what's the angle here?", "how does this fit?", "is this for an operation?", or any variant of "should I file this somewhere?" If the Director mentions food, weather, family, what they're doing, random thoughts, idle musings, or is testing the system — just talk back. Acknowledge, riff, ask a normal follow-up question, share a thought. Treat ambiguous input as conversational, not as a system-entry-task waiting to be classified. You are friendly company who happens to also have admin powers — not a help desk asking "how can I assist you with that today?" If the Director says they're "testing" or "trying things out" — just go with it, banter, don't interrogate. Operational mode is invoked by explicit imperatives ("create…", "schedule…", "fire the X agent…"). Everything else: human conversation.
+
+DIRECTIVE 11b — DO NOT REQUEST CONTEXT YOU DON'T NEED:
+If a sentence is just chat, don't demand it be reframed as a task. "From the store like regular lettuce or whatever" is not a request for action — it's the Director thinking out loud or testing. Reply with something like "yeah, store-bought salad mix is fine" or "got it — anything specific or just stocking up?" Not "this doesn't connect to any operations or records." If you genuinely can't follow what they're saying because the transcription is broken, say "Sir, that came through garbled — what was that?" — but assume mid-sentence audio glitches before assuming the Director's input is malformed.
 
 DIRECTIVE 9 — FORMAT:
 Keep responses concise. No bullet lists unless explicitly asked. No markdown headers in conversational replies. Write as if you are speaking, not writing a report.
@@ -123,11 +133,13 @@ ${memoryBlock}
 }
 
 export async function POST(req: Request) {
+  const USER_ID = await getActiveAuthId()
+  if (!USER_ID) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   if (!await checkAuth(req)) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } })
   }
 
-  const { userMessage, conversationId, source = "floating" } = await req.json()
+  const { userMessage, conversationId, source = "floating", stream: wantStream = false } = await req.json()
 
   if (!userMessage) {
     return new Response(JSON.stringify({ error: "Missing userMessage" }), {
@@ -353,7 +365,17 @@ export async function POST(req: Request) {
 
     const apiMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [...messages]
 
-    // Agentic loop — up to 8 tool call rounds
+    // Agentic loop — up to 8 tool call rounds.
+    // We collect every tool call and its result so the client can render
+    // visible cards inline with Eve's natural-language reply ("Created task: …",
+    // "Logged action: …", etc.) instead of having Eve's actions be invisible.
+    type ToolCallTrace = {
+      name: string
+      args: Record<string, unknown>
+      result: Record<string, unknown> | { success: boolean; error?: string }
+    }
+    const toolCallTrace: ToolCallTrace[] = []
+
     let assistantContent = ""
     for (let step = 0; step < 8; step++) {
       const response = await client.chat.completions.create({
@@ -371,8 +393,12 @@ export async function POST(req: Request) {
         const toolResults = await Promise.all(
           choice.message.tool_calls.map(async (tc) => {
             const args = JSON.parse(tc.function.arguments || "{}")
-            const result = await executeTool(tc.function.name, args)
-            return { tool_call_id: tc.id, role: "tool" as const, content: result }
+            const resultStr = await executeTool(tc.function.name, args)
+            // Capture for client visualization
+            let parsed: Record<string, unknown> = { success: false }
+            try { parsed = JSON.parse(resultStr) } catch {}
+            toolCallTrace.push({ name: tc.function.name, args, result: parsed })
+            return { tool_call_id: tc.id, role: "tool" as const, content: resultStr }
           })
         )
         apiMessages.push(...toolResults)
@@ -392,10 +418,64 @@ export async function POST(req: Request) {
     // Auto-summarize every 20 unsummarized messages
     const { count } = await supabase.from("eve_history").select("*", { count: "exact", head: true }).eq("user_id", USER_ID).eq("summarized", false)
     if (count && count >= 20) {
-      summarizeInBackground(supabase).catch(() => {})
+      summarizeInBackground(supabase, USER_ID).catch(() => {})
     }
 
-    return new Response(JSON.stringify({ content: assistantContent, conversationId: activeConversationId, citations: [] }), {
+    // Streaming branch: when client requested SSE, run a SECOND completion in
+    // streaming mode using the now-fully-resolved messages array (which has
+    // any tool results baked in). The agentic loop above already produced
+    // `assistantContent` non-streaming; we re-stream the same content so the
+    // user sees Eve's reply appear progressively. Tool-call cards are emitted
+    // as discrete events so the client can render them as the loop progresses.
+    //
+    // Trade-off: this is "perceived streaming" (we generate fully, then chunk
+    // back) rather than true token-by-token streaming. Real streaming inside
+    // the agentic loop is a future improvement.
+    if (wantStream) {
+      const encoder = new TextEncoder()
+      const sse = new ReadableStream({
+        async start(controller) {
+          const write = (obj: Record<string, unknown>) => {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`))
+          }
+
+          write({ type: "meta", conversationId: activeConversationId })
+
+          // Tool call cards first so they appear as Eve "thinking through actions"
+          for (const tc of toolCallTrace) {
+            write({ type: "tool_call", name: tc.name, args: tc.args, result: tc.result })
+            await new Promise(r => setTimeout(r, 80))  // tiny gap for visual cadence
+          }
+
+          // Stream the content in word-sized chunks for a typewriter feel
+          const words = assistantContent.split(/(\s+)/)
+          for (const w of words) {
+            if (!w) continue
+            write({ type: "delta", content: w })
+            await new Promise(r => setTimeout(r, 18))  // ~55 wps reading pace
+          }
+
+          write({ type: "done", content: assistantContent, conversationId: activeConversationId })
+          controller.close()
+        }
+      })
+
+      return new Response(sse, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache, no-transform",
+          "Connection": "keep-alive",
+          "X-Accel-Buffering": "no",
+        },
+      })
+    }
+
+    return new Response(JSON.stringify({
+      content: assistantContent,
+      conversationId: activeConversationId,
+      citations: [],
+      tool_calls: toolCallTrace,
+    }), {
       headers: { "Content-Type": "application/json" },
     })
   } catch (err) {

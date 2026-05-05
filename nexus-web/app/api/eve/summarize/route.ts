@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { createServiceClient } from "@/lib/supabase/service"
 
-const USER_ID = "e9d9a15b-0e5a-4631-9b50-6225ee03a44f"
+import { getActiveAuthId } from "@/lib/auth/session"
 
 async function checkAuth() {
   const cookieStore = await cookies()
@@ -20,6 +20,8 @@ async function checkAuth() {
 
 // POST — summarize unsummarized conversation history into long-term memory
 export async function POST() {
+  const USER_ID = await getActiveAuthId()
+  if (!USER_ID) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   if (!await checkAuth()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   if (!process.env.XAI_API_KEY) return NextResponse.json({ error: "No XAI_API_KEY" }, { status: 500 })
 

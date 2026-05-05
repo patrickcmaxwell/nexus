@@ -2,7 +2,7 @@ import { createServiceClient } from "@/lib/supabase/service"
 import { NextRequest, NextResponse } from "next/server"
 import { checkDesktopAuth } from "@/lib/desktop-auth"
 
-const USER_ID = "e9d9a15b-0e5a-4631-9b50-6225ee03a44f"
+import { getActiveAuthId } from "@/lib/auth/session"
 
 export type MapNodeType =
   | "conversation"
@@ -44,6 +44,8 @@ export interface MapEdge {
 }
 
 export async function GET(req: NextRequest) {
+  const USER_ID = await getActiveAuthId()
+  if (!USER_ID) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   if (!await checkDesktopAuth(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }

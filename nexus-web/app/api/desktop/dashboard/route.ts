@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/service"
 
-const USER_ID = "e9d9a15b-0e5a-4631-9b50-6225ee03a44f"
+import { getActiveAuthId } from "@/lib/auth/session"
 
 /**
  * GET /api/desktop/dashboard
@@ -9,6 +9,8 @@ const USER_ID = "e9d9a15b-0e5a-4631-9b50-6225ee03a44f"
  * No auth required — app runs locally, data is not sensitive for display.
  */
 export async function GET() {
+  const USER_ID = await getActiveAuthId()
+  if (!USER_ID) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   const supabase = createServiceClient()
 
   const [{ data: directives }, { data: agents }, { data: ops }] = await Promise.all([

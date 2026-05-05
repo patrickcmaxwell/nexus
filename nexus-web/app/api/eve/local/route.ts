@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server"
 export const maxDuration = 60
 
 import { createServiceClient } from "@/lib/supabase/service"
@@ -8,7 +9,7 @@ import { extractMentions } from "@/lib/mentions/parse"
 import { buildMentionsBlock } from "@/lib/mentions/context"
 import OpenAI from "openai"
 
-const USER_ID = "e9d9a15b-0e5a-4631-9b50-6225ee03a44f"
+import { getActiveAuthId } from "@/lib/auth/session"
 
 async function checkAuth(req: Request) {
   const supabase = createServiceClient()
@@ -38,6 +39,8 @@ function buildLocalPrompt(memories: Array<{ type: string; content: string; prior
 }
 
 export async function POST(req: Request) {
+  const USER_ID = await getActiveAuthId()
+  if (!USER_ID) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   if (!await checkAuth(req)) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } })
   }
@@ -180,7 +183,7 @@ export async function POST(req: Request) {
               summarized: false,
             })
             // Auto-summarize into the memory bank when unsummarized count crosses 20
-            maybeSummarize(supabase).catch(() => {})
+            maybeSummarize(supabase, USER_ID).catch(() => {})
           }
           send({ done: true, conversationId: activeConversationId, model: activeModel, brain: "local" })
         } catch (err: any) {
@@ -219,7 +222,7 @@ export async function POST(req: Request) {
         summarized: false,
       })
       // Auto-summarize into the memory bank when unsummarized count crosses 20
-      maybeSummarize(supabase).catch(() => {})
+      maybeSummarize(supabase, USER_ID).catch(() => {})
     }
 
     return new Response(

@@ -5,7 +5,7 @@ import { createServiceClient } from "@/lib/supabase/service"
 import { resolveHumanId } from "@/lib/desktop-auth"
 import OpenAI from "openai"
 
-const USER_ID = "e9d9a15b-0e5a-4631-9b50-6225ee03a44f"
+import { getActiveAuthId } from "@/lib/auth/session"
 const BATCH_SIZE = 10 // conversations per LLM call
 const MAX_MESSAGES_PER_CONVO = 80 // truncate long conversations
 
@@ -25,6 +25,8 @@ type Finding = {
  * Only runs if the agent's status is 'active' or 'deployed'.
  */
 export async function POST(req: NextRequest) {
+  const USER_ID = await getActiveAuthId()
+  if (!USER_ID) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   const humanId = await resolveHumanId(req)
   if (!humanId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -94,7 +96,7 @@ export async function POST(req: NextRequest) {
 
     const { data: conversations } = await conversationQuery
     if (!conversations || conversations.length === 0) {
-      await logActivity(supabase, agentId, "scan_completed", {
+      await logActivity(supabase, agentId, USER_ID, "scan_completed", {
         message: "No conversations to scan",
         conversations_scanned: 0,
       })
@@ -206,7 +208,7 @@ export async function POST(req: NextRequest) {
               })
 
               // Log each finding
-              await logActivity(supabase, agentId, "finding_created", {
+              await logActivity(supabase, agentId, USER_ID, "finding_created", {
                 title: finding.title,
                 type: finding.type,
                 priority: finding.priority,
@@ -219,7 +221,7 @@ export async function POST(req: NextRequest) {
         }
       } catch (err: any) {
         console.error(`[agent-runner] LLM error on batch ${i}:`, err.message)
-        await logActivity(supabase, agentId, "error", {
+        await logActivity(supabase, agentId, USER_ID, "error", {
           batch: i,
           error: err.message,
         })
@@ -228,7 +230,7 @@ export async function POST(req: NextRequest) {
       conversationsScanned += validConvos.length
 
       // Log progress
-      await logActivity(supabase, agentId, "batch_completed", {
+      await logActivity(supabase, agentId, USER_ID, "batch_completed", {
         batch_index: Math.floor(i / BATCH_SIZE) + 1,
         conversations_in_batch: validConvos.length,
         findings_so_far: totalFindings,
@@ -246,7 +248,7 @@ export async function POST(req: NextRequest) {
       .eq("id", agentId)
 
     // Log completion
-    await logActivity(supabase, agentId, "scan_completed", {
+    await logActivity(supabase, agentId, USER_ID, "scan_completed", {
       conversations_scanned: conversationsScanned,
       findings_created: totalFindings,
       is_first_run: isFirstRun,
@@ -259,13 +261,15 @@ export async function POST(req: NextRequest) {
       is_first_run: isFirstRun,
     })
   } catch (err: any) {
-    await logActivity(supabase, agentId, "error", { error: err.message })
+    await logActivity(supabase, agentId, USER_ID, "error", { error: err.message })
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
 
 // GET — check run status / agent activity
 export async function GET(req: NextRequest) {
+  const USER_ID = await getActiveAuthId()
+  if (!USER_ID) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   const humanId = await resolveHumanId(req)
   if (!humanId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -292,12 +296,13 @@ export async function GET(req: NextRequest) {
 async function logActivity(
   supabase: ReturnType<typeof createServiceClient>,
   agentId: string,
+  userId: string,
   action: string,
   details: Record<string, any>
 ) {
   await supabase.from("agent_activity").insert({
     agent_id: agentId,
-    user_id: USER_ID,
+    user_id: userId,
     action,
     details,
   })

@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/service"
 import { checkDesktopAuth } from "@/lib/desktop-auth"
 
-const USER_ID = "e9d9a15b-0e5a-4631-9b50-6225ee03a44f"
+import { getActiveAuthId } from "@/lib/auth/session"
 
 // GET — load messages for a specific conversation
 export async function GET(req: NextRequest) {
+  const USER_ID = await getActiveAuthId()
+  if (!USER_ID) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   if (!await checkDesktopAuth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const conversationId = req.nextUrl.searchParams.get("conversationId")
   if (!conversationId) return NextResponse.json({ error: "Missing conversationId" }, { status: 400 })
@@ -24,6 +26,8 @@ export async function GET(req: NextRequest) {
 
 // POST — save a message to a conversation
 export async function POST(req: NextRequest) {
+  const USER_ID = await getActiveAuthId()
+  if (!USER_ID) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   if (!await checkDesktopAuth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { conversation_id, role, content } = await req.json()
   if (!conversation_id || !role || !content) return NextResponse.json({ error: "Missing fields" }, { status: 400 })
@@ -40,6 +44,8 @@ export async function POST(req: NextRequest) {
 
 // DELETE — clear history for a specific conversation (or all if no conversationId)
 export async function DELETE(req: NextRequest) {
+  const USER_ID = await getActiveAuthId()
+  if (!USER_ID) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   if (!await checkDesktopAuth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const supabase = createServiceClient()
   const body = await req.json().catch(() => ({}))

@@ -5,7 +5,7 @@ import { Receiver, Client as QStashClient } from "@upstash/qstash"
 import { createServiceClient } from "@/lib/supabase/service"
 import OpenAI from "openai"
 
-const USER_ID = "e9d9a15b-0e5a-4631-9b50-6225ee03a44f"
+import { getActiveAuthId } from "@/lib/auth/session"
 const BATCH_SIZE = 10
 const MAX_MESSAGES_PER_CONVO = 80
 
@@ -32,6 +32,8 @@ type Finding = {
  * Finalizes the agent record when no more conversations remain.
  */
 export async function POST(req: NextRequest) {
+  const USER_ID = await getActiveAuthId()
+  if (!USER_ID) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   const body = await req.text()
 
   // Verify QStash signature when signing keys are present
@@ -81,7 +83,7 @@ export async function POST(req: NextRequest) {
 
   // Nothing left — finalize
   if (!conversations || conversations.length === 0) {
-    await finalize(supabase, agentId, agent, prevFindings, prevScanned, isFirstRun)
+    await finalize(supabase, agentId, USER_ID, agent, prevFindings, prevScanned, isFirstRun)
     return NextResponse.json({ done: true, conversations_scanned: prevScanned, findings: prevFindings })
   }
 
@@ -134,10 +136,10 @@ export async function POST(req: NextRequest) {
 
       if (match) {
         const findings: Finding[] = JSON.parse(match[0])
-        batchFindings = await saveFindings(supabase, agentId, agent, findings)
+        batchFindings = await saveFindings(supabase, agentId, USER_ID, agent, findings)
       }
     } catch (err: any) {
-      await logActivity(supabase, agentId, "error", { cursor, error: err.message })
+      await logActivity(supabase, agentId, USER_ID, "error", { cursor, error: err.message })
     }
   }
 
@@ -145,7 +147,7 @@ export async function POST(req: NextRequest) {
   const newTotalScanned   = prevScanned  + validConvos.length
   const batchIndex        = Math.floor(cursor / BATCH_SIZE) + 1
 
-  await logActivity(supabase, agentId, "batch_completed", {
+  await logActivity(supabase, agentId, USER_ID, "batch_completed", {
     batch_index: batchIndex,
     conversations_in_batch: validConvos.length,
     findings_so_far: newTotalFindings,
@@ -163,7 +165,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Last batch — finalize
-  await finalize(supabase, agentId, agent, newTotalFindings, newTotalScanned, isFirstRun)
+  await finalize(supabase, agentId, USER_ID, agent, newTotalFindings, newTotalScanned, isFirstRun)
   return NextResponse.json({ done: true, conversations_scanned: newTotalScanned, findings: newTotalFindings })
 }
 
@@ -172,6 +174,7 @@ export async function POST(req: NextRequest) {
 async function finalize(
   supabase: ReturnType<typeof createServiceClient>,
   agentId: string,
+  userId: string,
   agent: any,
   totalFindings: number,
   conversationsScanned: number,
@@ -186,7 +189,7 @@ async function finalize(
     })
     .eq("id", agentId)
 
-  await logActivity(supabase, agentId, "scan_completed", {
+  await logActivity(supabase, agentId, userId, "scan_completed", {
     conversations_scanned: conversationsScanned,
     findings_created:      totalFindings,
     is_first_run:          isFirstRun,
@@ -196,6 +199,7 @@ async function finalize(
 async function saveFindings(
   supabase: ReturnType<typeof createServiceClient>,
   agentId: string,
+  userId: string,
   agent: any,
   findings: Finding[],
 ): Promise<number> {
@@ -208,7 +212,7 @@ async function saveFindings(
     let { data: op } = await supabase
       .from("operations")
       .select("id")
-      .eq("user_id", USER_ID)
+      .eq("user_id", userId)
       .ilike("name", opName)
       .maybeSingle()
 
@@ -216,7 +220,7 @@ async function saveFindings(
       const { data: newOp } = await supabase
         .from("operations")
         .insert({
-          user_id:     USER_ID,
+          user_id:     userId,
           name:        opName,
           description: `Autonomous findings from agent: ${agent.name}. ${agent.role}.`,
           objectives:  agent.directives,
@@ -233,14 +237,14 @@ async function saveFindings(
 
     await supabase.from("operation_records").insert({
       operation_id: op.id,
-      user_id:      USER_ID,
+      user_id:      userId,
       title:        finding.title,
       content:      `${finding.description}\n\nPriority: ${finding.priority}/10\nType: ${finding.type}${finding.source_conversation_title ? `\nSource: "${finding.source_conversation_title}"` : ""}`,
       type:         finding.type === "followup" ? "alert" : finding.type === "opportunity" ? "intel" : "finding",
       source:       agent.name,
     })
 
-    await logActivity(supabase, agentId, "finding_created", {
+    await logActivity(supabase, agentId, userId, "finding_created", {
       title:    finding.title,
       type:     finding.type,
       priority: finding.priority,
@@ -255,10 +259,11 @@ async function saveFindings(
 async function logActivity(
   supabase: ReturnType<typeof createServiceClient>,
   agentId: string,
+  userId: string,
   action: string,
   details: Record<string, any>,
 ) {
-  await supabase.from("agent_activity").insert({ agent_id: agentId, user_id: USER_ID, action, details })
+  await supabase.from("agent_activity").insert({ agent_id: agentId, user_id: userId, action, details })
 }
 
 function buildAgentPrompt(agent: any): string {
