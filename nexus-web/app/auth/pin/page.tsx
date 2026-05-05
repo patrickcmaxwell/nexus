@@ -5,41 +5,64 @@ import { useRouter } from "next/navigation"
 
 const DIGITS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"]
 
+// Multi-user PIN sign-in. Identity-first: enter email so the API can pin
+// down a single human row by `humans.email`, then verify the PIN hash. The
+// owner can also use the legacy passphrase entry at `/` (NexusAuthGate)
+// which routes through /api/passphrase and matches the MAXWELL_PIN env var.
+//
+// Why two entry points: face auth IS identity (biometric → unique human),
+// the env-var passphrase is owner-only emergency access, this page is for
+// any team member. They all converge on `security_sessions` rows scoped to
+// their `humans.id`.
 export default function PinPage() {
   const router = useRouter()
+  const [email, setEmail] = useState("")
   const [pin, setPin] = useState("")
   const [status, setStatus] = useState<"idle" | "loading" | "error" | "blocked">("idle")
   const [errorMsg, setErrorMsg] = useState("")
   const [shake, setShake] = useState(false)
   const [remember, setRemember] = useState(true)
 
-  // If PIN cookie already valid, skip to face scan
+  // Skip straight to face scan if a verified PIN cookie is present from a
+  // recent login on this browser.
   useEffect(() => {
     fetch("/api/security/pin", { method: "GET" })
       .then((r) => { if (r.ok) router.replace("/auth/face") })
       .catch(() => {})
   }, [router])
 
+  // Persist email locally so users don't have to retype on every visit.
+  useEffect(() => {
+    const stored = localStorage.getItem("nexus.lastEmail")
+    if (stored) setEmail(stored)
+  }, [])
+
   const submitPin = useCallback(async (code: string) => {
+    if (!email.trim()) {
+      setStatus("error")
+      setErrorMsg("EMAIL REQUIRED")
+      setShake(true)
+      setTimeout(() => { setShake(false); setStatus("idle") }, 1500)
+      return
+    }
     setStatus("loading")
     try {
       const res = await fetch("/api/security/pin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pin: code, remember }),
+        body: JSON.stringify({ email: email.trim(), pin: code, remember }),
       })
       const data = await res.json()
 
       if (data.success) {
+        localStorage.setItem("nexus.lastEmail", email.trim())
         router.push("/auth/face")
       } else if (data.error === "IP_BLOCKED") {
         setStatus("blocked")
         setErrorMsg("IP BLOCKED — SECURITY LOCKOUT ACTIVE")
       } else {
         setStatus("error")
-        setErrorMsg(data.attempts_remaining != null
-          ? `INVALID PIN — ${data.attempts_remaining} ATTEMPTS REMAINING`
-          : "INVALID PIN")
+        setErrorMsg("INVALID CREDENTIALS")
         setShake(true)
         setTimeout(() => setShake(false), 600)
         setPin("")
@@ -52,7 +75,7 @@ export default function PinPage() {
       setTimeout(() => { setShake(false); setStatus("idle") }, 1500)
       setPin("")
     }
-  }, [router])
+  }, [email, remember, router])
 
   function handleDigit(d: string) {
     if (status === "loading" || status === "blocked") return
@@ -68,33 +91,51 @@ export default function PinPage() {
     }
   }
 
-  // Keyboard support
+  // Keyboard support — only when the email field isn't focused so users can
+  // type "@" and "." without those triggering numpad behavior.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      const target = e.target as HTMLElement | null
+      if (target?.tagName === "INPUT") return
       if (e.key >= "0" && e.key <= "9") handleDigit(e.key)
       if (e.key === "Backspace") handleDigit("⌫")
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [pin, status]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pin, status, email]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center scan-line">
       <div className="w-full max-w-sm px-6">
-        {/* Header */}
-        <div className="text-center mb-10">
+        <div className="text-center mb-8">
           <div className="w-16 h-16 hud-border hud-glow-red mx-auto mb-6 flex items-center justify-center">
             <span className="text-hud-red font-bold text-2xl animate-pulse-glow" style={{ fontFamily: "var(--font-orbitron)" }}>MN</span>
           </div>
-          <p className="font-mono text-[10px] text-muted-foreground tracking-widest mb-1">MAXWELL NEXUS SECURITY</p>
+          <p className="font-mono text-[10px] text-muted-foreground tracking-widest mb-1">NEXUS // ACCESS</p>
           <h1 className="text-hud-gold text-xl font-bold tracking-widest" style={{ fontFamily: "var(--font-orbitron)" }}>
-            DIRECTOR PIN REQUIRED
+            SIGN IN
           </h1>
-          <p className="font-mono text-[10px] text-muted-foreground mt-2 tracking-widest">LAYER 1 OF 2 — ENTER 4-DIGIT CODE</p>
+          <p className="font-mono text-[10px] text-muted-foreground mt-2 tracking-widest">EMAIL + 4-DIGIT PIN</p>
+        </div>
+
+        {/* Email field */}
+        <div className="mb-5">
+          <label className="block font-mono text-[9px] text-muted-foreground tracking-widest mb-2">EMAIL</label>
+          <input
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            autoFocus
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            disabled={status === "loading" || status === "blocked"}
+            className="w-full px-3 py-2.5 font-mono text-sm hud-border bg-transparent text-hud-gold placeholder:text-muted-foreground/40 focus:outline-none focus:hud-glow-gold"
+          />
         </div>
 
         {/* PIN dots */}
-        <div className={`flex justify-center gap-4 mb-8 transition-all ${shake ? "animate-[shake_0.5s_ease-in-out]" : ""}`}>
+        <div className={`flex justify-center gap-4 my-6 transition-all ${shake ? "animate-[shake_0.5s_ease-in-out]" : ""}`}>
           {[0, 1, 2, 3].map((i) => (
             <div
               key={i}
@@ -109,8 +150,7 @@ export default function PinPage() {
           ))}
         </div>
 
-        {/* Status message */}
-        <div className="h-8 mb-6 flex items-center justify-center">
+        <div className="h-7 mb-5 flex items-center justify-center">
           {status === "loading" && (
             <p className="font-mono text-[10px] text-hud-gold tracking-widest animate-pulse-glow">VERIFYING...</p>
           )}
@@ -119,7 +159,6 @@ export default function PinPage() {
           )}
         </div>
 
-        {/* Numpad */}
         <div className="grid grid-cols-3 gap-3">
           {DIGITS.map((d, i) => (
             <button
@@ -141,7 +180,6 @@ export default function PinPage() {
           ))}
         </div>
 
-        {/* Remember device toggle */}
         <button
           onClick={() => setRemember((r) => !r)}
           className="mt-6 w-full flex items-center justify-center gap-3 py-2"
@@ -155,7 +193,14 @@ export default function PinPage() {
           </span>
         </button>
 
-
+        <div className="mt-6 text-center">
+          <a
+            href="/auth/face"
+            className="font-mono text-[10px] text-muted-foreground/60 tracking-widest hover:text-hud-gold/80 transition-colors"
+          >
+            USE FACE INSTEAD →
+          </a>
+        </div>
       </div>
 
       <style jsx global>{`

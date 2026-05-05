@@ -136,7 +136,7 @@ export default function TeamPage() {
   // ── Invite submission ────────────────────────────────────────────────────
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault()
-    if (!inviteName.trim()) return
+    if (!inviteName.trim() || !inviteEmail.trim()) return
     setInviting(true)
     try {
       const res = await fetch("/api/team/invite", {
@@ -144,7 +144,7 @@ export default function TeamPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: inviteName.trim(),
-          email: inviteEmail.trim() || undefined,
+          email: inviteEmail.trim(),
           role: inviteRole,
           seedFaceDescriptor: faceDescriptor,
         }),
@@ -153,6 +153,9 @@ export default function TeamPage() {
         const data = await res.json()
         setInviteResult(data)
         loadMembers()
+      } else {
+        const err = await res.json().catch(() => ({}))
+        alert(err.error || "Invite failed")
       }
     } finally {
       setInviting(false)
@@ -251,9 +254,10 @@ export default function TeamPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Email (optional)</label>
+                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Email *</label>
                       <input
                         type="email"
+                        required
                         value={inviteEmail}
                         onChange={e => setInviteEmail(e.target.value)}
                         placeholder="londynn@example.com"

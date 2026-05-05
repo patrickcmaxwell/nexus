@@ -31,7 +31,7 @@ export default function InvitePage() {
       .then(async (r) => {
         if (r.ok) {
           const data = await r.json()
-          setName(data.name)
+          setName(data.displayName)
           setStage("setup_pin")
         } else if (r.status === 410) {
           setStage("used")
