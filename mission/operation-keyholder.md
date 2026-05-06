@@ -1,4 +1,4 @@
-# Operation Access — Auth that protects people who didn't build it
+# Operation Keyholder — Auth that protects people who didn't build it
 
 **Status:** ACTIVE (2026-05-05)
 **Owner:** Director (Patrick) + Vera
