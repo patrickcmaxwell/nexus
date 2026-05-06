@@ -20,6 +20,7 @@ type Member = {
 type InviteResult = {
   member: { id: string; display_name: string; invite_token: string }
   inviteUrl: string
+  email?: { sent: true; id: string } | { sent: false; reason: string }
 }
 
 const STATUS_STYLES: Record<string, { bg: string; text: string; icon: typeof ShieldCheck }> = {
@@ -386,9 +387,22 @@ export default function TeamPage() {
                     </div>
                     <div>
                       <p className="text-sm font-bold text-foreground">Invite created for {inviteResult.member.display_name}</p>
-                      <p className="text-xs text-muted-foreground">Send them this link to get started</p>
+                      <p className="text-xs text-muted-foreground">
+                        {inviteResult.email?.sent
+                          ? "Email sent — they'll receive it shortly"
+                          : "Send them this link to get started"}
+                      </p>
                     </div>
                   </div>
+
+                  {inviteResult.email && !inviteResult.email.sent && (
+                    <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                      <ShieldAlert size={14} className="text-amber-400 flex-shrink-0" />
+                      <p className="text-xs text-amber-400">
+                        Email not sent ({inviteResult.email.reason}) — copy the link below and send it manually.
+                      </p>
+                    </div>
+                  )}
 
                   <div className="flex items-center gap-2 p-3 rounded-xl bg-background border border-border">
                     <Link2 size={14} className="text-muted-foreground flex-shrink-0" />

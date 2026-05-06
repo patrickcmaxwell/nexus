@@ -4,19 +4,24 @@ Proposed code changes waiting on a condition. Each entry has a **trigger** that 
 
 ---
 
-## 0. Operation Multi-User — verify web deploy + test team admin
+## 0. Operation Multi-User — verify deploy + invite Londynn
 
-**Trigger:** Director has time to test (he asked to be reminded later, 2026-05-05).
-**Context:** Phase 1-3 of Operation Multi-User are committed (migration 019, identity-first auth, web UI). Vercel deploy needs Director to push (`cd ~/code/nexus && git push origin main`).
+**Trigger:** Director has time to test (asked to be reminded, 2026-05-05).
+**Context:** All 4 phases committed locally (web schema/auth/UI, Lumen multi-user, iOS multi-user, invite-by-email). Director needs to:
+1. Push to trigger Vercel: `cd ~/code/nexus && git push origin main`
+2. Set `RESEND_API_KEY` on Vercel (Resend creds Director said he'd share)
+3. Optionally set `RESEND_FROM` if a verified domain is configured (otherwise sender defaults to `Nexus <onboarding@resend.dev>`)
 
 ### Test checklist after Vercel build completes
 1. `fetch('/api/auth/me')` in browser console → returns identity bundle (`humanId`, `email`, `isOwner: true`)
 2. `fetch('/api/auth/known-users')` → returns array with Patrick + Merlin
 3. `/auth/pin` with email + 4-digit PIN → redirects to `/auth/face`
 4. `/` face scan → lands in dashboard
-5. `/dashboard/humans` shows both members; "Add Human" form opens (don't actually invite Londynn yet — wait until Lumen Phase 4 is done)
+5. `/dashboard/humans` → invite Londynn (email + name + role) → confirm "Email sent" banner shows; she receives email at her inbox; she clicks link, sets PIN + face, lands in her dashboard
+6. **Lumen** (already installed at `/Applications/Lumen.app`): quit + relaunch → AuthGate → email + PIN → MainView shows your avatar in toolbar. Avatar menu → "Add Another User" → log in as Merlin → conversations should disappear, briefing reloads as Merlin.
+7. **iOS**: rebuild + install when ready. PIN screen has email field, top bar shows avatar pill.
 
-If all 5 pass, ship Phase 4 Lumen build, THEN send Londynn's invite from `/dashboard/humans`.
+If all 7 pass, multi-user is shipped end-to-end.
 
 ---
 

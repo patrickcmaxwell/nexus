@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { createClient } from "@supabase/supabase-js"
+import { sendInviteEmail } from "@/lib/email/sendInvite"
 import crypto from "crypto"
 
 function getServiceClient() {
@@ -25,7 +26,7 @@ async function getSessionMember() {
   if (!session.team_member_id) return null
   const { data: member } = await supabase
     .from("humans")
-    .select("id, display_name, role, status")
+    .select("id, display_name, email, role, status")
     .eq("id", session.team_member_id)
     .single()
   return member
@@ -112,7 +113,26 @@ export async function POST(req: NextRequest) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
   const inviteUrl = `${baseUrl}/invite/${inviteToken}`
 
-  return NextResponse.json({ member: data, inviteUrl })
+  // Best-effort email send. Failure surfaces in the response so the inviter
+  // can fall back to copy/paste, but doesn't roll back the row creation —
+  // they can also just resend via the admin UI.
+  const inviter = member ?? await getSessionMember()
+  const emailResult = await sendInviteEmail({
+    to: email,
+    inviteeName: name,
+    inviterName: inviter?.display_name ?? "Director",
+    inviterEmail: inviter?.email ?? "noreply@nexus",
+    inviteUrl,
+    role,
+  })
+
+  return NextResponse.json({
+    member: data,
+    inviteUrl,
+    email: emailResult.sent
+      ? { sent: true, id: emailResult.id }
+      : { sent: false, reason: emailResult.reason },
+  })
 }
 
 // PATCH — update a human (admin only)
