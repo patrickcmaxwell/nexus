@@ -15,15 +15,43 @@ function euclideanDistance(a: number[], b: number[]): number {
 
 const MATCH_THRESHOLD = 0.6
 
+type Descriptor = number[]
+
+function isValidDescriptor(d: unknown): d is Descriptor {
+  return Array.isArray(d) && d.length === 128 && d.every((v) => typeof v === "number")
+}
+
+function collectReferences(human: {
+  face_descriptors?: unknown
+  face_descriptor?: unknown
+  seed_face_descriptor?: unknown
+}): Descriptor[] {
+  const refs: Descriptor[] = []
+  if (Array.isArray(human.face_descriptors)) {
+    for (const d of human.face_descriptors) if (isValidDescriptor(d)) refs.push(d)
+  }
+  if (isValidDescriptor(human.face_descriptor)) refs.push(human.face_descriptor)
+  // seed is a low-quality reference; only used if nothing better exists
+  return refs
+}
+
 export async function POST(req: NextRequest) {
-  const { action, descriptor } = await req.json()
+  const body = await req.json()
+  const { action } = body
   const supabase = getServiceClient()
 
-  if (!descriptor || !Array.isArray(descriptor) || descriptor.length !== 128) {
-    return NextResponse.json({ error: "Invalid descriptor" }, { status: 400 })
+  // Accept either `descriptor` (single, legacy) or `descriptors` (array, new).
+  const incomingArray: Descriptor[] = Array.isArray(body.descriptors)
+    ? body.descriptors.filter(isValidDescriptor)
+    : isValidDescriptor(body.descriptor)
+      ? [body.descriptor]
+      : []
+
+  if (incomingArray.length === 0) {
+    return NextResponse.json({ error: "Invalid descriptor(s)" }, { status: 400 })
   }
 
-  // ENROLL — store face for the calling human
+  // ENROLL — store one or more frames for the calling human
   if (action === "enroll") {
     const sessionId = req.cookies.get("nx_session")?.value
     if (!sessionId) {
@@ -36,13 +64,11 @@ export async function POST(req: NextRequest) {
       .eq("id", sessionId)
       .single()
 
-    // team_member_id maps to humans.id (migrated); user_id is the owner fallback
     const humanId = session?.team_member_id ?? session?.user_id
     if (!humanId) {
       return NextResponse.json({ error: "Session has no associated human" }, { status: 401 })
     }
 
-    // If team_member_id isn't in humans (legacy UUID mismatch), fall back to owner
     let targetId = humanId
     const { data: human } = await supabase.from("humans").select("id").eq("id", humanId).single()
     if (!human) {
@@ -51,11 +77,24 @@ export async function POST(req: NextRequest) {
       targetId = owner.id
     }
 
-    const { error: updateError } = await supabase
-      .from("humans")
-      .update({ face_descriptor: descriptor })
-      .eq("id", targetId)
+    // Multi-frame replaces the array wholesale; single-frame appends.
+    const update: Record<string, unknown> = {}
+    if (incomingArray.length > 1) {
+      update.face_descriptors = incomingArray
+      update.face_descriptor = incomingArray[0]  // mirror first frame to legacy column for back-compat
+    } else {
+      update.face_descriptor = incomingArray[0]
+      // also append to the array if it's empty so future verifies use the new path
+      const { data: existing } = await supabase
+        .from("humans")
+        .select("face_descriptors")
+        .eq("id", targetId)
+        .single()
+      const current = Array.isArray(existing?.face_descriptors) ? (existing!.face_descriptors as Descriptor[]) : []
+      if (current.length === 0) update.face_descriptors = [incomingArray[0]]
+    }
 
+    const { error: updateError } = await supabase.from("humans").update(update).eq("id", targetId)
     if (updateError) {
       console.error("[nexus] Face enrollment failed:", updateError.message)
       return NextResponse.json(
@@ -65,16 +104,17 @@ export async function POST(req: NextRequest) {
     }
 
     return await createHumanSession(
-      NextResponse.json({ success: true, action: "enrolled" }),
+      NextResponse.json({ success: true, action: "enrolled", framesStored: incomingArray.length }),
       targetId, "face", supabase
     )
   }
 
-  // VERIFY — match against all active humans
+  // VERIFY — match the single live frame against every stored reference
   if (action === "verify") {
+    const probe = incomingArray[0]
     const { data: humans, error: selectError } = await supabase
       .from("humans")
-      .select("id, display_name, role, face_descriptor, seed_face_descriptor")
+      .select("id, display_name, role, face_descriptors, face_descriptor, seed_face_descriptor")
       .eq("status", "active")
 
     if (selectError) {
@@ -89,10 +129,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "NO_REFERENCE" }, { status: 404 })
     }
 
-    // Only treat enrolled face_descriptor as a reference — seed_face_descriptor alone
-    // is a low-quality reference photo that won't reliably match a live scan.
-    // If nobody has enrolled yet, return 404 to trigger the enrollment flow.
-    const anyEnrolled = humans.some(h => h.face_descriptor)
+    // Bail to enrollment flow if literally nobody has any enrolled frames.
+    const anyEnrolled = humans.some((h) => collectReferences(h).length > 0)
     if (!anyEnrolled) {
       return NextResponse.json({ error: "NO_REFERENCE" }, { status: 404 })
     }
@@ -100,15 +138,14 @@ export async function POST(req: NextRequest) {
     let bestMatch: { id: string; name: string; role: string; distance: number } | null = null
 
     for (const human of humans) {
-      // Prefer enrolled face_descriptor; fall back to seed only if no enrolled face exists
-      const descriptors = human.face_descriptor
-        ? [human.face_descriptor]
-        : [human.seed_face_descriptor].filter(Boolean)
+      const refs = collectReferences(human)
+      // seed_face_descriptor is a fallback only if no enrolled frames exist for this human
+      const refsToCheck = refs.length > 0
+        ? refs
+        : isValidDescriptor(human.seed_face_descriptor) ? [human.seed_face_descriptor] : []
 
-      for (const ref of descriptors) {
-        const refArr = ref as number[]
-        if (!refArr || refArr.length !== 128) continue
-        const distance = euclideanDistance(descriptor, refArr)
+      for (const ref of refsToCheck) {
+        const distance = euclideanDistance(probe, ref)
         if (distance <= MATCH_THRESHOLD && (!bestMatch || distance < bestMatch.distance)) {
           bestMatch = { id: human.id, name: human.display_name, role: human.role, distance }
         }
@@ -120,7 +157,12 @@ export async function POST(req: NextRequest) {
     }
 
     return await createHumanSession(
-      NextResponse.json({ success: true, distance: bestMatch.distance, name: bestMatch.name, redirect: "/dashboard" }),
+      NextResponse.json({
+        success: true,
+        distance: bestMatch.distance,
+        name: bestMatch.name,
+        redirect: "/dashboard",
+      }),
       bestMatch.id, "face", supabase
     )
   }

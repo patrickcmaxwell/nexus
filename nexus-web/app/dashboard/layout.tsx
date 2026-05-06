@@ -17,10 +17,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const displayName = member?.name || "Director"
   const displayEmail = member?.email || "patrick@talkcircles.com"
   const memberRole = member?.role || "director"
+  const memberAvatarUrl = member?.avatarUrl ?? null
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <DashboardSidebar userEmail={displayEmail} userName={displayName} userRole={memberRole} />
+      <DashboardSidebar
+        userEmail={displayEmail}
+        userName={displayName}
+        userRole={memberRole}
+        userAvatarUrl={memberAvatarUrl}
+      />
       <main className="md:ml-72 pb-20 md:pb-0">
         {children}
       </main>

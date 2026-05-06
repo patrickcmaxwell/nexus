@@ -57,13 +57,14 @@ export async function getSessionMember(): Promise<{
   role: string
   email: string | null
   status: string
+  avatarUrl: string | null
 } | null> {
   const memberId = await getSessionMemberId()
   if (!memberId) return null
   const supabase = createServiceClient()
   const { data } = await supabase
     .from("humans")
-    .select("id, display_name, role, email, status")
+    .select("id, display_name, role, email, status, avatar_url")
     .eq("id", memberId)
     .single()
   if (!data) return null
@@ -73,5 +74,6 @@ export async function getSessionMember(): Promise<{
     role: data.role,
     email: data.email,
     status: data.status,
+    avatarUrl: data.avatar_url ?? null,
   }
 }

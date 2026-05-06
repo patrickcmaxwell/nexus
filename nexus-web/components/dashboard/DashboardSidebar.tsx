@@ -6,7 +6,7 @@ import { useState, useEffect } from "react"
 import {
   LayoutDashboard, MessageSquare, Workflow, Bot,
   Map, Users, Brain, LogOut, Palette, X,
-  ChevronRight, Activity, Shield, Globe,
+  ChevronRight, Activity, Shield, Globe, Settings,
 } from "lucide-react"
 import ThemePicker from "@/components/dashboard/ThemePicker"
 import { useTheme } from "@/hooks/useTheme"
@@ -24,7 +24,7 @@ const NAV = [
 
 const MOBILE_NAV = NAV.slice(0, 5)
 
-export default function DashboardSidebar({ userEmail, userName, userRole }: { userEmail: string; userName?: string; userRole?: string }) {
+export default function DashboardSidebar({ userEmail, userName, userRole, userAvatarUrl }: { userEmail: string; userName?: string; userRole?: string; userAvatarUrl?: string | null }) {
   const pathname = usePathname()
   const router = useRouter()
   const { resolved } = useTheme()
@@ -116,16 +116,23 @@ export default function DashboardSidebar({ userEmail, userName, userRole }: { us
 
           {/* Footer */}
           <div className="px-3 pb-4 pt-3 border-t border-sidebar-border">
-            {/* User card */}
-            <div className="px-4 py-3 rounded-xl bg-secondary mb-3 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-xs font-semibold text-primary">{(userName || userEmail).charAt(0).toUpperCase()}</span>
-              </div>
+            {/* User card — clickable to /dashboard/settings */}
+            <Link href="/dashboard/settings"
+              className="px-4 py-3 rounded-xl bg-secondary mb-3 flex items-center gap-3 hover:bg-muted transition-colors"
+            >
+              {userAvatarUrl ? (
+                <img src={userAvatarUrl} alt="" className="w-9 h-9 rounded-xl object-cover flex-shrink-0" />
+              ) : (
+                <div className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
+                  <span className="text-xs font-semibold text-primary">{(userName || userEmail).charAt(0).toUpperCase()}</span>
+                </div>
+              )}
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-sidebar-foreground truncate">{userName || userEmail}</p>
                 <p className="text-xs text-muted-foreground">{userRole === 'director' ? 'Director Access' : userRole === 'admin' ? 'Admin Access' : 'Member Access'}</p>
               </div>
-            </div>
+              <Settings size={14} className="text-muted-foreground/50 flex-shrink-0" />
+            </Link>
 
             {/* Action buttons */}
             <div className="flex gap-2">
@@ -278,16 +285,23 @@ export default function DashboardSidebar({ userEmail, userName, userRole }: { us
 
         {/* Footer */}
         <div className="px-3 pb-4 pt-3 border-t border-sidebar-border">
-          {/* User card */}
-          <div className="px-4 py-3 rounded-xl mb-3 flex items-center gap-3 bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10">
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-primary/25 to-purple-500/25 border border-primary/30 nexus-glow-cyan">
-              <span className="text-xs font-bold text-sidebar-foreground">{(userName || userEmail).charAt(0).toUpperCase()}</span>
-            </div>
+          {/* User card — clickable to /dashboard/settings */}
+          <Link href="/dashboard/settings"
+            className="px-4 py-3 rounded-xl mb-3 flex items-center gap-3 bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10 hover:border-primary/30 hover:from-primary/10 hover:to-purple-500/10 transition-all"
+          >
+            {userAvatarUrl ? (
+              <img src={userAvatarUrl} alt="" className="w-9 h-9 rounded-lg object-cover flex-shrink-0 border border-primary/30" />
+            ) : (
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-primary/25 to-purple-500/25 border border-primary/30 nexus-glow-cyan">
+                <span className="text-xs font-bold text-sidebar-foreground">{(userName || userEmail).charAt(0).toUpperCase()}</span>
+              </div>
+            )}
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-sidebar-foreground truncate">{userName || userEmail}</p>
               <p className="text-[10px] font-medium text-primary/60">{userRole === 'director' ? 'Director Access' : userRole === 'admin' ? 'Admin Access' : 'Member Access'}</p>
             </div>
-          </div>
+            <Settings size={14} className="text-primary/40 flex-shrink-0" />
+          </Link>
 
           {/* Action buttons */}
           <div className="flex gap-2">
