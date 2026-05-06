@@ -2,11 +2,44 @@
 
 **For the next session that picks this up cold.**
 
-Updated: 2026-05-04 (afternoon)
+Updated: 2026-05-05 (evening) — by Vera. Operation Multi-User shipped end-to-end.
+
+## TL;DR — read this first
+
+Operation Multi-User is **code-complete and committed locally**. Director needs to:
+
+1. `cd ~/code/nexus && git push origin main` — pushes 8 commits, triggers Vercel auto-deploy of nexus-web
+2. Set `RESEND_API_KEY` on Vercel (Resend creds Director said he'd share)
+3. Run the 7-step test checklist in `pending-changes.md` (top entry)
+4. If all 7 pass → invite Londynn from `/dashboard/humans` → multi-user is live
+
+Lumen is already installed at `/Applications/Lumen.app` and ready to test. iOS code is committed but Director has to rebuild + install on his phone when ready.
+
+The 8 local commits are:
+```
+580db84 multi-user: cron scans every user's agents + self-service PIN rotation
+4e0100d multi-user: send invite email via Resend on team invite creation
+d5e4328 mission: Operation Multi-User checkpoint + state refresh
+528648e ios: multi-user auth + tool call cards + voice work
+b790ce1 lumen: dashboard rework + voice fluidity + code panel + multi-user
+5457bcc multi-user: web UI for email+PIN login + team admin
+eb9e682 multi-user: data routes resolve user from session, not const
+3bef603 multi-user: schema migration + identity-first auth foundation
+```
+
+## What was shipped this session
+
+- **Schema unification** (Supabase migration 019): `humans.email` added, `team_members` + `face_reference` dropped, `humans.auth_id` bridged to auth.users, security_sessions RLS locked down, orphan sessions invalidated.
+- **Identity-first auth**: `/api/security/pin` takes `{email, pin}` so PIN collisions across team members can't happen. New `/api/auth/me`, `/api/auth/known-users`, `/api/auth/switch`, `/api/auth/change-pin` endpoints.
+- **All 19 user-data routes** refactored from hardcoded `USER_ID` const to per-request `getActiveAuthId()` resolution. Every API request scopes to the active human's data.
+- **Web UI**: `/auth/pin` collects email + PIN with localStorage cache. `/dashboard/humans` admin (invite, role, disable). "Your Account" panel with self-service PIN rotation.
+- **Invite emails** via Resend (lib/email/sendInvite.ts). Email lands when an invite is created; falls back to copy-paste if `RESEND_API_KEY` not set.
+- **Lumen multi-user**: `LumenAuthRegistry` + `KeychainStore` (sessions in macOS Keychain), `NativePinView` with email field, top-bar avatar menu with switch + sign-out + add-another, `LumenStore.reloadForActiveUserSwitch()` flushes per-user state on switch.
+- **iOS multi-user**: PinAuthView email field, `fetchActiveProfile` validates cached cookie on launch, avatar pill in top bar.
 
 ## Where we left off
 
-Mid-cleanup of accumulated drift after weeks of building without committing. PROJECT-STATUS.md describes a full multi-surface AI OS that mostly works locally but has these structural problems:
+Earlier mid-cleanup state (from 2026-05-04) is below for reference. Most of those items are still queued:
 
 1. ~57 files dirty, ~17 untracked, only 2 commits ever — a lightning-strike risk.
 2. Vercel watches the wrong repo (`o-nexus` instead of `nexus`) — prod is stale.
