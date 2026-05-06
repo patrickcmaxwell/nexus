@@ -2,13 +2,16 @@ import { NextRequest, NextResponse } from "next/server"
 import { Client as QStashClient } from "@upstash/qstash"
 import { createServiceClient } from "@/lib/supabase/service"
 
-const USER_ID = "e9d9a15b-0e5a-4631-9b50-6225ee03a44f"
-
 /**
  * GET /api/cron/agents
- * Called by Vercel Cron on schedule. Finds all ACTIVE agents and triggers
- * a QStash-backed scan for each one. Falls back to direct in-process scan
- * if QStash keys are not configured (local dev).
+ * Called by Vercel Cron on schedule. Finds all ACTIVE agents across every
+ * user and triggers a QStash-backed scan for each one. Falls back to a
+ * direct in-process scan if QStash keys are not configured (local dev).
+ *
+ * Multi-user note: this iterates every active agent regardless of owner —
+ * each agent's `user_id` is preserved on its row, and /api/agents/process
+ * scopes its queries by that field, so Londynn's agents get scanned with
+ * her data and Patrick's get scanned with his.
  */
 export async function GET(req: NextRequest) {
   // Vercel cron sends this header; require it in production
@@ -21,8 +24,7 @@ export async function GET(req: NextRequest) {
 
   const { data: agents, error } = await supabase
     .from("agents")
-    .select("id, name, status, last_scanned_at, scan_interval_hours")
-    .eq("user_id", USER_ID)
+    .select("id, name, status, last_scanned_at, scan_interval_hours, user_id")
     .eq("status", "active")
 
   if (error) {

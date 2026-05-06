@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import {
   UserPlus, Users, Copy, Check, Trash2, Loader2,
   Shield, ShieldCheck, ShieldAlert, Upload, X, RefreshCw,
-  Scan, CheckCircle2, Link2,
+  Scan, CheckCircle2, Link2, KeyRound,
 } from "lucide-react"
 
 type Member = {
@@ -226,6 +226,9 @@ export default function TeamPage() {
 
       <div className="flex-1 overflow-y-auto px-5 md:px-8 py-6">
         <div className="max-w-3xl mx-auto">
+
+          {/* ── Your Account (self-service PIN change) ── */}
+          <YourAccountPanel />
 
           {/* ── Invite Panel ── */}
           {showInvite && (
@@ -516,3 +519,171 @@ export default function TeamPage() {
     </div>
   )
 }
+
+// MARK: - Your Account (self-service PIN rotation)
+
+type Me = {
+  humanId: string
+  email: string
+  displayName: string
+  role: string
+  isOwner: boolean
+}
+
+function YourAccountPanel() {
+  const [me, setMe] = useState<Me | null>(null)
+  const [showChangePin, setShowChangePin] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setMe(d) })
+      .catch(() => {})
+  }, [])
+
+  if (!me) return null
+
+  return (
+    <div className="mb-8 p-5 rounded-2xl border border-border bg-card">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${me.isOwner ? 'bg-primary/15 border border-primary/40 text-primary' : 'bg-muted border border-border text-foreground'}`}>
+            {(me.displayName[0] || me.email[0] || '?').toUpperCase()}
+          </div>
+          <div>
+            <p className="text-sm font-bold text-foreground">{me.displayName}</p>
+            <p className="text-xs text-muted-foreground">{me.email} · {me.role.toUpperCase()}{me.isOwner ? ' · OWNER' : ''}</p>
+          </div>
+        </div>
+        <button
+          onClick={() => setShowChangePin(true)}
+          className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-all"
+        >
+          <KeyRound size={13} />
+          Change PIN
+        </button>
+      </div>
+
+      {showChangePin && <ChangePinModal onClose={() => setShowChangePin(false)} />}
+    </div>
+  )
+}
+
+function ChangePinModal({ onClose }: { onClose: () => void }) {
+  const [currentPin, setCurrentPin] = useState('')
+  const [newPin, setNewPin] = useState('')
+  const [confirmPin, setConfirmPin] = useState('')
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [done, setDone] = useState(false)
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    setError('')
+    if (newPin.length < 4) { setError('New PIN must be at least 4 digits'); return }
+    if (newPin !== confirmPin) { setError("New PINs don't match"); return }
+    if (currentPin === newPin) { setError('New PIN must differ from current'); return }
+    setSubmitting(true)
+    try {
+      const res = await fetch('/api/auth/change-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPin, newPin }),
+      })
+      if (res.ok) {
+        setDone(true)
+        setTimeout(onClose, 1500)
+      } else {
+        const data = await res.json().catch(() => ({}))
+        setError(data.error || 'Failed to change PIN')
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={onClose}>
+      <form
+        onSubmit={submit}
+        onClick={e => e.stopPropagation()}
+        className="w-full max-w-sm bg-card border border-border rounded-2xl p-6 flex flex-col gap-4"
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+            <KeyRound size={16} className="text-primary" />
+            Change your PIN
+          </h2>
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground"><X size={16} /></button>
+        </div>
+
+        {done ? (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+            <CheckCircle2 size={14} className="text-emerald-400" />
+            <p className="text-xs text-emerald-400">PIN updated. Other sessions signed out.</p>
+          </div>
+        ) : (
+          <>
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Current PIN</label>
+              <input
+                type="password"
+                inputMode="numeric"
+                value={currentPin}
+                onChange={e => setCurrentPin(e.target.value.replace(/\D/g, ''))}
+                maxLength={8}
+                autoFocus
+                required
+                className="w-full px-4 py-2.5 rounded-xl bg-background border border-border text-sm font-mono tracking-widest text-foreground focus:outline-none focus:border-primary/50"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">New PIN (4+ digits)</label>
+              <input
+                type="password"
+                inputMode="numeric"
+                value={newPin}
+                onChange={e => setNewPin(e.target.value.replace(/\D/g, ''))}
+                maxLength={8}
+                required
+                className="w-full px-4 py-2.5 rounded-xl bg-background border border-border text-sm font-mono tracking-widest text-foreground focus:outline-none focus:border-primary/50"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Confirm new PIN</label>
+              <input
+                type="password"
+                inputMode="numeric"
+                value={confirmPin}
+                onChange={e => setConfirmPin(e.target.value.replace(/\D/g, ''))}
+                maxLength={8}
+                required
+                className="w-full px-4 py-2.5 rounded-xl bg-background border border-border text-sm font-mono tracking-widest text-foreground focus:outline-none focus:border-primary/50"
+              />
+            </div>
+
+            {error && <p className="text-xs text-red-400">{error}</p>}
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:text-foreground transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="flex-1 py-2.5 rounded-xl bg-primary/10 border border-primary/30 text-primary text-sm font-semibold hover:bg-primary/20 transition-all disabled:opacity-40"
+              >
+                {submitting ? 'Updating…' : 'Update PIN'}
+              </button>
+            </div>
+          </>
+        )}
+      </form>
+    </div>
+  )
+}
+
