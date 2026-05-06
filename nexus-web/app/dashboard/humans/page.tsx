@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import {
   UserPlus, Users, Copy, Check, Trash2, Loader2,
   Shield, ShieldCheck, ShieldAlert, Upload, X, RefreshCw,
-  Scan, CheckCircle2, Link2, KeyRound,
+  Scan, CheckCircle2, Link2, KeyRound, Lock, RotateCcw, ScrollText,
 } from "lucide-react"
 
 type Member = {
@@ -215,13 +215,16 @@ export default function TeamPage() {
             <p className="text-xs text-muted-foreground">{members.length} human{members.length !== 1 ? "s" : ""}</p>
           </div>
         </div>
-        <button
-          onClick={() => { setShowInvite(true); setInviteResult(null) }}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary/10 border border-primary/30 text-primary text-sm font-semibold hover:bg-primary/20 transition-all"
-        >
-          <UserPlus size={15} />
-          Add Human
-        </button>
+        <div className="flex items-center gap-2">
+          <AuditLogButton />
+          <button
+            onClick={() => { setShowInvite(true); setInviteResult(null) }}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary/10 border border-primary/30 text-primary text-sm font-semibold hover:bg-primary/20 transition-all"
+          >
+            <UserPlus size={15} />
+            Add Human
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 md:px-8 py-6">
@@ -500,7 +503,11 @@ export default function TeamPage() {
                       </div>
                     </div>
 
-                    {member.role !== "admin" && (
+                    <KeyHolderActions
+                      member={member}
+                      onChanged={loadMembers}
+                    />
+                    {false && member.role !== "admin" && (
                       <button
                         onClick={() => handleDisable(member.id)}
                         className="opacity-0 group-hover:opacity-100 p-2 text-muted-foreground/40 hover:text-destructive transition-all rounded-lg"
@@ -687,3 +694,222 @@ function ChangePinModal({ onClose }: { onClose: () => void }) {
   )
 }
 
+
+// MARK: - Key holder actions (lock / reset / disable)
+
+/// Per-member action buttons. Shows on hover. Lock invalidates sessions and
+/// disables. Reset issues a fresh invite token. Each surfaces a confirm
+/// dialog before firing — these are sensitive cross-account operations.
+function KeyHolderActions({ member, onChanged }: {
+  member: Member
+  onChanged: () => void
+}) {
+  const [busy, setBusy] = useState<"lock" | "reset" | null>(null)
+  const [resetResult, setResetResult] = useState<{ inviteUrl: string; targetDisplayName: string } | null>(null)
+  const [error, setError] = useState("")
+
+  async function lock() {
+    if (!confirm(`Lock ${member.display_name}? Their sessions will be invalidated and account disabled.`)) return
+    setBusy("lock"); setError("")
+    try {
+      const res = await fetch("/api/admin/lock-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetHumanId: member.id }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) setError(data.error ?? "Lock failed")
+      else onChanged()
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function reset() {
+    if (!confirm(`Reset credentials for ${member.display_name}? They'll go through onboarding again.`)) return
+    setBusy("reset"); setError("")
+    try {
+      const res = await fetch("/api/admin/reset-credentials", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetHumanId: member.id }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(data.error ?? "Reset failed")
+      } else {
+        setResetResult({ inviteUrl: data.inviteUrl, targetDisplayName: data.targetDisplayName })
+        onChanged()
+      }
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <button
+        onClick={lock}
+        disabled={busy !== null}
+        className="p-2 text-muted-foreground/40 hover:text-amber-400 transition-all rounded-lg disabled:opacity-30"
+        title="Lock account (invalidate sessions + disable)"
+      >
+        {busy === "lock" ? <Loader2 size={14} className="animate-spin" /> : <Lock size={14} />}
+      </button>
+      <button
+        onClick={reset}
+        disabled={busy !== null}
+        className="p-2 text-muted-foreground/40 hover:text-primary transition-all rounded-lg disabled:opacity-30"
+        title="Reset credentials (issue fresh invite link)"
+      >
+        {busy === "reset" ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+      </button>
+
+      {error && <span className="text-xs text-red-400 ml-2">{error}</span>}
+
+      {resetResult && (
+        <ResetResultModal
+          target={resetResult.targetDisplayName}
+          url={resetResult.inviteUrl}
+          onClose={() => setResetResult(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+function ResetResultModal({ target, url, onClose }: {
+  target: string
+  url: string
+  onClose: () => void
+}) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="w-full max-w-md bg-card border border-border rounded-2xl p-6 flex flex-col gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
+            <CheckCircle2 size={20} className="text-emerald-400" />
+          </div>
+          <div>
+            <p className="text-sm font-bold">Credentials reset for {target}</p>
+            <p className="text-xs text-muted-foreground">Send them this link to set a new PIN + face</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-background border border-border">
+          <Link2 size={14} className="text-muted-foreground flex-shrink-0" />
+          <code className="flex-1 text-xs text-foreground/80 truncate font-mono">{url}</code>
+          <button
+            onClick={async () => {
+              await navigator.clipboard.writeText(url)
+              setCopied(true)
+              setTimeout(() => setCopied(false), 2000)
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/30 text-xs font-semibold text-primary hover:bg-primary/20 transition-all flex-shrink-0"
+          >
+            {copied ? <><Check size={12} /> Copied!</> : <><Copy size={12} /> Copy</>}
+          </button>
+        </div>
+        <button
+          onClick={onClose}
+          className="w-full py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:text-foreground transition-all"
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// MARK: - Audit log
+
+type AuditEntry = {
+  id: string
+  event: string
+  user_id: string | null
+  metadata: Record<string, unknown> | null
+  created_at: string
+}
+
+function AuditLogButton() {
+  const [open, setOpen] = useState(false)
+  const [entries, setEntries] = useState<AuditEntry[] | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  async function load() {
+    setLoading(true)
+    try {
+      const res = await fetch("/api/admin/audit-log?limit=50")
+      if (res.ok) {
+        const data = await res.json()
+        setEntries(data.entries ?? [])
+      } else {
+        setEntries([])
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (open && entries == null) load()
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-all"
+      >
+        <ScrollText size={14} />
+        Audit log
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setOpen(false)}>
+          <div onClick={e => e.stopPropagation()} className="w-full max-w-2xl max-h-[80vh] bg-card border border-border rounded-2xl flex flex-col">
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <div className="flex items-center gap-2">
+                <ScrollText size={16} className="text-primary" />
+                <h2 className="text-base font-bold">Admin audit log</h2>
+                <span className="text-xs text-muted-foreground">last 50 events</span>
+              </div>
+              <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground"><X size={16} /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5">
+              {loading ? (
+                <div className="flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-primary" /></div>
+              ) : !entries || entries.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-12">No admin actions yet.</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {entries.map(e => <AuditRow key={e.id} entry={e} />)}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+function AuditRow({ entry }: { entry: AuditEntry }) {
+  const meta = entry.metadata ?? {}
+  const eventLabel = entry.event.replace(/^admin\./, "").replace(/_/g, " ")
+  const actor = (meta as any).actorDisplayName ?? "—"
+  const target = (meta as any).targetDisplayName ?? "—"
+  const reason = (meta as any).reason
+  const when = new Date(entry.created_at).toLocaleString()
+  return (
+    <div className="p-3 rounded-xl border border-border bg-background flex flex-col gap-1">
+      <div className="flex items-center gap-2 text-sm">
+        <span className="font-semibold text-foreground">{actor}</span>
+        <span className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-primary/10 border border-primary/30 text-primary">{eventLabel}</span>
+        <span className="text-muted-foreground">{target}</span>
+      </div>
+      {reason && <p className="text-xs text-muted-foreground">{reason}</p>}
+      <p className="text-[10px] text-muted-foreground/60 font-mono">{when}</p>
+    </div>
+  )
+}
