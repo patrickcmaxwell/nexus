@@ -20,6 +20,7 @@ export default function NexusAuthGate() {
   const [confidence, setConfidence] = useState(0)
 
   const [passcode, setPasscode] = useState("")
+  const [passEmail, setPassEmail] = useState("")
   const [passStatus, setPassStatus] = useState<"idle" | "checking" | "denied">("idle")
 
   // Live clock for the HUD
@@ -154,15 +155,25 @@ export default function NexusAuthGate() {
     e.preventDefault()
     if (!passcode.trim()) return
     setPassStatus("checking")
+    // Email + PIN → multi-user route. Empty email → legacy owner passphrase
+    // shortcut against MAXWELL_PIN. Both paths set the same nx_session cookie.
+    const email = passEmail.trim()
+    const request = email
+      ? fetch("/api/security/pin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, pin: passcode, remember: true }),
+          credentials: "include",
+        })
+      : fetch("/api/passphrase", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ passphrase: passcode }),
+          credentials: "include",
+        })
     try {
-      const res = await fetch("/api/passphrase", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ passphrase: passcode }),
-        credentials: "include",
-      })
+      const res = await request
       if (res.ok) {
-        // Small delay to ensure cookie is set, then redirect
         setTimeout(() => {
           window.location.replace("/dashboard")
         }, 500)
@@ -172,7 +183,7 @@ export default function NexusAuthGate() {
         setTimeout(() => setPassStatus("idle"), 2500)
       }
     } catch (err) {
-      console.error("[v0] Passphrase error:", err)
+      console.error("[v0] Passcode error:", err)
       setPassStatus("denied")
       setPasscode("")
       setTimeout(() => setPassStatus("idle"), 2500)
@@ -471,6 +482,26 @@ export default function NexusAuthGate() {
           {/* ── PASSCODE TAB ── */}
           {tab === "passcode" && (
             <form onSubmit={handlePasscode} className="flex flex-col gap-4">
+              <div>
+                <label className="block font-mono text-[9px] tracking-[0.2em] text-muted-foreground uppercase mb-2">
+                  Email <span className="text-muted-foreground/40">(optional for owner)</span>
+                </label>
+                <input
+                  type="email"
+                  value={passEmail}
+                  onChange={e => setPassEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  className="w-full px-4 py-3 font-mono text-sm placeholder:text-muted-foreground/30 focus:outline-none transition-all"
+                  style={{
+                    background: "oklch(0.08 0.01 240)",
+                    border: passStatus === "denied" ? "1px solid var(--nexus-danger)" : "1px solid oklch(0.75 0.18 200 / 0.25)",
+                    color: "var(--foreground)",
+                  }}
+                  onFocus={e => { (e.currentTarget as HTMLInputElement).style.borderColor = "oklch(0.75 0.18 200 / 0.6)" }}
+                  onBlur={e => { (e.currentTarget as HTMLInputElement).style.borderColor = passStatus === "denied" ? "var(--nexus-danger)" : "oklch(0.75 0.18 200 / 0.25)" }}
+                />
+              </div>
               <div>
                 <label className="block font-mono text-[9px] tracking-[0.2em] text-muted-foreground uppercase mb-2">
                   Access Passcode

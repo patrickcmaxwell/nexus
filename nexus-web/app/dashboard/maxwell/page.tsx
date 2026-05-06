@@ -1,13 +1,16 @@
+import { redirect } from "next/navigation"
 import { createServiceClient } from "@/lib/supabase/service"
+import { getActiveAuthId } from "@/lib/auth/session"
 import MaxwellClient from "@/components/dashboard/MaxwellClient"
-
-const USER_ID = "e9d9a15b-0e5a-4631-9b50-6225ee03a44f"
 
 export default async function MaxwellPage({
   searchParams,
 }: {
   searchParams: Promise<{ c?: string }>
 }) {
+  const userId = await getActiveAuthId()
+  if (!userId) redirect("/auth/login")
+
   const { c } = await searchParams
   const supabase = createServiceClient()
 
@@ -15,7 +18,7 @@ export default async function MaxwellPage({
   const { data: conversations } = await supabase
     .from("eve_conversations")
     .select("id, title, created_at, updated_at")
-    .eq("user_id", USER_ID)
+    .eq("user_id", userId)
     .order("updated_at", { ascending: false })
     .limit(500)
 
@@ -28,7 +31,7 @@ export default async function MaxwellPage({
     const { data: history } = await supabase
       .from("eve_history")
       .select("id, role, content, created_at")
-      .eq("user_id", USER_ID)
+      .eq("user_id", userId)
       .eq("conversation_id", targetId)
       .order("created_at", { ascending: false })
       .limit(200)
