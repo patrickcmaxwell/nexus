@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.nexus.ollama-check</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/shadow/code/nexus/scripts/launchd/ollama-check.sh</string>
+  </array>
+
+  <!-- Run daily at 09:00. Also runs once at load if missed (StartCalendarInterval semantics). -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>9</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+
+  <!-- This is a periodic probe, not a daemon. Don't keep alive between runs. -->
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/shadow/Library/Logs/Nexus/ollama-check.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/shadow/Library/Logs/Nexus/ollama-check.log</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/usr/local/bin:/usr/bin:/bin</string>
+    <key>OLLAMA_HOST</key>
+    <string>http://localhost:11434</string>
+  </dict>
+</dict>
+</plist>

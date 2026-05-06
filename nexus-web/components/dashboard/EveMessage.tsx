@@ -3,7 +3,11 @@
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { useState } from "react"
-import { ExternalLink, BookmarkPlus, Check, Copy } from "lucide-react"
+import {
+  ExternalLink, BookmarkPlus, Check, Copy,
+  CheckCircle2, AlertTriangle, Pencil, DollarSign, ArrowUpToLine,
+  ListChecks, Wrench, Volume2, Square,
+} from "lucide-react"
 import { protectMentionsForMarkdown } from "@/lib/mentions/parse"
 import { expandMentionsInChildren } from "@/components/mentions/MentionRenderer"
 
@@ -13,19 +17,146 @@ export type Citation = {
   snippet?: string
 }
 
+/** Mirror of Lumen's `ToolCallSummary` — what /api/eve returns under `tool_calls`. */
+export type ToolCallTrace = {
+  name: string
+  args: Record<string, unknown>
+  result: Record<string, unknown> & { success?: boolean; error?: string }
+}
+
 type Props = {
   content: string
   citations?: Citation[]
+  toolCalls?: ToolCallTrace[]
+  brain?: string  // "grok" | "local" | "claude" | "vision" | "offline"
   isStreaming?: boolean
   onSaveToOperation?: (content: string, citations: Citation[]) => void
 }
 
-export default function EveMessage({ content, citations = [], isStreaming, onSaveToOperation }: Props) {
+/** Per-tool display config: human label, icon, color, and how to derive a
+ *  headline + detail from the args/result. Mirrors Lumen's ToolCallSummary.from. */
+function summarizeToolCall(tc: ToolCallTrace): {
+  humanLabel: string
+  primary: string
+  detail: string
+  success: boolean
+  Icon: React.ComponentType<{ size?: number; className?: string }>
+  color: string
+} {
+  const success = tc.result?.success !== false
+  const err = tc.result?.error
+  const a = tc.args ?? {}
+  const r = tc.result ?? {}
+
+  switch (tc.name) {
+    case "arena_task_create": {
+      const title = (a.title as string) || "Untitled task"
+      const id = (r.task_id as string) ?? ""
+      const assignee = a.assignee as string | undefined
+      const detail = [id, assignee ? `→ ${assignee}` : null].filter(Boolean).join("  ")
+      return {
+        humanLabel: "Created task", primary: title,
+        detail: success ? detail : (err ?? "failed"), success,
+        Icon: CheckCircle2, color: "text-cyan-400 border-cyan-400/40 bg-cyan-400/10",
+      }
+    }
+    case "arena_task_update": {
+      const id = (a.task_id as string) ?? ""
+      const status = ((a.status as string) ?? "updated").toUpperCase()
+      return {
+        humanLabel: "Updated task", primary: id,
+        detail: success ? status : (err ?? "failed"), success,
+        Icon: Pencil, color: "text-cyan-400 border-cyan-400/40 bg-cyan-400/10",
+      }
+    }
+    case "arena_payment_route": {
+      const amount = typeof a.amount === "number" ? `$${a.amount}` : "?"
+      const ref = (a.reference as string) ?? ""
+      return {
+        humanLabel: "Routed payment", primary: amount,
+        detail: success ? ref : (err ?? "failed"), success,
+        Icon: DollarSign, color: "text-rose-400 border-rose-400/40 bg-rose-400/10",
+      }
+    }
+    case "arena_sync_push":
+      return {
+        humanLabel: "Pushed memory sync", primary: "Memory bank",
+        detail: success ? "synced" : (err ?? "failed"), success,
+        Icon: ArrowUpToLine, color: "text-violet-400 border-violet-400/40 bg-violet-400/10",
+      }
+    case "arena_recent": {
+      const entries = Array.isArray(r.entries) ? (r.entries as unknown[]).length : 0
+      return {
+        humanLabel: "Read Arena log", primary: `${entries} entries`, detail: "", success,
+        Icon: ListChecks, color: "text-muted-foreground border-muted-foreground/30 bg-muted/30",
+      }
+    }
+    default: {
+      const primary =
+        (a.title as string) ??
+        (a.name as string) ??
+        (typeof a.content === "string" ? (a.content as string).slice(0, 40) : tc.name)
+      return {
+        humanLabel: tc.name.replace(/_/g, " "),
+        primary,
+        detail: success ? "ok" : (err ?? "failed"),
+        success,
+        Icon: Wrench, color: "text-violet-400 border-violet-400/40 bg-violet-400/10",
+      }
+    }
+  }
+}
+
+const BRAIN_STYLE: Record<string, { label: string; cls: string }> = {
+  grok:    { label: "GROK",    cls: "text-violet-400 bg-violet-400/15 border-violet-400/35" },
+  local:   { label: "LOCAL",   cls: "text-cyan-400  bg-cyan-400/15  border-cyan-400/35"  },
+  claude:  { label: "CLAUDE",  cls: "text-amber-400 bg-amber-400/15 border-amber-400/35" },
+  vision:  { label: "VISION",  cls: "text-cyan-400  bg-cyan-400/15  border-cyan-400/35"  },
+  offline: { label: "OFFLINE", cls: "text-muted-foreground bg-muted/30 border-muted-foreground/30" },
+}
+
+export default function EveMessage({ content, citations = [], toolCalls = [], brain, isStreaming, onSaveToOperation }: Props) {
   const [savePanelOpen, setSavePanelOpen] = useState(false)
   const [operations, setOperations] = useState<Array<{ id: string; name: string }>>([])
   const [loadingOps, setLoadingOps] = useState(false)
   const [savingTo, setSavingTo] = useState<string | null>(null)
   const [saved, setSaved] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const [speaking, setSpeaking] = useState(false)
+  const audioRef = useState<HTMLAudioElement | null>(null)[0]
+  const [audioEl, setAudioEl] = useState<HTMLAudioElement | null>(null)
+
+  function handleCopy() {
+    navigator.clipboard.writeText(content)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
+  async function handleSpeak() {
+    if (speaking && audioEl) {
+      audioEl.pause()
+      audioEl.currentTime = 0
+      setSpeaking(false)
+      return
+    }
+    setSpeaking(true)
+    try {
+      const res = await fetch("/api/eve/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: content }),
+      })
+      if (!res.ok) throw new Error(`TTS HTTP ${res.status}`)
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const audio = new Audio(url)
+      setAudioEl(audio)
+      audio.onended = () => { setSpeaking(false); URL.revokeObjectURL(url) }
+      await audio.play()
+    } catch {
+      setSpeaking(false)
+    }
+  }
 
   // Legacy: parse **Sources** block appended in older messages
   const sourceMatch = content.match(/\n\n\*\*Sources\*\*\n([\s\S]+)$/)
@@ -91,6 +222,82 @@ export default function EveMessage({ content, citations = [], isStreaming, onSav
 
   return (
     <div className="flex flex-col gap-3">
+      {/* Brain badge + action count strip — plus per-message Copy / TTS */}
+      <div className="flex items-center gap-2 -mb-1">
+        {brain && BRAIN_STYLE[brain] && (
+          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-[8px] font-mono font-bold tracking-widest ${BRAIN_STYLE[brain].cls}`}>
+            {BRAIN_STYLE[brain].label}
+          </span>
+        )}
+        {brain && !BRAIN_STYLE[brain] && (
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full border text-[8px] font-mono font-bold tracking-widest text-muted-foreground bg-muted/30 border-muted-foreground/30">
+            {brain.toUpperCase()}
+          </span>
+        )}
+        {toolCalls.length > 0 && (
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full border text-[8px] font-mono font-bold tracking-widest text-cyan-400 bg-cyan-400/15 border-cyan-400/35">
+            {toolCalls.length} ACTION{toolCalls.length === 1 ? "" : "S"}
+          </span>
+        )}
+        <div className="ml-auto flex items-center gap-1.5 opacity-60 hover:opacity-100 transition-opacity">
+          <button
+            onClick={handleSpeak}
+            title={speaking ? "Stop reading" : "Read aloud"}
+            className="text-muted-foreground hover:text-accent transition-colors p-0.5"
+          >
+            {speaking ? <Square size={11} /> : <Volume2 size={11} />}
+          </button>
+          <button
+            onClick={handleCopy}
+            title={copied ? "Copied" : "Copy message"}
+            className="text-muted-foreground hover:text-accent transition-colors p-0.5"
+          >
+            {copied ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
+          </button>
+        </div>
+      </div>
+
+      {/* Tool-call cards — Eve's actions made visible. One per call, in order. */}
+      {toolCalls.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          {toolCalls.map((tc, i) => {
+            const s = summarizeToolCall(tc)
+            return (
+              <div
+                key={i}
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg border ${s.color}`}
+              >
+                {!s.success ? (
+                  <AlertTriangle size={16} className="flex-shrink-0 text-rose-400" />
+                ) : (
+                  <s.Icon size={16} className="flex-shrink-0" />
+                )}
+                <div className="flex flex-col leading-tight min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[8px] font-mono font-bold tracking-widest uppercase opacity-90">
+                      {s.humanLabel}
+                    </span>
+                    {!s.success && (
+                      <span className="text-[8px] font-mono font-bold tracking-widest text-rose-400 bg-rose-400/15 border border-rose-400/35 rounded-full px-1.5">
+                        FAILED
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[12px] font-semibold text-card-foreground truncate">
+                    {s.primary}
+                  </span>
+                  {s.detail && (
+                    <span className="text-[10px] font-mono text-muted-foreground truncate">
+                      {s.detail}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       {/* Main markdown content */}
       <div className="prose prose-sm dark:prose-invert max-w-none leading-relaxed
         prose-headings:text-card-foreground prose-headings:font-semibold

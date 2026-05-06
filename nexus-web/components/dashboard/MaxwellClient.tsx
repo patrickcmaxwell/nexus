@@ -9,13 +9,14 @@ import { stripMentionsToPlain } from "@/lib/mentions/parse"
 import {
   Mic, MicOff, Send, Plus, Brain, GitCommitHorizontal,
   Volume2, VolumeX, Square, Pencil, Trash2, Tag, ChevronRight, ChevronDown, X,
-  Menu, MessageSquare, Search, CalendarDays, GripVertical,
+  Menu, MessageSquare, Search, CalendarDays, GripVertical, Copy,
 } from "lucide-react"
 
 type Conversation = { id: string; title: string; created_at: string; updated_at: string }
 type HistoryRow = { id: string; role: string; content: string; created_at: string }
 type Citation = { url: string; title: string; snippet?: string }
-type Message = { id: string; role: "user" | "assistant"; content: string; created_at?: string; citations?: Citation[] }
+type ToolCallTrace = { name: string; args: Record<string, unknown>; result: Record<string, unknown> & { success?: boolean; error?: string } }
+type Message = { id: string; role: "user" | "assistant"; content: string; created_at?: string; citations?: Citation[]; toolCalls?: ToolCallTrace[]; brain?: string }
 type Memory = { id: string; type: string; content: string; priority: number; source: string; created_at: string }
 type Topic = { id: string; conversation_id: string; label: string; description: string; color: string; created_at: string }
 
@@ -82,6 +83,60 @@ export default function MaxwellClient({
   const inputRef = useRef<MentionInputHandle>(null)
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+
+  // ── Multi-select (⌘-click) + edit & regenerate + search ────────────────────
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingText, setEditingText] = useState("")
+  const [chatSearchActive, setChatSearchActive] = useState(false)
+  const [chatSearchQuery, setChatSearchQuery] = useState("")
+  const [chatSearchIndex, setChatSearchIndex] = useState(0)
+
+  // ── Slash command popup (mirrors Lumen's SlashCommandRegistry + TemplateLibrary)
+  // Five built-in templates + six action commands. Renders above the input
+  // when the user types `/`. Selecting a template inserts its body; selecting
+  // an action runs immediately.
+  type SlashEntry = {
+    id: string
+    detail: string
+    kind: "action" | "template"
+    body?: string  // for templates
+    run?: () => void  // for actions
+  }
+  const slashRegistry: SlashEntry[] = [
+    { id: "/standup", detail: "Template: morning standup brief", kind: "template",
+      body: "Give me a brief morning standup: yesterday's wins, today's priorities, blockers, and anything I'm forgetting." },
+    { id: "/review", detail: "Template: weekly review", kind: "template",
+      body: "Help me run a weekly review. Pull all operations updated this week, agent findings, completed research, and surface what I might have missed." },
+    { id: "/dump", detail: "Template: brain-dump capture", kind: "template",
+      body: "I'm about to brain-dump. Capture what I say as memories or operations as appropriate. Ask only if something is genuinely ambiguous." },
+    { id: "/morning", detail: "Template: morning brief", kind: "template",
+      body: "Morning brief: what's overdue, what's important today, status pulse on active operations, anything that needs my attention." },
+    { id: "/eod", detail: "Template: end-of-day wrap", kind: "template",
+      body: "End-of-day wrap: summarize what I worked on today across operations and conversations, what's still open, and one thing I should sleep on." },
+    { id: "/new", detail: "End this thread, start a fresh one", kind: "action",
+      run: () => { startNewConversation() } },
+    { id: "/clear", detail: "Clear visible messages", kind: "action",
+      run: () => setMessages([]) },
+    { id: "/help", detail: "Show available slash commands", kind: "action",
+      run: () => {
+        const help = "**Slash commands**\n\n" +
+          "Templates: `/standup`, `/review`, `/dump`, `/morning`, `/eod`\n" +
+          "Actions: `/new`, `/clear`, `/help`\n\n" +
+          "Type `@` for mentions across operations, agents, records, conversations, directives, memories."
+        setMessages(prev => [...prev, {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: help,
+          created_at: new Date().toISOString(),
+        }])
+      } },
+  ]
+  const slashTrimmed = input.trim()
+  const slashShowing = slashTrimmed.startsWith("/") && !slashTrimmed.includes(" ")
+  const slashMatches = slashShowing
+    ? slashRegistry.filter(c => c.id.toLowerCase().startsWith(slashTrimmed.toLowerCase()))
+    : []
 
   // ── Voice ──────────────────────────────────────────────────────────────────
   const submitMessageRef = useRef<(text: string) => void>(() => {})
@@ -325,27 +380,76 @@ export default function MaxwellClient({
     setIsLoading(true)
 
     try {
+      // Streaming path — Eve appears word-by-word, tool cards land as
+      // they execute. Single placeholder message that we mutate in place.
+      const placeholderId = crypto.randomUUID()
+      setMessages(prev => [...prev, {
+        id: placeholderId,
+        role: "assistant",
+        content: "",
+        created_at: new Date().toISOString(),
+        citations: [],
+        toolCalls: [],
+        brain: "grok",
+      }])
+
       const res = await fetch("/api/eve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userMessage: text, conversationId: convId }),
+        body: JSON.stringify({ userMessage: text, conversationId: convId, stream: true }),
       })
-      if (!res.ok) {
-        const errorText = await res.text()
+      if (!res.ok || !res.body) {
+        const errorText = res.body ? "stream missing" : await res.text()
         throw new Error(`API error ${res.status}: ${errorText}`)
       }
-      const data = await res.json()
-      const assistantContent = data.content ?? ""
-      const citations: Citation[] = data.citations ?? []
 
-      const assistantMsg: Message = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: assistantContent,
-        created_at: new Date().toISOString(),
-        citations,
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ""
+      let assistantContent = ""
+      const collectedToolCalls: ToolCallTrace[] = []
+
+      // SSE parser — events delimited by \n\n, payload is `data: {...}`.
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+
+        let idx: number
+        while ((idx = buffer.indexOf("\n\n")) !== -1) {
+          const event = buffer.slice(0, idx).trim()
+          buffer = buffer.slice(idx + 2)
+          if (!event.startsWith("data:")) continue
+          const json = event.slice(5).trim()
+          if (!json) continue
+          let evt: { type: string; content?: string; name?: string; args?: Record<string, unknown>; result?: Record<string, unknown> & { success?: boolean; error?: string }; conversationId?: string }
+          try { evt = JSON.parse(json) } catch { continue }
+
+          if (evt.type === "delta" && evt.content) {
+            assistantContent += evt.content
+            setMessages(prev => prev.map(m =>
+              m.id === placeholderId ? { ...m, content: assistantContent } : m
+            ))
+          } else if (evt.type === "tool_call" && evt.name) {
+            const tc: ToolCallTrace = {
+              name: evt.name,
+              args: evt.args ?? {},
+              result: evt.result ?? {},
+            }
+            collectedToolCalls.push(tc)
+            setMessages(prev => prev.map(m =>
+              m.id === placeholderId ? { ...m, toolCalls: [...(m.toolCalls ?? []), tc] } : m
+            ))
+          } else if (evt.type === "done") {
+            if (evt.content) assistantContent = evt.content
+          }
+        }
       }
-      setMessages(prev => [...prev, assistantMsg])
+
+      // Final pass — make sure content matches done event exactly
+      setMessages(prev => prev.map(m =>
+        m.id === placeholderId ? { ...m, content: assistantContent } : m
+      ))
 
       // Always reload topics after Eve responds — she may have called mark_topic
       if (convId) loadTopics(convId)
@@ -365,9 +469,91 @@ export default function MaxwellClient({
     }
   }
 
+  /// Edit & regenerate: truncate the thread back to the edited user message
+  /// and re-submit with the new text. Eve answers fresh against the prior
+  /// context. DB rows for dropped turns stay; only the visible thread is
+  /// what the user sees.
+  function saveEdit(messageId: string) {
+    const cleaned = editingText.trim()
+    if (!cleaned) { setEditingId(null); return }
+    const idx = messages.findIndex(m => m.id === messageId)
+    if (idx < 0) { setEditingId(null); return }
+    setMessages(prev => prev.slice(0, idx))
+    setEditingId(null)
+    setEditingText("")
+    submitMessage(cleaned)
+  }
+
+  /// Multi-select helpers
+  const selectedMessages = messages.filter(m => selectedIds.has(m.id))
+  function readSelected() {
+    const joined = selectedMessages.map(m => stripMentionsToPlain(m.content)).join(". \n\n")
+    if (!joined) return
+    speakAsEve(joined, ttsMode)
+  }
+  function copySelected() {
+    const joined = selectedMessages.map(m => m.content).join("\n\n")
+    if (!joined) return
+    navigator.clipboard.writeText(joined)
+  }
+
+  /// Search helpers
+  const chatSearchMatches = messages
+    .map((m, i) => ({ m, i }))
+    .filter(({ m }) => chatSearchActive && chatSearchQuery.trim() &&
+      m.content.toLowerCase().includes(chatSearchQuery.trim().toLowerCase()))
+  function advanceChatSearch(step: number) {
+    if (chatSearchMatches.length === 0) return
+    setChatSearchIndex((chatSearchIndex + step + chatSearchMatches.length) % chatSearchMatches.length)
+  }
+
+  // ⌘F to toggle search
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "f") {
+        e.preventDefault()
+        setChatSearchActive(v => !v)
+        if (chatSearchActive) { setChatSearchQuery(""); setChatSearchIndex(0) }
+      } else if (e.key === "Escape" && chatSearchActive) {
+        setChatSearchActive(false)
+        setChatSearchQuery("")
+      }
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [chatSearchActive])
+
+  // Auto-scroll to current search match
+  useEffect(() => {
+    if (!chatSearchActive || chatSearchMatches.length === 0) return
+    const target = chatSearchMatches[Math.min(chatSearchIndex, chatSearchMatches.length - 1)]
+    const el = document.querySelector(`[data-message-id="${target.m.id}"]`)
+    el?.scrollIntoView({ behavior: "smooth", block: "center" })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatSearchIndex, chatSearchQuery])
+
+  /// Slash command runner — templates insert their body, actions run.
+  function runSlashEntry(entry: SlashEntry) {
+    if (entry.kind === "template" && entry.body) {
+      setInput(entry.body)
+      // Don't clear — let user edit before sending
+      return
+    }
+    if (entry.kind === "action" && entry.run) {
+      entry.run()
+      setInput("")
+      inputRef.current?.clear()
+    }
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!input.trim() || isLoading) return
+    // Slash command override — Enter on a slash command runs the top match
+    if (slashShowing && slashMatches.length > 0) {
+      runSlashEntry(slashMatches[0])
+      return
+    }
     const text = input.trim()
     setInput("")
     inputRef.current?.clear()
@@ -755,7 +941,80 @@ export default function MaxwellClient({
       </aside>
 
       {/* ── Main Chat Area ─────────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0 w-full">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0 w-full relative">
+
+        {/* Search bar (⌘F) */}
+        {chatSearchActive && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-card/95 backdrop-blur-sm border-b border-border">
+            <span className="text-xs font-mono tracking-wider text-muted-foreground">SEARCH</span>
+            <input
+              autoFocus
+              type="text"
+              value={chatSearchQuery}
+              onChange={(e) => { setChatSearchQuery(e.target.value); setChatSearchIndex(0) }}
+              placeholder="Filter this thread…"
+              className="flex-1 bg-transparent text-sm outline-none text-foreground placeholder:text-muted-foreground/60"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") advanceChatSearch(e.shiftKey ? -1 : 1)
+                else if (e.key === "Escape") { setChatSearchActive(false); setChatSearchQuery("") }
+              }}
+            />
+            {chatSearchQuery && (
+              <span className="text-[10px] font-mono text-muted-foreground">
+                {chatSearchMatches.length === 0 ? "no matches" : `${Math.min(chatSearchIndex + 1, chatSearchMatches.length)} of ${chatSearchMatches.length}`}
+              </span>
+            )}
+            <button
+              disabled={chatSearchMatches.length === 0}
+              onClick={() => advanceChatSearch(-1)}
+              className="text-xs px-2 py-0.5 rounded bg-muted/40 hover:bg-muted/60 disabled:opacity-40"
+            >▲</button>
+            <button
+              disabled={chatSearchMatches.length === 0}
+              onClick={() => advanceChatSearch(1)}
+              className="text-xs px-2 py-0.5 rounded bg-muted/40 hover:bg-muted/60 disabled:opacity-40"
+            >▼</button>
+            <button
+              onClick={() => { setChatSearchActive(false); setChatSearchQuery("") }}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >✕</button>
+          </div>
+        )}
+
+        {/* Multi-select floating action bar */}
+        {selectedIds.size > 0 && (
+          <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-3 py-2 rounded-full bg-card/95 backdrop-blur border border-accent/40 shadow-lg shadow-black/30">
+            <span className="text-[9px] font-mono font-bold tracking-widest text-accent">
+              {selectedIds.size} SELECTED
+            </span>
+            <span className="w-px h-4 bg-border" />
+            <button
+              onClick={readSelected}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent text-accent-foreground text-[10px] font-mono font-bold tracking-widest hover:opacity-90"
+            >
+              <Volume2 size={11} /> READ ALOUD
+            </button>
+            <button
+              onClick={copySelected}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/40 hover:bg-muted/60 text-foreground text-[10px] font-mono font-bold tracking-widest"
+            >
+              <Copy size={11} /> COPY
+            </button>
+            <button
+              onClick={() => stopEve()}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/30 hover:bg-muted/50 text-foreground/80 text-[10px] font-mono font-bold tracking-widest"
+            >
+              STOP
+            </button>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="text-muted-foreground hover:text-foreground"
+              title="Clear selection"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
 
         {/* Header */}
         <div className="flex items-center justify-between gap-2 px-3 md:px-5 py-3 border-b border-border flex-shrink-0 bg-background/80 backdrop-blur-sm">
@@ -910,8 +1169,29 @@ export default function MaxwellClient({
                     // Message
                     const m = item as Message
                     const isUser = m.role === "user"
+                    const isSelected = selectedIds.has(m.id)
+                    const matchHit = chatSearchActive && chatSearchQuery.trim() &&
+                      m.content.toLowerCase().includes(chatSearchQuery.trim().toLowerCase())
+                    const isEditing = editingId === m.id
                     return (
-                      <div key={m.id} className={`flex flex-col gap-1.5 ${isUser ? "items-end" : "items-start"}`}>
+                      <div
+                        key={m.id}
+                        data-message-id={m.id}
+                        className={`flex flex-col gap-1.5 group/msg ${isUser ? "items-end" : "items-start"}
+                          ${isSelected ? "ring-2 ring-accent/50 rounded-2xl px-1 -mx-1" : ""}
+                          ${matchHit ? "bg-amber-400/5 rounded-2xl px-1 -mx-1" : ""}`}
+                        onClick={(e) => {
+                          if (e.metaKey || e.ctrlKey) {
+                            e.stopPropagation()
+                            setSelectedIds(prev => {
+                              const next = new Set(prev)
+                              if (next.has(m.id)) next.delete(m.id)
+                              else next.add(m.id)
+                              return next
+                            })
+                          }
+                        }}
+                      >
                         <div className="flex items-center gap-2">
                           <span className={`text-sm font-bold ${isUser ? "text-accent" : "text-foreground/80"}`}>
                             {isUser ? "You" : "Eve"}
@@ -919,15 +1199,63 @@ export default function MaxwellClient({
                           {m.created_at && (
                             <span className="text-xs text-foreground/40">{formatTime(m.created_at)}</span>
                           )}
+                          {isUser && !isEditing && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setEditingId(m.id)
+                                setEditingText(m.content)
+                              }}
+                              className="opacity-0 group-hover/msg:opacity-100 text-xs text-muted-foreground hover:text-accent font-mono tracking-wider transition-opacity"
+                              title="Edit and regenerate Eve's reply"
+                            >
+                              EDIT
+                            </button>
+                          )}
                         </div>
                         <div className={`rounded-2xl px-4 md:px-5 py-3 md:py-3.5 ${isUser
                           ? "bg-primary/12 border border-primary/20 max-w-[85%] md:max-w-[75%]"
                           : "bg-card border border-border w-full"}`}
                         >
-                          {isUser
-                            ? <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{renderPlainWithMentions(m.content)}</p>
-                            : <EveMessage content={m.content} citations={m.citations ?? []} />
-                          }
+                          {isUser ? (
+                            isEditing ? (
+                              <div className="flex flex-col gap-2">
+                                <textarea
+                                  value={editingText}
+                                  onChange={(e) => setEditingText(e.target.value)}
+                                  className="bg-transparent border border-accent/40 rounded-lg p-2 text-sm text-foreground w-full resize-none focus:outline-none focus:border-accent"
+                                  rows={Math.min(8, Math.max(2, editingText.split("\n").length))}
+                                  autoFocus
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" && !e.shiftKey) {
+                                      e.preventDefault()
+                                      saveEdit(m.id)
+                                    } else if (e.key === "Escape") {
+                                      setEditingId(null)
+                                    }
+                                  }}
+                                />
+                                <div className="flex gap-2 justify-end text-xs">
+                                  <button
+                                    onClick={() => setEditingId(null)}
+                                    className="text-muted-foreground hover:text-foreground font-mono tracking-wider"
+                                  >
+                                    CANCEL
+                                  </button>
+                                  <button
+                                    onClick={() => saveEdit(m.id)}
+                                    className="text-accent font-mono tracking-wider font-bold"
+                                  >
+                                    SAVE & REGENERATE
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{renderPlainWithMentions(m.content)}</p>
+                            )
+                          ) : (
+                            <EveMessage content={m.content} citations={m.citations ?? []} toolCalls={m.toolCalls ?? []} brain={m.brain} />
+                          )}
                         </div>
                       </div>
                     )
@@ -987,6 +1315,29 @@ export default function MaxwellClient({
                   </div>
                 )}
 
+                {/* Slash command popup — sits above the input bar when typing /… */}
+                {slashShowing && slashMatches.length > 0 && (
+                  <div className="mb-2 rounded-xl border border-border bg-card/95 backdrop-blur shadow-lg shadow-black/30 overflow-hidden max-w-md">
+                    <div className="px-3 py-1.5 border-b border-border flex items-center gap-2">
+                      <span className="text-[8px] font-mono font-bold tracking-[0.2em] text-violet-400">COMMAND</span>
+                      <span className="ml-auto text-[8px] font-mono text-muted-foreground">Enter to run · Esc to clear</span>
+                    </div>
+                    {slashMatches.map((c) => (
+                      <button
+                        key={c.id}
+                        onClick={() => runSlashEntry(c)}
+                        className="w-full flex items-center gap-3 px-3 py-2 hover:bg-muted/40 text-left transition-colors"
+                      >
+                        <span className="text-[12px] font-mono font-semibold text-violet-400 min-w-[64px]">{c.id}</span>
+                        <span className="text-[11px] text-foreground/80 truncate flex-1">{c.detail}</span>
+                        <span className="text-[8px] font-mono tracking-widest text-muted-foreground/70 uppercase">
+                          {c.kind === "template" ? "TEMPLATE" : "ACTION"}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 <div className="flex items-end gap-2 md:gap-3 bg-card border border-border rounded-2xl px-3 md:px-4 py-2.5 md:py-3 focus-within:border-accent/50 focus-within:ring-2 focus-within:ring-accent/20 transition-all">
                   <MentionInput
                     ref={inputRef}
@@ -994,6 +1345,11 @@ export default function MaxwellClient({
                     onChange={setInput}
                     onSubmit={() => {
                       if (!input.trim() || isLoading) return
+                      // Slash override
+                      if (slashShowing && slashMatches.length > 0) {
+                        runSlashEntry(slashMatches[0])
+                        return
+                      }
                       const text = input.trim()
                       setInput("")
                       inputRef.current?.clear()

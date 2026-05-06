@@ -1,101 +1,84 @@
 # Current State
 
-**Snapshot:** 2026-05-04 (afternoon)
+**Snapshot:** 2026-05-07 early hours (Patrick-time). Updated by Vera Locke during autonomous work window after Patrick signed off.
 
 ## Running
 
 | Service | Port | Process | Notes |
 |---|---|---|---|
-| nexus-web (Next.js dev) | 3000 | next-server v16.2.0 | Hot-reload active |
-| desktop Electron app | 5173 | vite + electron | `desktop/` — concurrent vite + electron via `npm run dev` |
-| Lumen macOS app | n/a | Xcode (intermittent) | Director cycles `Cmd+R` between UI waves; not blocking right now |
+| nexus-web (production) | — | Vercel (`nexus-web-five-chi.vercel.app`) | New Vercel project; live + multi-user-aware; ✅ all 5 smoke tests pass |
+| nexus-web (dev) | 3000 | next-server v16.2.0 | Hot-reload available locally if running |
+| Lumen.app (installed) | — | `/Applications/Lumen.app` | Built earlier today; multi-user code committed; needs rebuild after recent additions if Patrick wants to test |
+| nexus-ios | — | committed locally | Multi-user auth code in the repo; needs rebuild + install on Patrick's phone |
+| Supabase | — | `rtkzvsqulliaoizutsqz` (`supabase-blue-notebook`) | Schema migration 019 applied; humans table unified; RLS on sessions; auth_id bridged |
+
+## Active operations
+
+| Op | Status | Notes |
+|---|---|---|
+| **Operation Multi-User** | ✅ Shipped end-to-end | Phases 0-7 + 4b complete. Email + PIN auth, Lumen multi-user, iOS multi-user, Vercel deploy live, Resend invites working |
+| **Operation Keyholder** | 🟡 Phase A shipped; B-G pending | Lock/Reset/Audit endpoints + UI live. Owner recovery (Phase B) blocked on decision N2. Song-snippet auth (Phase F) reframed as private memory chambers |
+| **Operation Letsgo** | 🟢 Active background | Lumen at /Applications/Lumen.app; sandbox off in Release; vera CLI patterns continuing |
+| **Operation Doorway** | 📝 Conceptual (saved to memory, not as mission doc) | Patrick framed Nexus = doorway, not the house. R&D, AI personas, experiences live BEHIND the doorway |
 
 ## Editor activity (latest check)
 
-- **Xcode** — not currently running (last check 2026-05-04 afternoon).
-- **VS Code** — assumed open on `nexus-web/` and `desktop/`.
-- **No Codex/Cursor processes detected.** Safe to edit Lumen Swift files when needed; re-check `pgrep` before each pass.
+Vera doesn't have live process data right now (Patrick is asleep). Per memory `feedback_no_interrupt.md`: when Patrick is awake, check `pgrep` before editing Lumen Swift / TypeScript files to avoid stomping on live editor sessions.
 
 ## Git state
 
 - Remote: `https://github.com/patrickcmaxwell/nexus.git`
 - Branch: `main`
-- Recent commits (newest first):
-  - `3f8f9d5` Updates to Desktop App
-  - `b789885` mission: update state and journal after cleanup pass
-  - `9dc300c` chore: mission memory + claude config + status doc
-  - `c4c911e` memory: vault canvases and daily note
-  - `591f138` desktop: Electron + Vite + React HUD app for nexus services
-  - `fb2cf90` nexus-web: Bearer auth, agents pipeline, groups, security flows
-  - `52a7ffe` chore: gitignore obsidian workspace state
-- **Working tree mostly clean.** Untracked:
-  - `mission/import-collective-apps.md` (Jarvis/IRIS/OpenJarvis import plan)
-  - `mission/arena-launch.md` (this session — Arena launch tickets)
-- **Vercel still watches `patrickcmaxwell/o-nexus`, NOT this repo.** Prod deploys do not pick up changes here. See `blockers.md` #1.
+- **11 commits stacked locally on `main`, not yet pushed.** Patrick needs to `git push origin main` from his shell — Vera can't auth to github.com from this environment.
+- Most recent commit: `ebe96c7 operation-keyholder: rename from operation-access`
+- Sequence (newest first):
+  - `ebe96c7` operation-keyholder: rename from operation-access
+  - `580db84` multi-user: cron scans every user's agents + self-service PIN rotation
+  - `4e0100d` multi-user: send invite email via Resend on team invite creation
+  - `b932994` mission: handoff doc for Operation Multi-User completion
+  - `d5e4328` mission: Operation Multi-User checkpoint + state refresh
+  - `528648e` ios: multi-user auth + tool call cards + voice work
+  - `b790ce1` lumen: dashboard rework + voice fluidity + code panel + multi-user
+  - `5457bcc` multi-user: web UI for email+PIN login + team admin
+  - `eb9e682` multi-user: data routes resolve user from session, not const
+  - `3bef603` multi-user: schema migration + identity-first auth foundation
 
-## Recent work (2026-05-03 → 2026-05-04)
+## Foundational framings (named tonight, captured in memory)
 
-Nine named "waves" of Lumen polish landed in the last 24-36h plus the desktop app refresh and Eve→Arena bridge. Highlights (full detail in `PROJECT-STATUS.md`):
+These shape every design decision going forward:
 
-- **Eve→Arena bridge live** — five Eve tools (`arena_task_create`, `arena_task_update`, `arena_payment_route`, `arena_sync_push`, `arena_recent`) wired and curl-verified end-to-end. Audit log table `arena_action_log` (migration 017) writing real rows. **External integrations still mocked** (see `arena-launch.md`).
-- **Lumen — adaptive theme** — full light/dark sweep. `enum C` palette uses AppKit dynamic colors; 270 foreground occurrences flipped white→primary. `.preferredColorScheme(.dark)` removed everywhere. Detail windows (Conversation, Agent, Operation) now readable in light mode.
-- **Lumen — multi-window pop-out** — any panel can detach into its own native macOS window. Per-conversation windows with independent send loops. Per-agent and per-operation windows with full feature parity. ⌘⌥1-7 shortcuts.
-- **Lumen — 3D Nexus Map** — SceneKit universe view of all 525 nodes / 339 edges. Type clusters, glowing edges, orbit/pan/zoom, search, filters, click-to-open.
-- **Lumen — voice tuning** — pause delays bumped to avoid cutting Eve off mid-thought; new connector pause for trailing conjunctions. Stop button on input bar when Eve is speaking.
-- **Lumen — UI polish** — TopHUD slimmed and repurposed (live stats instead of branding), InputBar hides on non-chat panels, mention chip rendering with type-colored AttributedString tokens, Eve Brief generate button finally shows disabled state correctly.
-- **Lumen — agent direct chat** — every agent has a DIRECT COMMS section that POSTs to `/api/agents/chat` using the agent's own role/personality as system prompt.
-- **Lumen — sync actor** — `LumenSync.swift` 5s background tick with cadence-tuned refreshes (dashboard 20s, conversations 45s, etc.). ⌘R global "Sync now."
-- **Vision parity across surfaces** — Lumen drag-drop image, Electron paperclip + drag-drop, iOS PhotosPicker. All route to llava:7b through `/api/eve/local`.
-- **iOS** — PIN auth, voice picker (6 ElevenLabs voices), conversation history sheet, Control tab (remote agents/ops), direct LAN brain (skip nexus-web when on home wifi).
-- **Electron Desktop** — `3f8f9d5 Updates to Desktop App` just landed. Functional but **shallower than Lumen** — fewer detail views, less data density. Identified as next UI polish target.
+- **Life, love, and liberty** — Patrick's mission. Lockean cadence with property → love. Substrate under all his work.
+- **Nexus is a doorway, not the house** — identity + authorization + routing only. R&D / personas / experiences live BEHIND the doorway.
+- **Embrace what you're made of** — systems work synergistically when they accept their configuration rather than fighting it.
+- **The right people self-qualify by forward motion** — Patrick recognizes; he doesn't choose.
+- **The floor** — Patrick's non-negotiable: *"What I won't give again fully away is my self."* Design around it.
 
-## Held (uncommitted, intentional)
+## Cross-project state
 
-The two new mission docs (`import-collective-apps.md`, `arena-launch.md`) are planning artifacts — commit when ready.
+| Project | Path | Status |
+|---|---|---|
+| Nexus | `/code/nexus/` | Multi-user shipped; Operation Keyholder active |
+| Echo | `/code/echo/` | Personal admin namespace; load-bearing; rd-iron research dossier active |
+| NOADS-v1 | `/code/NOADS-v1/` | Anti-algorithm knowledge graph; Patrick wants deep-dive next session; Vera has prep notes ready |
+| Above-Below (the arc project) | `/code/Above-Below/` | Hermetic experience app; Arc as AI companion; Patrick wants integration soon |
+| PartyBot 5000 | `/code/v0-partybot5000-concept-discussion/` | Party / community experience; v0-built; Patrick wants integration soon |
+| TalkCircles | `/code/v0-talk-circles-web-app/` (likely) | Awaiting Patrick orientation |
+| Unstuck | `/code/0-spacecosmos/`? unconfirmed | Awaiting Patrick orientation |
 
-`mission/pending-changes.md` #1 (Lumen API key from env) still queued; cannot apply during Xcode debug. Apply on next quiet window.
+## Decisions blocking next moves
 
-## Health
+See `/code/echo/decisions.md` for the canonical queue. Most actionable:
+- N1 — repoint nexus.talkcircles.io
+- N2 — owner recovery model
+- N5 — promote Merlin to admin
+- P1-P3 — TalkCircles + Unstuck orientation
 
-- ✅ Local dev: nexus-web + desktop both running.
-- ✅ Eve → Arena round-trip working end-to-end locally.
-- ⚠️ Prod: detached from this codebase (Vercel wiring). Arena tools don't reach prod until resolved.
-- ⚠️ Arena external integrations still mocked (ClickUp, Stripe, sync). See `arena-launch.md` for the path.
-- ⚠️ Lumen API key still hardcoded; refactor queued in `pending-changes.md` #1.
-- ✅ No real API keys in git.
+## What's next when Patrick returns
 
-## Architecture quick-ref (full version in root `README.md`)
-
-```
-You → Eve (persona) → Lumen / Desktop / iOS / Web (surfaces)
-                          ↓
-                       nexus-web (brain + APIs)
-                          ↓
-                  Arena (executor — tasks, payments, sync)
-                          ↓
-                  Vault (memory/ + Obsidian + Supabase)
-```
-
-Surfaces:
-- **nexus-web** — Next.js, brain + APIs. Most complete.
-- **Lumen** — SwiftUI native macOS. Feature-rich after May 3-4 waves.
-- **Desktop** (Electron) — React + Vite. Functional, UI/data-density gap vs Lumen.
-- **nexus-ios** — early but rising; vision + voice + control all live.
-- **Arena** — Express executor. Wired, external integrations mocked.
-
-## Active mission docs
-
-- `state.md` — this file. Current snapshot.
-- `blockers.md` — active blockers (Vercel/o-nexus is the big one).
-- `pending-changes.md` — patches waiting on a condition.
-- `handoff.md` — for the next cold session.
-- `journal.md` — chronological notes.
-- `import-collective-apps.md` — Jarvis/IRIS/OpenJarvis import plan (4 phases).
-- `arena-launch.md` — Arena launch tickets (3 tracks: ClickUp, auth, deploy).
-
-## Top-of-mind next actions
-
-1. **Resolve Vercel/o-nexus** (`blockers.md` #1) — gates prod Eve→Arena.
-2. **Track A from `arena-launch.md`** — real ClickUp wiring (~1 day's work).
-3. **Electron desktop UI/data uplift** — port Lumen's detail-card + activity-log patterns into React.
-4. **Apply `pending-changes.md` #1** — Lumen API key from env (next time Xcode is quiet).
+In priority order:
+1. **Push the 11 commits** (`git push origin main`)
+2. **NOADS deep-dive** (Patrick's stated next move; prep at `/code/echo/conversations/noads-deep-dive-prep.md`)
+3. **Test the live multi-user deploy** in browser when at a real device
+4. **Send Londynn the actual invite** from `/dashboard/humans` once she's ready
+5. **Rebuild Lumen + iOS** when at the relevant devices
+6. **Decide N1, N2, N5** so Operation Keyholder Phase B can proceed

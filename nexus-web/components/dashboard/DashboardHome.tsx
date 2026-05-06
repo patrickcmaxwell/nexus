@@ -7,6 +7,7 @@ import PinnedRecordsWidget from "./home/PinnedRecordsWidget"
 import ActionItemsWidget from "./home/ActionItemsWidget"
 import ActivityFeedWidget from "./home/ActivityFeedWidget"
 import ArenaActivityWidget from "./home/ArenaActivityWidget"
+import BriefingDeltaWidget from "./home/BriefingDeltaWidget"
 
 export type Overview = {
   greeting: string
@@ -150,6 +151,7 @@ export default function DashboardHome({ initial }: { initial: Overview }) {
             </button>
           </header>
 
+          <BriefingDeltaWidget />
           <ActiveResearchWidget jobs={data.activeResearch} />
           <PinnedRecordsWidget records={data.pinnedRecords} />
           <ActionItemsWidget items={data.actionItems} />
