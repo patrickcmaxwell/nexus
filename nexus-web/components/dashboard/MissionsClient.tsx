@@ -74,7 +74,7 @@ export default function MissionsClient({ initialMissions }: { initialMissions: M
           className="hud-border bg-card p-6 mb-6"
         >
           <h2 className="font-mono text-xs text-hud-gold tracking-widest mb-5" style={{ fontFamily: "var(--font-orbitron)" }}>NEW MISSION RECORD</h2>
-          <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="font-mono text-[10px] text-muted-foreground block mb-1.5" style={{ fontFamily: "var(--font-orbitron)" }}>MISSION NAME *</label>
               <input name="name" required className="w-full bg-muted hud-border px-3 py-2 font-mono text-sm text-foreground focus:outline-none focus:border-[oklch(0.55_0.22_25/0.8)]" placeholder="Operation..." />

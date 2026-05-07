@@ -168,6 +168,31 @@ struct LumenApp: App {
         .defaultPosition(.topTrailing)
         .defaultSize(width: 380, height: 460)
 
+        // Lumen Console — datasets / search / sync status. Reachable from
+        // the Panels menu (Cmd-Opt-D). Surfaces what the local cache layer
+        // is doing under the hood without us having to retrofit MainView.
+        Window("Lumen Console", id: "lumen-console") {
+            LumenConsoleWindow()
+                .environmentObject(store)
+                .environmentObject(sync)
+                .environmentObject(auth)
+        }
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 760, height: 600)
+
+        // Global search palette — Cmd-Shift-K opens it from anywhere.
+        // Self-contained: the window dismisses itself when the palette
+        // closes (selection or ESC).
+        Window("Lumen Search", id: "lumen-search") {
+            SearchWindow()
+                .environmentObject(store)
+                .environmentObject(sync)
+        }
+        .windowStyle(.hiddenTitleBar)
+        .windowResizability(.contentSize)
+        .defaultPosition(.center)
+        .defaultSize(width: 700, height: 580)
+
         // Menu bar item — Eve always available from the system menu bar.
         // Click the icon for a popover with status, last reply, and quick
         // jump-to-main-window. Useful when Lumen's main window is hidden.
@@ -196,6 +221,14 @@ struct PanelCommands: Commands {
                 openWindow(id: "eve-orb")
             }
             .keyboardShortcut("e", modifiers: [.command, .option])
+            Button("Lumen Console…") {
+                openWindow(id: "lumen-console")
+            }
+            .keyboardShortcut("d", modifiers: [.command, .option])
+            Button("Search Everything…") {
+                openWindow(id: "lumen-search")
+            }
+            .keyboardShortcut("k", modifiers: [.command, .shift])
             Button("Command Palette…") {
                 NotificationCenter.default.post(name: .lumenCommandPaletteToggle, object: nil)
             }

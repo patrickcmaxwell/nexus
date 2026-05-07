@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import crypto from "crypto"
+import { sessionCookieOptions } from "@/lib/auth/cookie"
 
 function getServiceClient() {
   return createClient(
@@ -48,11 +49,24 @@ export async function POST(req: NextRequest) {
     .ilike("email", email)
     .single()
 
-  if (!human || human.status !== "active") {
-    return NextResponse.json({ error: "INVALID_CREDENTIALS" }, { status: 401 })
+  // Distinct error codes so the UI can guide users instead of stonewalling.
+  // Email enumeration risk is mitigated by the existing IP rate-limit; the
+  // UX gain is worth the trade-off (otherwise users keep trying the wrong
+  // email and get blocked thinking it's a system bug).
+  if (!human) {
+    return NextResponse.json({ error: "UNKNOWN_EMAIL" }, { status: 401 })
+  }
+  if (human.status === "invited") {
+    return NextResponse.json({ error: "INVITE_NOT_ACCEPTED" }, { status: 401 })
+  }
+  if (human.status === "disabled") {
+    return NextResponse.json({ error: "ACCOUNT_LOCKED" }, { status: 401 })
+  }
+  if (human.status !== "active") {
+    return NextResponse.json({ error: "ACCOUNT_INACTIVE" }, { status: 401 })
   }
   if (human.pin_hash !== pinHash) {
-    return NextResponse.json({ error: "INVALID_CREDENTIALS" }, { status: 401 })
+    return NextResponse.json({ error: "WRONG_PIN" }, { status: 401 })
   }
 
   // Successful authentication — create the session row.
@@ -92,18 +106,9 @@ export async function POST(req: NextRequest) {
     path: "/",
     maxAge,
   })
-  // Cookie security must be env-aware. `secure:true` over plain http
-  // (localhost dev) is silently rejected by browsers, so PIN auth would
-  // succeed server-side but the cookie never lands in the client. Lax in
-  // dev, strict-cross-origin (none) only when actually on https.
-  const isProd = process.env.NODE_ENV === "production"
-  response.cookies.set("nx_session", sessionId, {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? "none" : "lax",
-    path: "/",
-    maxAge: 14 * 24 * 60 * 60,
-  })
+  // Centralized cookie config — env-aware secure/sameSite + optional
+  // SESSION_COOKIE_DOMAIN for subdomain cookie share with arena.
+  response.cookies.set("nx_session", sessionId, sessionCookieOptions())
   return response
 }
 

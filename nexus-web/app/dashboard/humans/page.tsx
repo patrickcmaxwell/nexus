@@ -308,8 +308,8 @@ export default function TeamPage() {
                         </div>
                       </button>
                     ) : (
-                      <div className="flex items-start gap-4">
-                        <div className="relative w-32 h-32 rounded-xl overflow-hidden border border-border flex-shrink-0">
+                      <div className="flex items-start gap-3 md:gap-4">
+                        <div className="relative w-24 h-24 md:w-32 md:h-32 rounded-xl overflow-hidden border border-border flex-shrink-0">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={photoUrl} alt="Face preview" className="w-full h-full object-cover" />
                           {faceStatus === "done" && (

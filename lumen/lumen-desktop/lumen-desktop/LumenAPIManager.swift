@@ -87,6 +87,21 @@ class LumenAPIManager {
 
     @discardableResult
     func resolveBaseURL() async -> String {
+        // Honor the user's host override before probing. "force-local" pins
+        // to localhost (useful when running both Lumen and `next dev`),
+        // "force-remote" skips the localhost probe (useful for testing prod
+        // from a dev machine), "auto" is the original probe-then-fallback.
+        let mode = UserDefaults.standard.string(forKey: "lumen.host.mode") ?? "auto"
+        switch mode {
+        case "local":
+            nexusBase = LumenAPIManager.localBase
+            return nexusBase
+        case "remote":
+            nexusBase = LumenAPIManager.remoteBase
+            return nexusBase
+        default:
+            break
+        }
         if let url = URL(string: "\(LumenAPIManager.localBase)/api/dashboard/overview") {
             var req = URLRequest(url: url, timeoutInterval: 2)
             req.httpMethod = "GET"
@@ -99,7 +114,24 @@ class LumenAPIManager {
         return nexusBase
     }
 
-    private let anthropicApiKey = "PASTE_YOUR_KEY_HERE"
+    /// Resolves the Anthropic API key without ever baking it into source.
+    /// Lookup order:
+    ///   1. `ANTHROPIC_API_KEY` env var (set in Xcode scheme → Run → Environment)
+    ///      so the dev cycle doesn't require a keychain round-trip
+    ///   2. macOS keychain under service `com.nexus.lumen`, account `anthropic`
+    ///      so production binaries get the key from the host machine instead
+    ///      of from a hardcoded literal that would commit straight to git
+    ///   3. Empty string — call sites should handle this gracefully (skip the
+    ///      Anthropic codepath, log once, fall back to the local LLM)
+    private var anthropicApiKey: String {
+        if let env = ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"], !env.isEmpty {
+            return env
+        }
+        if let keychain = KeychainHelper.read(service: "com.nexus.lumen", account: "anthropic"), !keychain.isEmpty {
+            return keychain
+        }
+        return ""
+    }
 
     // MARK: - Nexus-web Eve (preferred path)
 

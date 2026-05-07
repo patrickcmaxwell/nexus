@@ -20,10 +20,23 @@ import Combine
 
 @MainActor
 final class LumenSync: ObservableObject {
-    static let cadenceFast: TimeInterval = 20    // dashboard
-    static let cadenceConv: TimeInterval = 45    // conversation list
-    static let cadenceMid:  TimeInterval = 90    // directives + memory
-    static let cadenceMap:  TimeInterval = 120   // nexus map
+    // Defaults — overridable at runtime via UserDefaults so the Settings tab
+    // sliders take effect without restarting Lumen. Reads happen on each
+    // tick so changes apply immediately.
+    static let cadenceFastDefault: TimeInterval = 20    // dashboard
+    static let cadenceConvDefault: TimeInterval = 45    // conversation list
+    static let cadenceMidDefault:  TimeInterval = 90    // directives + memory
+    static let cadenceMapDefault:  TimeInterval = 120   // nexus map
+
+    static var cadenceFast: TimeInterval { cadenceFromDefaults("lumen.cadence.dashboard", fallback: cadenceFastDefault) }
+    static var cadenceConv: TimeInterval { cadenceFromDefaults("lumen.cadence.conv",      fallback: cadenceConvDefault) }
+    static var cadenceMid:  TimeInterval { cadenceFromDefaults("lumen.cadence.mid",       fallback: cadenceMidDefault) }
+    static let cadenceMap:  TimeInterval = 120   // map — fixed, no slider yet
+
+    private static func cadenceFromDefaults(_ key: String, fallback: TimeInterval) -> TimeInterval {
+        let stored = UserDefaults.standard.double(forKey: key)
+        return stored > 0 ? stored : fallback
+    }
 
     @Published private(set) var lastDashboardSync: Date? = nil
     @Published private(set) var lastConversationsSync: Date? = nil
@@ -39,11 +52,18 @@ final class LumenSync: ObservableObject {
         self.store = store
     }
 
+    /// Cadence for the LumenLocalDB delta sync. Default 5 min, overridable
+    /// via UserDefaults (Settings tab slider).
+    static let cadenceLocalDBDefault: TimeInterval = 300
+    static var cadenceLocalDB: TimeInterval { cadenceFromDefaults("lumen.cadence.localdb", fallback: cadenceLocalDBDefault) }
+    @Published private(set) var lastLocalDBSync: Date? = nil
+
     /// Begin the periodic loop. Idempotent — multiple calls are safe.
     func start() {
         guard loopTask == nil else { return }
         loopTask = Task { [weak self] in
             // Initial burst — populate everything so first paint isn't empty.
+            await self?.refreshLocalDB()  // SQLite cache fill first so panel paints don't blank-spinner
             await self?.refreshDashboard()
             await self?.refreshConversations()
             await self?.refreshDirectivesAndMemory()
@@ -62,9 +82,23 @@ final class LumenSync: ObservableObject {
                 if self.mapEverFetched, Self.due(self.lastMapSync, every: Self.cadenceMap, now: now), !self.isPaused {
                     await self.refreshMap()
                 }
+                if Self.due(self.lastLocalDBSync, every: Self.cadenceLocalDB, now: now), !self.isPaused {
+                    await self.refreshLocalDB()
+                }
                 try? await Task.sleep(nanoseconds: 5_000_000_000)  // 5s tick
             }
         }
+    }
+
+    /// User-triggered manual full sync — the "Sync now" toolbar action.
+    /// Kicks the LumenLocalDB sync engine immediately and resets the timer.
+    func kickLocalDBSync() {
+        Task { await refreshLocalDB() }
+    }
+
+    private func refreshLocalDB() async {
+        _ = await LumenSyncEngine.shared.syncAll()
+        lastLocalDBSync = Date()
     }
 
     func stop() {

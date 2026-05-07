@@ -265,7 +265,9 @@ export default function EveMessage({ content, citations = [], toolCalls = [], br
             return (
               <div
                 key={i}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg border ${s.color}`}
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg border ${
+                  s.success ? s.color : "text-rose-400 border-rose-400/40 bg-rose-400/10"
+                }`}
               >
                 {!s.success ? (
                   <AlertTriangle size={16} className="flex-shrink-0 text-rose-400" />

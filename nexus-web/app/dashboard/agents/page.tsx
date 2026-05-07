@@ -310,7 +310,7 @@ export default function AgentsPage() {
               <div className="w-full md:w-1/2 flex flex-col justify-center items-center relative border border-cyan-900/20 bg-cyan-950/5 rounded-xl p-8 overflow-y-auto custom-scrollbar shadow-[inset_0_0_50px_rgba(0,0,0,0.8)]">
                 
                 {/* Massive Holographic Core */}
-                <div className="relative w-64 h-64 md:w-80 md:h-80 flex items-center justify-center mb-10 flex-shrink-0 mix-blend-screen">
+                <div className="relative w-44 h-44 sm:w-56 sm:h-56 md:w-80 md:h-80 flex items-center justify-center mb-6 md:mb-10 flex-shrink-0 mix-blend-screen">
                    <svg className="absolute inset-0 w-full h-full text-cyan-500/30 animate-slow-spin" viewBox="0 0 100 100">
                       <circle cx="50" cy="50" r="48" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="4 8" />
                       <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeWidth="0.5" strokeDasharray="30 10" />
@@ -467,15 +467,15 @@ export default function AgentsPage() {
                   <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none" />
 
                   <div className="relative tech-clip bg-zinc-950/90 h-full p-8 flex flex-col z-0 hover:bg-black transition-colors duration-300">
-                    <div className="flex justify-between items-start mb-6">
-                      <div className="flex gap-5">
+                    <div className="flex justify-between items-start mb-6 gap-3">
+                      <div className="flex gap-5 min-w-0 flex-1">
                         {/* Generative AI Core Avatar */}
                         <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-cyan-500/30 p-0.5 flex items-center justify-center bg-black shadow-[0_0_15px_rgba(34,211,238,0.2)] aspect-square flex-shrink-0 group-hover:shadow-[0_0_20px_rgba(34,211,238,0.4)] transition-shadow duration-300 relative group-hover:rotate-12">
                           <img src={getAgentAvatar(agent.name)} alt={agent.name} className="w-full h-full object-cover rounded-full mix-blend-screen" />
                         </div>
-                        <div className="flex flex-col pt-1">
-                          <h3 className="font-bold text-xl text-cyan-50 tracking-wider font-mono uppercase group-hover:text-cyan-300 transition-colors">{agent.name}</h3>
-                          <p className="text-xs text-cyan-400/80 font-mono tracking-widest uppercase mt-1">{agent.role}</p>
+                        <div className="flex flex-col pt-1 min-w-0 flex-1">
+                          <h3 className="font-bold text-xl text-cyan-50 tracking-wider font-mono uppercase group-hover:text-cyan-300 transition-colors truncate">{agent.name}</h3>
+                          <p className="text-xs text-cyan-400/80 font-mono tracking-widest uppercase mt-1 truncate">{agent.role}</p>
                         </div>
                       </div>
                       <AgentStatusDropdown status={agent.status} onChange={(s) => setStatus(agent, s)} />

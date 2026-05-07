@@ -220,7 +220,7 @@ export default function SettingsClient({ initial }: { initial: Initial }) {
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen p-6 md:p-10 max-w-3xl mx-auto">
+    <div className="min-h-screen p-4 sm:p-6 md:p-10 max-w-3xl mx-auto">
       <div className="mb-8">
         <p className="font-mono text-[10px] tracking-[0.3em] uppercase mb-1" style={{ color: "var(--nexus-cyan)" }}>Settings</p>
         <h1 className="text-2xl font-bold text-foreground">Your account</h1>
@@ -229,7 +229,7 @@ export default function SettingsClient({ initial }: { initial: Initial }) {
 
       {/* IDENTITY */}
       <Card title="Identity" icon={<User size={16} />}>
-        <div className="flex items-start gap-5">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
           <div className="flex flex-col items-center gap-2">
             {avatarUrl ? (
               <img src={avatarUrl} alt="avatar" className="w-24 h-24 rounded-full object-cover border" style={{ borderColor: "oklch(0.75 0.18 200 / 0.4)" }} />
@@ -268,7 +268,7 @@ export default function SettingsClient({ initial }: { initial: Initial }) {
             </div>
           </div>
 
-          <form onSubmit={saveIdentity} className="flex-1 flex flex-col gap-3">
+          <form onSubmit={saveIdentity} className="flex-1 flex flex-col gap-3 w-full">
             <Field label="Display name">
               <input
                 type="text"
@@ -402,7 +402,7 @@ export default function SettingsClient({ initial }: { initial: Initial }) {
             {sessions.map((s) => (
               <li
                 key={s.id}
-                className="flex items-center justify-between gap-3 px-3 py-2"
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 px-3 py-2"
                 style={{
                   background: s.current ? "oklch(0.75 0.18 200 / 0.06)" : "transparent",
                   border: `1px solid ${s.current ? "oklch(0.75 0.18 200 / 0.4)" : "oklch(0.3 0 0 / 0.2)"}`,
@@ -427,7 +427,7 @@ export default function SettingsClient({ initial }: { initial: Initial }) {
                   type="button"
                   onClick={() => revokeSession(s.id)}
                   disabled={sessionActionId === s.id}
-                  className="px-2 py-1 font-mono text-[9px] tracking-widest uppercase text-muted-foreground hover:text-destructive border border-border/40 hover:border-destructive/50 flex items-center gap-1 disabled:opacity-40"
+                  className="self-start sm:self-auto px-2 py-1 font-mono text-[9px] tracking-widest uppercase text-muted-foreground hover:text-destructive active:text-destructive border border-border/40 hover:border-destructive/50 flex items-center gap-1 disabled:opacity-40 min-h-[28px]"
                 >
                   {sessionActionId === s.id ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} />}
                   Revoke

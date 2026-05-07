@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, useCallback } from "react"
+import { Suspense, useEffect, useRef, useState, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 
 type Stage = "loading_models" | "ready" | "scanning" | "enrolling" | "verifying" | "success" | "failed" | "no_camera"
@@ -11,6 +11,16 @@ type Stage = "loading_models" | "ready" | "scanning" | "enrolling" | "verifying"
 // chose face mode by tapping the FACE toggle. Standalone mode keeps the
 // full-screen HUD layout for direct browser use.
 export default function FacePage() {
+  // Next 16 requires useSearchParams to live under a Suspense boundary
+  // so client pages can be statically prerendered without bailing.
+  return (
+    <Suspense fallback={null}>
+      <FacePageInner />
+    </Suspense>
+  )
+}
+
+function FacePageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const embedded = searchParams.get("embedded") === "1"
@@ -306,7 +316,7 @@ export default function FacePage() {
         {!embedded && (
           <div className="mt-6 text-center">
             <p className="font-mono text-[9px] text-muted-foreground/50 tracking-widest">
-              FACE SCAN REQUIRED ON EVERY ENTRY · CANNOT BE BYPASSED
+              FACE SCAN ENABLED · STRONGLY RECOMMENDED FOR INSTANT LOGIN
             </p>
           </div>
         )}

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { sessionCookieOptions } from "@/lib/auth/cookie"
 
 function getServiceClient() {
   return createClient(
@@ -193,13 +194,9 @@ async function createHumanSession(response: NextResponse, humanId: string, metho
     return response
   }
 
-  response.cookies.set("nx_session", data.id, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 14 * 24 * 60 * 60,
-  })
+  // Use shared cookie options so the optional SESSION_COOKIE_DOMAIN env
+  // var (for arena subdomain cookie share) flows through the face path too.
+  response.cookies.set("nx_session", data.id, sessionCookieOptions())
 
   return response
 }

@@ -2,25 +2,34 @@
 //
 // Native-camera entry point for the desktop app: accepts a JPEG (or PNG)
 // captured natively via AVFoundation, computes a 128-dim face descriptor
-// server-side via face-api.js + tfjs-node, then matches against the
-// enrolled descriptors on each humans row. On match, mints an nx_session
-// cookie just like /api/security/face does.
+// server-side via face-api.js + @tensorflow/tfjs (CPU backend), then matches
+// against the enrolled descriptors on each humans row. On match, mints an
+// nx_session cookie just like /api/security/face does.
 //
 // Why this exists: the prior path embedded a WebView in the desktop app
-// purely so face-api.js (browser-only) could compute the descriptor. With
-// tfjs-node we can do that compute server-side and let the desktop ship a
-// fully native camera UI. Web flow still uses /api/security/face directly
+// purely so face-api.js (browser-only) could compute the descriptor. By
+// running the same models server-side we let the desktop ship a fully
+// native camera UI. Web flow still uses /api/security/face directly
 // (browser already has face-api loaded for capture).
+//
+// Why pure-JS tfjs (not tfjs-node): tfjs-node ships a 30MB+ libtensorflow
+// native binary and pulls in node-pre-gyp's optional AWS-mock deps. The
+// resulting Vercel function bundle blew past the 250MB unzipped cap. Pure
+// tfjs runs on the CPU backend in pure JS — slower (~500ms/inference vs
+// ~150ms), but ships at ~5MB.
 export const runtime = "nodejs"
 // Models are ~2MB each + tfjs warmup; cap at 30s to leave room for the
 // occasional cold start where the inference graph compiles.
 export const maxDuration = 30
+// Force-dynamic stops Next's build-time page-data collector from importing
+// this route — tfjs warmup in the build sandbox can crash with platform
+// quirks like "TextEncoder is not a constructor."
+export const dynamic = "force-dynamic"
 
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
-import * as tf from "@tensorflow/tfjs-node"
-import * as faceapi from "@vladmandic/face-api"
 import path from "node:path"
+import { sessionCookieOptions } from "@/lib/auth/cookie"
 
 const MATCH_THRESHOLD = 0.6
 
@@ -32,14 +41,30 @@ function getServiceClient() {
   )
 }
 
-// Module-level model cache. First request pays the ~1s load cost; subsequent
-// requests reuse the in-memory weights.
+// Lazy-load tfjs + face-api on first request. Module-level imports execute
+// during build-time route inspection where the runtime context is wrong.
 let modelsLoaded = false
-let modelLoadPromise: Promise<void> | null = null
-async function ensureModelsLoaded(): Promise<void> {
-  if (modelsLoaded) return
+let modelLoadPromise: Promise<typeof import("@vladmandic/face-api")> | null = null
+async function loadFaceApi(): Promise<typeof import("@vladmandic/face-api")> {
   if (modelLoadPromise) return modelLoadPromise
   modelLoadPromise = (async () => {
+    // face-api ships several entrypoints. The "main" (face-api.node.js)
+    // hard-requires @tensorflow/tfjs-node — a 30MB native binary that
+    // blows past Vercel's 250MB function cap. The ESM bundle bakes in the
+    // webgl backend which crashes on init in Node ("TextEncoder is not a
+    // constructor"). Use the node-wasm entrypoint: pure-JS tfjs + WASM
+    // backend, no native binaries, works in any Node environment.
+    const faceapi = (await import("@vladmandic/face-api/dist/face-api.node-wasm.js")) as typeof import("@vladmandic/face-api")
+    const tfjsWasm = await import("@tensorflow/tfjs-backend-wasm")
+    // Use face-api's bundled tf reference so backend registration applies to
+    // the SAME tfjs instance face-api will use for inference. Pnpm's strict
+    // isolation can hand face-api a different `@tensorflow/tfjs-core` copy
+    // than a separate `import("@tensorflow/tfjs")` would touch.
+    await tfjsWasm.setWasmPaths(
+      `https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@${tfjsWasm.version_wasm}/dist/`,
+    )
+    await faceapi.tf.setBackend("wasm")
+    await faceapi.tf.ready()
     const modelPath = path.join(process.cwd(), "public", "models")
     await Promise.all([
       faceapi.nets.tinyFaceDetector.loadFromDisk(modelPath),
@@ -47,6 +72,7 @@ async function ensureModelsLoaded(): Promise<void> {
       faceapi.nets.faceRecognitionNet.loadFromDisk(modelPath),
     ])
     modelsLoaded = true
+    return faceapi
   })()
   return modelLoadPromise
 }
@@ -91,14 +117,38 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unsupported image format" }, { status: 400 })
   }
 
-  await ensureModelsLoaded()
+  let faceapi: Awaited<ReturnType<typeof loadFaceApi>>
+  let sharp: typeof import("sharp").default
+  try {
+    faceapi = await loadFaceApi()
+    sharp = (await import("sharp")).default
+  } catch (err) {
+    console.error("[nexus] face/match init failed:", err)
+    return NextResponse.json({
+      error: "INIT_FAILED",
+      detail: err instanceof Error ? err.message : String(err),
+    }, { status: 500 })
+  }
 
-  // Decode image to a 3-channel tensor; face-api accepts this directly.
-  // tidy() prevents the intermediate decoded tensor from leaking once we
-  // hand the descriptor off.
+  // Decode JPEG/PNG/WebP to raw RGB pixels via sharp, then wrap as a
+  // tf.tensor3d face-api can consume. Use face-api's own tf reference for
+  // tensor allocation so allocation + inference happen on the same backend.
   let descriptor: Descriptor | null = null
   try {
-    const tensor = tf.node.decodeImage(buffer, 3) as tf.Tensor3D
+    const { data, info } = await sharp(buffer)
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true })
+    // sharp returns RGBA bytes; face-api's recognition net wants 3-channel
+    // RGB. Strip the alpha and pack into the tensor.
+    const pixelCount = info.width * info.height
+    const rgb = new Uint8Array(pixelCount * 3)
+    for (let i = 0, j = 0; i < data.length; i += 4, j += 3) {
+      rgb[j] = data[i]
+      rgb[j + 1] = data[i + 1]
+      rgb[j + 2] = data[i + 2]
+    }
+    const tensor = faceapi.tf.tensor3d(rgb, [info.height, info.width, 3], "int32")
     try {
       const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 })
       const result = await faceapi
@@ -111,7 +161,10 @@ export async function POST(req: NextRequest) {
     }
   } catch (err) {
     console.error("[nexus] face-api inference failed:", err)
-    return NextResponse.json({ error: "INFERENCE_FAILED" }, { status: 500 })
+    return NextResponse.json({
+      error: "INFERENCE_FAILED",
+      detail: err instanceof Error ? err.message : String(err),
+    }, { status: 500 })
   }
 
   if (!descriptor) {
@@ -169,7 +222,6 @@ export async function POST(req: NextRequest) {
     .select("id")
     .single()
 
-  const isProd = process.env.NODE_ENV === "production"
   const isLumenClient = req.headers.get("X-Lumen-Client") === "1"
   const body: Record<string, unknown> = {
     success: true,
@@ -184,13 +236,7 @@ export async function POST(req: NextRequest) {
 
   const response = NextResponse.json(body)
   if (session?.id) {
-    response.cookies.set("nx_session", session.id, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: isProd ? "none" : "lax",
-      path: "/",
-      maxAge: 14 * 24 * 60 * 60,
-    })
+    response.cookies.set("nx_session", session.id, sessionCookieOptions())
   }
   return response
 }

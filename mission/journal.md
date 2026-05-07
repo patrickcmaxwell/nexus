@@ -55,3 +55,54 @@ Total: 88 files committed. Repository went from 2 commits to 7.
 - QStash keys (Patrick, manual).
 - API-key refactor (Xcode active — see pending-changes.md).
 - Commit the held lumen/ios/arena changes when their editors are at a checkpoint.
+
+---
+
+## 2026-05-06 — Arena pivot + standalone platform build
+
+**Context:** Patrick course-corrected away from NOADS: *"Not sure noads is critical when we have arena and so many unfinished parts of nexus."* Then framed Arena as needing its own web platform: *"Arena is going to need its own web app to connect to so users can go there and connect their nexus account to arena then they should be able to connect and add more connections inside of lumen."*
+
+**Done:**
+- Built `arena-web` as a standalone Next.js 16 app at `/code/nexus/arena-web/`. Separate Vercel project (`arena-web`).
+- 5 provider integrations (ClickUp, Notion, GitHub, Stripe, Slack) with a clean `Provider` interface — adding a new provider = one file in `lib/providers/`.
+- Connection management UI: list, add, edit, rotate credentials, test, delete.
+- Auto health tracking via `lib/connection-health.ts` — auth errors flip status to errored.
+- Eve tool routing: 3 task/payment tools accept optional `provider` param. New `arena_providers` and `arena_failures` tools for Eve self-introspection.
+- First-run guide for users with zero connections + zero actions.
+- Connection-error notification email via Resend (24h throttle, migration 022).
+- Cross-subdomain cookie auth via `SESSION_COOKIE_DOMAIN` env var (set by Patrick when DNS lands).
+
+Old `arena/` Express service is now superseded. `arena-launch.md` is stale; current state is in `arena-platform.md`.
+
+---
+
+## 2026-05-07 — Webhook receiver + nexus-web polish + face-api fix
+
+### Arena webhook receiver foundation
+
+- New route `arena-web/app/api/webhooks/[connectionId]/[secret]/route.ts`
+- Per-connection `webhook_secret` column auto-generated on insert (migration 023, default `encode(gen_random_bytes(24), 'hex')`)
+- URL displayed in connection edit form with Copy button — paste into provider's webhook settings
+- Inbound events logged to `arena_action_log` with action prefix `inbound/{provider}/{event}` and caller='system'
+- Slack URL-verification challenge handled
+- Per-provider HMAC signature verification deferred (path-token gating is MVP)
+
+### nexus-web mobile + broken-parts pass
+
+Triggered by Patrick: *"Lots of broken parts and mobile issues."* Then more specifically: *"chat ui is really broken it is all bunched up not taking up fullwidth."*
+
+Sweep covered Maxwell chat (touch targets, error handling, mobile width), Settings/Console mobile, Suits/Systems honesty banners, agents/humans page mobile fixes, EveMessage failure styling. Full inventory in `mission/nexus-web-polish-2026-05.md`.
+
+### Suits page wired to real agents
+
+Replaced the hardcoded Tony Stark suits array with real `agents` table queries. Same HUD aesthetic, real data. Empty state CTAs to `/dashboard/agents`.
+
+### Lumen face login server-side fix (CRITICAL)
+
+Lumen native face capture was getting back opaque "SERVER ERROR" with no detail. Root cause: `@vladmandic/face-api`'s package.json `main` field points at `face-api.node.js` which hard-requires `@tensorflow/tfjs-node` (30MB native binary, blows Vercel's 250MB cap, AND pnpm strict isolation hides it from face-api).
+
+Fix: imported `@vladmandic/face-api/dist/face-api.node-wasm.js` directly, added `@tensorflow/tfjs-backend-wasm`. WASM gives ~150-300ms inference, no native binaries. Memory at `/Users/shadow/.claude/projects/-Users-shadow-code/memory/feedback_vercel_native_deps.md` updated with the exact incantation.
+
+Also wrapped both `loadFaceApi()` and inference in try/catch with detail in JSON response so future failures are diagnosable from Lumen's UI.
+
+**Test verified:** sample image returns `FACE_MISMATCH` (correct — it's not Patrick) instead of opaque 500.

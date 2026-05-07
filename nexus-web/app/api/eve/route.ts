@@ -219,22 +219,30 @@ export async function POST(req: Request) {
     { type: "function", function: { name: "save_to_operation", description: "Save a piece of information or web finding to a specific operation.", parameters: { type: "object", properties: { operation_name: { type: "string" }, title: { type: "string" }, content: { type: "string" }, type: { type: "string", enum: ["intel", "finding", "data", "alert", "note"] }, source_url: { type: "string" } }, required: ["operation_name", "title", "content", "type"] } } },
 
     // Arena — the executor layer. These tools fire real-world side effects
-    // (ClickUp, payments, sync). Every call is audited in arena_action_log.
-    { type: "function", function: { name: "arena_task_create", description: "Create a ClickUp task via Arena. Use when the user asks to add, schedule, or assign a task or todo. Returns the new task id.", parameters: { type: "object", properties: {
+    // through the user's connected providers (ClickUp / Notion / GitHub /
+    // Stripe). Provider param is optional; when omitted we use the per-tool
+    // default (clickup for tasks, stripe for payments). When the user names
+    // a provider explicitly ("file a Notion task", "open a GitHub issue"),
+    // pass that as `provider` so the right adapter handles the call.
+    { type: "function", function: { name: "arena_task_create", description: "Create a task / issue / page via the user's connected provider. Default provider is ClickUp; pass provider='notion' to drop a page into the user's Notion database, or provider='github' to open a GitHub issue. Use when the user asks to add, schedule, or assign a task / todo / issue. Returns the new external id.", parameters: { type: "object", properties: {
       title:       { type: "string" },
       description: { type: "string" },
+      provider:    { type: "string", enum: ["clickup", "notion", "github"], description: "which connected service to file the task in. Default 'clickup'. Match the provider the user named." },
       assignee:    { type: "string", description: "name or handle of the assignee, optional" },
       due:         { type: "string", description: "ISO date or human phrase like 'next Friday', optional" },
+      priority:    { type: "string", enum: ["urgent", "high", "normal", "low"], description: "optional priority — applied if the provider supports it" },
     }, required: ["title"] } } },
-    { type: "function", function: { name: "arena_task_update", description: "Update an existing ClickUp task. Use to change status or add a note to a task you (or the user) created earlier.", parameters: { type: "object", properties: {
-      task_id: { type: "string" },
-      status:  { type: "string", description: "e.g. 'in progress', 'done', 'blocked'", },
-      notes:   { type: "string" },
+    { type: "function", function: { name: "arena_task_update", description: "Update an existing task / issue / page. Use to change status or add a comment to something the user created earlier. Pass the same `provider` you used to create it.", parameters: { type: "object", properties: {
+      task_id:  { type: "string" },
+      provider: { type: "string", enum: ["clickup", "notion", "github"], description: "the provider this task lives in. Default 'clickup'." },
+      status:   { type: "string", description: "e.g. 'in progress', 'done', 'blocked' (ClickUp / Notion). For GitHub, 'closed'/'done'/'resolved' close the issue; anything else reopens." },
+      notes:    { type: "string", description: "comment text to attach" },
     }, required: ["task_id"] } } },
-    { type: "function", function: { name: "arena_payment_route", description: "Route and split a payment via Arena. Splits must sum to the total amount. Only call when the user explicitly authorizes a transfer or split.", parameters: { type: "object", properties: {
+    { type: "function", function: { name: "arena_payment_route", description: "Route and split a payment via Arena. Splits must sum to the total amount. Only call when the user explicitly authorizes a transfer or split. Routes through Stripe by default — currently in safe-mock mode (validates math + audit-logs) until Stripe Connect creds are wired.", parameters: { type: "object", properties: {
       amount:    { type: "number", description: "total amount to route" },
       currency:  { type: "string", description: "ISO currency code, default USD" },
       reference: { type: "string", description: "human reference for this transaction" },
+      provider:  { type: "string", enum: ["stripe"], description: "which payment provider — only stripe today" },
       splits: {
         type: "array",
         items: { type: "object", properties: { destination: { type: "string" }, amount: { type: "number" } }, required: ["destination", "amount"] },
@@ -247,6 +255,10 @@ export async function POST(req: Request) {
     { type: "function", function: { name: "arena_recent", description: "Read the recent Arena action audit log. Use when the user asks 'what did Arena just do?', 'show recent tasks', or to confirm a previous action.", parameters: { type: "object", properties: {
       limit:  { type: "number", description: "max rows to return, default 10" },
       action: { type: "string", description: "filter by action name like 'task/create' or 'payment/route'" },
+    } } } },
+    { type: "function", function: { name: "arena_providers", description: "List the Arena providers registered server-side AND which ones the current user has actually connected. Use when the user asks 'what can you do?', 'what's connected?', 'which integrations do I have?', or before suggesting a workflow that depends on a specific provider.", parameters: { type: "object", properties: {} } } },
+    { type: "function", function: { name: "arena_failures", description: "Surface what's broken in Arena right now. Returns currently-errored connections (with the auth error that flipped them) PLUS the most recent failed action-log entries. Use when the user asks 'did anything break?', 'why isn't ClickUp working?', 'what's red?', 'is my Notion connection ok?'.", parameters: { type: "object", properties: {
+      limit: { type: "number", description: "max recent failed actions to return, default 8" },
     } } } },
   ]
 
@@ -314,29 +326,47 @@ export async function POST(req: Request) {
         }
 
         // ── Arena tool calls — real-world side effects ───────────────────
+        // Arena Web's executor endpoints expect `user_id` (auth.users.id) so
+        // they can look up the right per-user connection row. Pass USER_ID
+        // (active human's auth_id) on every call. `provider` flows through
+        // when Eve specified one; the executor defaults if omitted.
         case "arena_task_create": {
           const r = await callArena("/task/create", {
-            title: args.title,
+            user_id:     USER_ID,
+            provider:    args.provider ?? "clickup",
+            title:       args.title,
             description: args.description ?? "",
-            assignee: args.assignee ?? null,
-            due: args.due ?? null,
+            assignee:    args.assignee ?? null,
+            due_date:    args.due ?? null,
+            priority:    args.priority ?? null,
           }, "eve")
           return JSON.stringify(r.ok ? { success: true, ...((r.data as object) ?? {}) } : { success: false, error: r.error ?? `arena ${r.status}` })
         }
         case "arena_task_update": {
           const r = await callArena("/task/update", {
-            task_id: args.task_id,
-            status: args.status ?? null,
-            notes: args.notes ?? null,
+            user_id:     USER_ID,
+            provider:    args.provider ?? "clickup",
+            external_id: args.task_id,
+            status:      args.status ?? null,
+            comment:     args.notes ?? null,
           }, "eve")
           return JSON.stringify(r.ok ? { success: true, ...((r.data as object) ?? {}) } : { success: false, error: r.error ?? `arena ${r.status}` })
         }
         case "arena_payment_route": {
+          // Map Eve's natural shape ({destination, amount}) to the
+          // executor's wire format ({to, amount, note}). Keeps tool surface
+          // human-readable while the API stays canonical.
+          const splits = (args.splits ?? []).map((s: any) => ({
+            to: s.destination,
+            amount: s.amount,
+            note: s.note ?? args.reference ?? undefined,
+          }))
           const r = await callArena("/payment/route", {
-            amount: args.amount,
-            currency: args.currency ?? "USD",
-            reference: args.reference ?? null,
-            splits: args.splits ?? [],
+            user_id:      USER_ID,
+            provider:     args.provider ?? "stripe",
+            total_amount: args.amount,
+            currency:     args.currency ?? "usd",
+            splits,
           }, "eve")
           return JSON.stringify(r.ok ? { success: true, ...((r.data as object) ?? {}) } : { success: false, error: r.error ?? `arena ${r.status}` })
         }
@@ -354,6 +384,66 @@ export async function POST(req: Request) {
           if (args.action) query = query.eq("action", args.action)
           const { data, error } = await query
           return JSON.stringify(error ? { success: false, error: error.message } : { success: true, entries: data ?? [] })
+        }
+        case "arena_providers": {
+          // Hits arena's /api/health for the registered provider catalog,
+          // then pulls the user's connections from the shared DB. Eve gets
+          // both halves in one tool call: "registered server-side" +
+          // "actually connected for this user."
+          const ARENA_BASE = process.env.ARENA_BASE_URL || "https://arena-web-green.vercel.app"
+          let registered: Array<{ id: string; name: string; methods: string[] }> = []
+          try {
+            const res = await fetch(`${ARENA_BASE}/api/health`, { signal: AbortSignal.timeout(4_000) })
+            if (res.ok) {
+              const json = await res.json() as { providers?: typeof registered }
+              registered = json.providers ?? []
+            }
+          } catch { /* arena down — return empty registered */ }
+          const { data: connections } = await supabase
+            .from("arena_connections")
+            .select("provider, label, status, last_used_at, last_error")
+            .eq("user_id", USER_ID)
+          const byProvider: Record<string, Array<{ label: string | null; status: string; last_used_at: string | null }>> = {}
+          for (const c of connections ?? []) {
+            const p = c.provider as string
+            byProvider[p] = byProvider[p] || []
+            byProvider[p].push({ label: c.label, status: c.status, last_used_at: c.last_used_at })
+          }
+          const providers = registered.map((p) => ({
+            id: p.id,
+            name: p.name,
+            actions: p.methods,
+            connected: (byProvider[p.id]?.length ?? 0) > 0,
+            connections: byProvider[p.id] ?? [],
+          }))
+          return JSON.stringify({ success: true, providers, manage_url: `${ARENA_BASE}/dashboard` })
+        }
+        case "arena_failures": {
+          // Two halves: connections that flipped to errored (the durable
+          // problem), and recent failed action-log rows (the transient
+          // signal). Combined, Eve has a complete "what's broken" picture.
+          const limit = Math.min(Number(args.limit) || 8, 30)
+          const ARENA_BASE = process.env.ARENA_BASE_URL || "https://arena-web-green.vercel.app"
+          const [erroredConnsRes, failedActionsRes] = await Promise.all([
+            supabase
+              .from("arena_connections")
+              .select("provider, label, last_error, last_used_at")
+              .eq("user_id", USER_ID)
+              .eq("status", "errored"),
+            supabase
+              .from("arena_action_log")
+              .select("action, caller, error_msg, created_at")
+              .eq("status", "error")
+              .order("created_at", { ascending: false })
+              .limit(limit),
+          ])
+          return JSON.stringify({
+            success: true,
+            errored_connections: erroredConnsRes.data ?? [],
+            recent_failed_actions: failedActionsRes.data ?? [],
+            manage_url: `${ARENA_BASE}/dashboard`,
+            healthy: (erroredConnsRes.data?.length ?? 0) === 0 && (failedActionsRes.data?.length ?? 0) === 0,
+          })
         }
 
         default:

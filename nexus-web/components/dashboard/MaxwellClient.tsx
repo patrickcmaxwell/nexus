@@ -336,11 +336,15 @@ export default function MaxwellClient({
 
   async function handleDeleteConversation(id: string) {
     if (!confirm("Delete this conversation? This cannot be undone.")) return
-    await fetch("/api/eve/conversations", {
+    const res = await fetch("/api/eve/conversations", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
     })
+    if (!res.ok) {
+      alert("Couldn't delete that conversation. Try again or refresh.")
+      return
+    }
     const remaining = conversations.filter(c => c.id !== id)
     setConversations(remaining)
     if (activeConversationId === id) {
@@ -363,7 +367,12 @@ export default function MaxwellClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: text.slice(0, 60) }),
       })
-      if (!res.ok) return
+      if (!res.ok) {
+        // Restore the user's text so they don't lose what they typed.
+        setInput(text)
+        alert("Couldn't start a new conversation. Check your connection and try again.")
+        return
+      }
       const data = await res.json()
       convId = data.conversation.id
       setConversations(prev => [data.conversation, ...prev])
@@ -1017,7 +1026,7 @@ export default function MaxwellClient({
         )}
 
         {/* Header */}
-        <div className="flex items-center justify-between gap-2 px-3 md:px-5 py-3 border-b border-border flex-shrink-0 bg-background/80 backdrop-blur-sm">
+        <div className="flex items-center justify-between gap-1.5 px-2 md:px-5 py-2 md:py-3 border-b border-border flex-shrink-0 bg-background/80 backdrop-blur-sm">
           {/* Left: Hamburger (mobile) + Eve status */}
           <div className="flex items-center gap-2 md:gap-3 min-w-0">
             {/* Mobile hamburger / sessions toggle */}
@@ -1067,7 +1076,7 @@ export default function MaxwellClient({
                 if (!next) stopEve()
               }}
               title={voiceEnabled ? "Voice on — click to mute Eve" : "Voice off — click to unmute Eve"}
-              className={`relative flex items-center gap-2 px-2.5 md:px-4 py-2 rounded-xl border text-sm font-semibold transition-all duration-200 ${
+              className={`relative flex items-center gap-2 px-2 md:px-4 py-1.5 md:py-2 rounded-xl border text-sm font-semibold transition-all duration-200 ${
                 voiceEnabled
                   ? "bg-nexus-cyan/15 border-nexus-cyan/60 text-nexus-cyan shadow-[0_0_12px_rgba(0,200,255,0.2)]"
                   : "bg-card border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
@@ -1082,7 +1091,7 @@ export default function MaxwellClient({
               <button
                 onClick={stopEve}
                 title="Stop Eve speaking"
-                className="flex items-center gap-2 px-2.5 md:px-4 py-2 rounded-xl border border-red-500/60 bg-red-500/10 text-red-400 text-sm font-semibold hover:bg-red-500/20 transition-all duration-200 animate-pulse"
+                className="flex items-center gap-2 px-2 md:px-4 py-1.5 md:py-2 rounded-xl border border-red-500/60 bg-red-500/10 text-red-400 text-sm font-semibold hover:bg-red-500/20 transition-all duration-200 animate-pulse"
               >
                 <Square size={14} fill="currentColor" />
                 <span className="hidden md:inline">Stop</span>
@@ -1104,7 +1113,7 @@ export default function MaxwellClient({
             <button
               onClick={() => { setShowMemory(!showMemory); if (!showMemory) loadMemories() }}
               title="Memory bank"
-              className={`flex items-center gap-2 px-2.5 md:px-4 py-2 rounded-xl border text-sm font-semibold transition-all duration-200 ${
+              className={`flex items-center gap-2 px-2 md:px-4 py-1.5 md:py-2 rounded-xl border text-sm font-semibold transition-all duration-200 ${
                 showMemory
                   ? "bg-violet-500/15 border-violet-500/50 text-violet-400"
                   : "bg-card border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
@@ -1135,13 +1144,13 @@ export default function MaxwellClient({
         <div className="flex flex-1 overflow-hidden">
           {/* Messages */}
           <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-            <div className="flex-1 overflow-y-auto px-3 md:px-6 py-4 md:py-6">
+            <div className="flex-1 overflow-y-auto px-2 md:px-6 py-3 md:py-6">
               {loadingMessages ? (
                 <div className="flex items-center justify-center h-40">
                   <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
                 </div>
               ) : (
-                <div className="flex flex-col gap-4 md:gap-5 max-w-3xl mx-auto">
+                <div className="flex flex-col gap-3 md:gap-5 max-w-3xl mx-auto">
                   {timeline.map((item) => {
                     // Topic divider
                     if ("_type" in item && item._type === "topic") {
@@ -1213,8 +1222,8 @@ export default function MaxwellClient({
                             </button>
                           )}
                         </div>
-                        <div className={`rounded-2xl px-4 md:px-5 py-3 md:py-3.5 ${isUser
-                          ? "bg-primary/12 border border-primary/20 max-w-[85%] md:max-w-[75%]"
+                        <div className={`rounded-2xl px-3.5 md:px-5 py-2.5 md:py-3.5 ${isUser
+                          ? "bg-primary/12 border border-primary/20 max-w-[92%] md:max-w-[75%]"
                           : "bg-card border border-border w-full"}`}
                         >
                           {isUser ? (
@@ -1279,7 +1288,7 @@ export default function MaxwellClient({
             </div>
 
             {/* ── Input bar ──────────────────────────────────────────────────── */}
-            <div className="px-3 md:px-6 pb-3 md:pb-6 pt-1 flex-shrink-0">
+            <div className="px-2 md:px-6 pb-2 md:pb-6 pt-1 flex-shrink-0">
               <div className="max-w-3xl mx-auto">
                 {/* Transcript pill */}
                 {transcript && (
@@ -1338,7 +1347,7 @@ export default function MaxwellClient({
                   </div>
                 )}
 
-                <div className="flex items-end gap-2 md:gap-3 bg-card border border-border rounded-2xl px-3 md:px-4 py-2.5 md:py-3 focus-within:border-accent/50 focus-within:ring-2 focus-within:ring-accent/20 transition-all">
+                <div className="flex items-end gap-1.5 md:gap-3 bg-card border border-border rounded-2xl px-2.5 md:px-4 py-2 md:py-3 focus-within:border-accent/50 focus-within:ring-2 focus-within:ring-accent/20 transition-all">
                   <MentionInput
                     ref={inputRef}
                     value={input}
@@ -1369,7 +1378,7 @@ export default function MaxwellClient({
                       <button
                         type="button"
                         onClick={() => setShowAddTopic(!showAddTopic)}
-                        className={`w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center transition-all ${showAddTopic ? "bg-accent/20 text-accent" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
+                        className={`w-11 h-11 md:w-10 md:h-10 rounded-xl flex items-center justify-center transition-all ${showAddTopic ? "bg-accent/20 text-accent" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
                         title="Mark topic in conversation"
                       >
                         <Tag size={18} />
@@ -1382,7 +1391,7 @@ export default function MaxwellClient({
                         type="button"
                         onMouseDown={e => e.preventDefault()}
                         onClick={toggleMic}
-                        className={`w-9 h-9 md:w-10 md:h-10 rounded-xl flex items-center justify-center transition-all ${isMicOn
+                        className={`w-11 h-11 md:w-10 md:h-10 rounded-xl flex items-center justify-center transition-all ${isMicOn
                           ? "bg-accent text-accent-foreground shadow-lg shadow-accent/30 scale-105"
                           : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
                         title={isMicOn ? "Stop listening" : "Start voice input"}
@@ -1396,7 +1405,7 @@ export default function MaxwellClient({
                       type="button"
                       onClick={handleSubmit}
                       disabled={isLoading || !input.trim()}
-                      className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-accent text-accent-foreground flex items-center justify-center hover:bg-accent/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-accent/20"
+                      className="w-11 h-11 md:w-10 md:h-10 rounded-xl bg-accent text-accent-foreground flex items-center justify-center hover:bg-accent/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-accent/20"
                       title="Send message"
                     >
                       <Send size={17} />

@@ -6,7 +6,7 @@ import { useState, useEffect } from "react"
 import {
   LayoutDashboard, MessageSquare, Workflow, Bot,
   Map, Users, Brain, LogOut, Palette, X,
-  ChevronRight, Activity, Shield, Globe, Settings,
+  ChevronRight, Activity, Shield, Globe, Settings, Terminal, Zap,
 } from "lucide-react"
 import ThemePicker from "@/components/dashboard/ThemePicker"
 import { useTheme } from "@/hooks/useTheme"
@@ -16,10 +16,12 @@ const NAV = [
   { label: "Eve",        href: "/dashboard/maxwell",    icon: MessageSquare,   shortLabel: "Eve" },
   { label: "Operations", href: "/dashboard/operations", icon: Workflow,        shortLabel: "Ops" },
   { label: "Agents",     href: "/dashboard/agents",     icon: Bot,             shortLabel: "Agents" },
+  { label: "Arena",      href: "/dashboard/arena",      icon: Zap,             shortLabel: "Arena" },
   { label: "Nexus Map",  href: "/dashboard/map",        icon: Map,             shortLabel: "Map" },
   { label: "Humans",     href: "/dashboard/humans",     icon: Users,           shortLabel: "Humans" },
   { label: "Groups",     href: "/dashboard/groups",     icon: Globe,           shortLabel: "Groups" },
   { label: "Directives", href: "/dashboard/directives", icon: Brain,           shortLabel: "Rules" },
+  { label: "Console",    href: "/dashboard/console",    icon: Terminal,        shortLabel: "Console" },
 ]
 
 const MOBILE_NAV = NAV.slice(0, 5)

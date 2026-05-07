@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { sessionCookieOptions } from "@/lib/auth/cookie"
 
 const COOKIE = "nx_session"
 // 14 days — sessions slide on every request so you stay logged in as long as you're active
@@ -69,17 +70,12 @@ export async function updateSession(request: NextRequest) {
       .update({ expires_at: newExpiry, last_verified_at: new Date().toISOString() })
       .eq("id", sessionId)
 
-    // Refresh cookie lifetime so the browser keeps it around.
-    // secure:true silently drops on localhost — env-gate to keep dev usable.
+    // Refresh cookie lifetime so the browser keeps it around. Centralized
+    // options pick up SESSION_COOKIE_DOMAIN for subdomain cookie share.
     const res = NextResponse.next({ request })
-    const isProd = process.env.NODE_ENV === "production"
-    res.cookies.set(COOKIE, sessionId, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: isProd ? "none" : "lax",
-      path: "/",
-      maxAge: SESSION_MINUTES * 60,
-    })
+    res.cookies.set(COOKIE, sessionId, sessionCookieOptions({
+      maxAgeSeconds: SESSION_MINUTES * 60,
+    }))
     return res
   } catch {
     // DB unavailable — allow through, layer below will re-validate.
@@ -121,13 +117,9 @@ export async function createNexusSession(response: NextResponse, userId?: string
     return response
   }
 
-  response.cookies.set(COOKIE, data.id, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "none",
-    path: "/",
-    maxAge: SESSION_MINUTES * 60,
-  })
+  response.cookies.set(COOKIE, data.id, sessionCookieOptions({
+    maxAgeSeconds: SESSION_MINUTES * 60,
+  }))
 
   return response
 }

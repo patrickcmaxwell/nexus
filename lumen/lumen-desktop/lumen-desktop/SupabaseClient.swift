@@ -23,16 +23,21 @@ class SupabaseClient {
 
     // MARK: - Conversations
 
-    func createConversation(title: String, source: String = "lumen") async -> String? {
+    /// Create a conversation. When `explicitId` is passed (the optimistic-
+    /// write path), Postgres uses it as the primary key — same id flows
+    /// through cache, UI, and server, no swap required.
+    func createConversation(title: String, source: String = "lumen", explicitId: String? = nil) async -> String? {
         guard let url = URL(string: "\(rest)/eve_conversations") else { return nil }
         var req = URLRequest(url: url, timeoutInterval: 10)
         req.httpMethod = "POST"
         req.allHTTPHeaderFields = headers(prefer: "return=representation")
-        req.httpBody = try? JSONSerialization.data(withJSONObject: [
+        var payload: [String: Any] = [
             "user_id": userID,
             "title":   title,
             "source":  source,
-        ])
+        ]
+        if let explicitId { payload["id"] = explicitId }
+        req.httpBody = try? JSONSerialization.data(withJSONObject: payload)
         guard let (data, resp) = try? await URLSession.shared.data(for: req),
               let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode),
               let arr  = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],

@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import crypto from "crypto"
+import { sessionCookieOptions } from "@/lib/auth/cookie"
 
 const COOKIE = "nx_session"
 const SESSION_DAYS = 14
@@ -72,15 +73,10 @@ export async function POST(req: NextRequest) {
     displayName: owner.display_name,
     role: owner.role,
   })
-  // secure:true over plain http is silently dropped by browsers, so the
-  // cookie wouldn't survive local dev. Gate by env so localhost works too.
-  const isProd = process.env.NODE_ENV === "production"
-  response.cookies.set(COOKIE, sessionId, {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? "none" : "lax",
-    path: "/",
-    maxAge: SESSION_DAYS * 24 * 60 * 60,
-  })
+  // Centralized cookie config — env-aware + optional SESSION_COOKIE_DOMAIN
+  // for subdomain cookie share with arena.
+  response.cookies.set(COOKIE, sessionId, sessionCookieOptions({
+    maxAgeSeconds: SESSION_DAYS * 24 * 60 * 60,
+  }))
   return response
 }

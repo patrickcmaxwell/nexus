@@ -134,7 +134,13 @@ struct CodePanel: View {
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(.secondary)
                         .frame(width: 28, height: 24)
-                        .background(Color.secondary.opacity(0.08))
+                        .background(
+                            LinearGradient(
+                                colors: [Color.white.opacity(0.12), Color.white.opacity(0.05)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
                 .buttonStyle(.plain)
@@ -211,7 +217,7 @@ struct CodePanel: View {
             .background(LinearGradient(colors: [C.eve.opacity(0.12), C.eve.opacity(0.04)],
                                        startPoint: .leading, endPoint: .trailing))
             .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(C.eve.opacity(0.35), lineWidth: 1))
+            .shadow(color: C.eve.opacity(0.10), radius: 16, y: 8)
         }
         .buttonStyle(.plain)
     }
@@ -236,8 +242,15 @@ struct CodePanel: View {
                                 .font(.system(size: 9)).foregroundColor(C.listen)
                         }
                         .padding(.horizontal, 10).padding(.vertical, 8)
-                        .background(C.surfaceHi.opacity(0.7))
+                        .background(
+                            LinearGradient(
+                                colors: [C.surfaceHi.opacity(0.74), Color.white.opacity(0.10)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
                         .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .shadow(color: Color.black.opacity(0.05), radius: 10, y: 5)
                     }
                     .buttonStyle(.plain)
                 }
@@ -348,10 +361,17 @@ private struct SessionTab: View {
             .help("End this session")
         }
         .padding(.horizontal, 10).padding(.vertical, 5)
-        .background(isActive ? C.eve.opacity(0.16) : C.surfaceHi)
+        .background(
+            LinearGradient(
+                colors: isActive
+                    ? [C.eve.opacity(0.20), Color.white.opacity(0.08)]
+                    : [C.surfaceHi.opacity(0.82), Color.white.opacity(0.08)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
         .clipShape(RoundedRectangle(cornerRadius: 6))
-        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(
-            isActive ? C.eve.opacity(0.4) : C.hairline, lineWidth: 1))
+        .shadow(color: isActive ? C.eve.opacity(0.12) : Color.black.opacity(0.05), radius: isActive ? 12 : 8, y: 5)
         .onTapGesture(perform: onSelect)
     }
 }

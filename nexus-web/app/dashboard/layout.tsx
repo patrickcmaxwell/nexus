@@ -2,6 +2,7 @@ import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar"
 import FloatingEveWrapper from "@/components/dashboard/FloatingEveWrapper"
+import SearchPalette from "@/components/search/SearchPalette"
 import { getSessionMember } from "@/lib/operations/auth"
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -14,9 +15,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   // Get the current team member info for personalization
   const member = await getSessionMember()
-  const displayName = member?.name || "Director"
-  const displayEmail = member?.email || "patrick@talkcircles.com"
-  const memberRole = member?.role || "director"
+  const displayName = member?.name || member?.email?.split("@")[0] || "User"
+  const displayEmail = member?.email || ""
+  const memberRole = member?.role || "observer"
   const memberAvatarUrl = member?.avatarUrl ?? null
 
   return (
@@ -31,6 +32,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
         {children}
       </main>
       <FloatingEveWrapper />
+      {/* Cmd-K palette mounted globally so any dashboard page can search. */}
+      <SearchPalette />
     </div>
   )
 }

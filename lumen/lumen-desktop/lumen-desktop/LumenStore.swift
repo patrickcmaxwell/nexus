@@ -685,6 +685,48 @@ class LumenStore: ObservableObject {
         // Dock badge: show count of active operations + agents so the user
         // sees system pulse at a glance without opening Lumen.
         refreshDockBadge()
+
+        // Mirror dashboard agents/operations into LumenLocalDB so the next
+        // cold start paints from cache instead of waiting on the network.
+        // We piggyback on the existing dashboard fetch — no extra API call.
+        if let rawAgents = json["agents"] as? [[String: Any]] {
+            let cacheAgents: [LumenLocalDB.AgentRow] = rawAgents.compactMap { d in
+                guard let id = d["id"] as? String,
+                      let userId = d["user_id"] as? String,
+                      let name = d["name"] as? String,
+                      let updatedAt = (d["updated_at"] as? String) ?? (d["created_at"] as? String) else { return nil }
+                return LumenLocalDB.AgentRow(
+                    id: id, userId: userId, name: name,
+                    codename: d["codename"] as? String,
+                    role: d["role"] as? String ?? "analyst",
+                    status: d["status"] as? String ?? "standby",
+                    totalFindings: d["total_findings"] as? Int ?? 0,
+                    lastScannedAt: d["last_scanned_at"] as? String,
+                    createdAt: d["created_at"] as? String ?? updatedAt,
+                    updatedAt: updatedAt
+                )
+            }
+            await LumenLocalDB.shared.upsertAgents(cacheAgents)
+        }
+        if let rawOps = json["operations"] as? [[String: Any]] {
+            let cacheOps: [LumenLocalDB.OperationRow] = rawOps.compactMap { d in
+                guard let id = d["id"] as? String,
+                      let userId = d["user_id"] as? String,
+                      let name = d["name"] as? String,
+                      let updatedAt = d["updated_at"] as? String else { return nil }
+                return LumenLocalDB.OperationRow(
+                    id: id, userId: userId, name: name,
+                    codename: d["codename"] as? String,
+                    status: d["status"] as? String ?? "active",
+                    priority: d["priority"] as? String ?? "medium",
+                    description: d["description"] as? String,
+                    directives: d["directives"] as? String,
+                    updatedAt: updatedAt,
+                    createdAt: d["created_at"] as? String ?? updatedAt
+                )
+            }
+            await LumenLocalDB.shared.upsertOperations(cacheOps)
+        }
     }
 
     /// Update the macOS Dock tile badge with the count of active items.
@@ -766,6 +808,37 @@ class LumenStore: ObservableObject {
     }
 
     func fetchOperations() async {
+        // Cache-first paint from LumenLocalDB so the Operations panel never
+        // shows a blank list during the network round-trip. The cached rows
+        // only have the canonical columns (no nested `agents`/`records`),
+        // so we reconstruct the flat dict + structured array from them and
+        // let the remote fetch enrich on top.
+        let cached = await LumenLocalDB.shared.fetchOperations(limit: 200)
+        if !cached.isEmpty && operations.isEmpty {
+            let cachedRaw: [[String: Any]] = cached.map { row in
+                var d: [String: Any] = [
+                    "id": row.id,
+                    "user_id": row.userId,
+                    "name": row.name,
+                    "status": row.status,
+                    "priority": row.priority,
+                    "updated_at": row.updatedAt,
+                    "created_at": row.createdAt,
+                ]
+                if let cn = row.codename { d["codename"] = cn }
+                if let dsc = row.description { d["description"] = dsc }
+                if let dir = row.directives { d["directives"] = dir }
+                return d
+            }
+            operationRecords = Dictionary(
+                uniqueKeysWithValues: cachedRaw.compactMap { dict in
+                    guard let id = dict["id"] as? String else { return nil }
+                    return (id, flatten(dict))
+                }
+            )
+            operations = makeOperations(from: cachedRaw)
+        }
+
         let base = LumenAPIManager.shared.nexusBase
         guard let url = URL(string: "\(base)/api/operations") else { return }
         var req = URLRequest(url: url, timeoutInterval: 15)
@@ -786,6 +859,28 @@ class LumenStore: ObservableObject {
             }
         )
         operations = makeOperations(from: rawOps)
+
+        // Mirror to local cache so the next cold start paints with real data
+        // instead of waiting for the network. We only persist the canonical
+        // columns — nested `records` / `agents` collections live on their
+        // own rows in the cache.
+        let cacheRows: [LumenLocalDB.OperationRow] = rawOps.compactMap { d in
+            guard let id = d["id"] as? String,
+                  let userId = d["user_id"] as? String,
+                  let name = d["name"] as? String,
+                  let updatedAt = d["updated_at"] as? String else { return nil }
+            return LumenLocalDB.OperationRow(
+                id: id, userId: userId, name: name,
+                codename: d["codename"] as? String,
+                status: d["status"] as? String ?? "active",
+                priority: d["priority"] as? String ?? "medium",
+                description: d["description"] as? String,
+                directives: d["directives"] as? String,
+                updatedAt: updatedAt,
+                createdAt: d["created_at"] as? String ?? updatedAt
+            )
+        }
+        await LumenLocalDB.shared.upsertOperations(cacheRows)
     }
 
     private func flattenTopLevel(_ dictionary: [String: Any]) -> [String: [String: String]] {
@@ -893,6 +988,18 @@ class LumenStore: ObservableObject {
     // MARK: - Directives + Memory
 
     func fetchDirectives() async {
+        // Cache-first paint, then refresh from nexus-web. If the network
+        // never responds we keep the cache; the sync engine will refill.
+        let cached = await LumenLocalDB.shared.fetchDirectives()
+        if !cached.isEmpty {
+            directives = cached.map { row in
+                DirectiveItem(
+                    id: row.id, type: row.type, title: row.title, content: row.content,
+                    priority: row.priority, target: row.target ?? "all", isActive: row.isActive
+                )
+            }
+        }
+
         let base = LumenAPIManager.shared.nexusBase
         guard let url = URL(string: "\(base)/api/eve/directives") else { return }
         var req = URLRequest(url: url, timeoutInterval: 10)
@@ -917,9 +1024,39 @@ class LumenStore: ObservableObject {
                 isActive: d["is_active"] as? Bool ?? true
             )
         }
+
+        // Mirror to local cache for next cold start
+        let cacheRows: [LumenLocalDB.DirectiveRow] = raw.compactMap { d in
+            guard let id = d["id"] as? String,
+                  let userId = d["user_id"] as? String,
+                  let type = d["type"] as? String,
+                  let title = d["title"] as? String,
+                  let content = d["content"] as? String,
+                  let updatedAt = d["updated_at"] as? String else { return nil }
+            return LumenLocalDB.DirectiveRow(
+                id: id, userId: userId, type: type, title: title, content: content,
+                isActive: d["is_active"] as? Bool ?? true,
+                priority: d["priority"] as? Int ?? 0,
+                target: d["target"] as? String,
+                updatedAt: updatedAt
+            )
+        }
+        await LumenLocalDB.shared.upsertDirectives(cacheRows)
     }
 
     func fetchMemories() async {
+        // Cache-first paint, then refresh from nexus-web.
+        let cached = await LumenLocalDB.shared.fetchMemories()
+        if !cached.isEmpty {
+            memories = cached.map { row in
+                MemoryItem(
+                    id: row.id, type: row.type, content: row.content,
+                    priority: row.priority, source: row.source ?? "manual",
+                    updatedAt: row.updatedAt
+                )
+            }
+        }
+
         let base = LumenAPIManager.shared.nexusBase
         guard let url = URL(string: "\(base)/api/eve/memory") else { return }
         var req = URLRequest(url: url, timeoutInterval: 10)
@@ -941,6 +1078,23 @@ class LumenStore: ObservableObject {
                 updatedAt: m["updated_at"] as? String ?? ""
             )
         }
+
+        // Mirror to local cache
+        let cacheRows: [LumenLocalDB.MemoryRow] = raw.compactMap { m in
+            guard let id = m["id"] as? String,
+                  let userId = m["user_id"] as? String,
+                  let type = m["type"] as? String,
+                  let content = m["content"] as? String,
+                  let updatedAt = m["updated_at"] as? String else { return nil }
+            return LumenLocalDB.MemoryRow(
+                id: id, userId: userId, type: type, content: content,
+                source: m["source"] as? String,
+                isActive: m["is_active"] as? Bool ?? true,
+                priority: m["priority"] as? Int ?? 5,
+                updatedAt: updatedAt
+            )
+        }
+        await LumenLocalDB.shared.upsertMemories(cacheRows)
     }
 
     // MARK: - Nexus Map (the universe view)
@@ -1275,11 +1429,34 @@ class LumenStore: ObservableObject {
     }
 
     func fetchConversations() async {
+        // Cache-first: paint from LumenLocalDB immediately so the panel
+        // doesn't blank-spinner on every navigation. Then hit nexus-web for
+        // the enriched list (preview + count) and replace if it returns.
+        // If the network is dead we keep the local view and the sync engine
+        // will catch up in the background.
+        let cached = await LumenLocalDB.shared.fetchConversations(limit: 60)
+        if !cached.isEmpty {
+            conversations = cached.map { row in
+                ConversationSummary(
+                    id: row.id,
+                    title: row.title,
+                    source: row.source,
+                    updatedAt: parseTimestamp(row.updatedAt),
+                    preview: row.preview,
+                    messageCount: row.messageCount
+                )
+            }
+        }
+
         // Prefer nexus-web's /api/eve/conversations — returns preview + count.
         // Falls back to direct Supabase REST if nexus-web is unreachable.
         let base = LumenAPIManager.shared.nexusBase
         guard let url = URL(string: "\(base)/api/eve/conversations") else {
-            conversations = await SupabaseClient.shared.fetchConversations()
+            // Network unreachable — keep cached view if we had one, else try
+            // direct Supabase as a last resort.
+            if cached.isEmpty {
+                conversations = await SupabaseClient.shared.fetchConversations()
+            }
             return
         }
         var req = URLRequest(url: url, timeoutInterval: 15)
@@ -1290,38 +1467,100 @@ class LumenStore: ObservableObject {
               let http = response as? HTTPURLResponse, http.statusCode == 200,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let raw = json["conversations"] as? [[String: Any]] else {
-            conversations = await SupabaseClient.shared.fetchConversations()
+            // Remote failed — cached view stays, fall back only when there
+            // was nothing to paint at all.
+            if cached.isEmpty {
+                conversations = await SupabaseClient.shared.fetchConversations()
+            }
             return
         }
-        let isoFull = ISO8601DateFormatter()
-        isoFull.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let isoBasic = ISO8601DateFormatter()
-        conversations = raw.compactMap { d in
+        let fresh: [ConversationSummary] = raw.compactMap { d in
             guard let id = d["id"] as? String,
                   let title = d["title"] as? String else { return nil }
             let upd = d["updated_at"] as? String ?? ""
-            let date = isoFull.date(from: upd) ?? isoBasic.date(from: upd) ?? Date.distantPast
             return ConversationSummary(
                 id: id,
                 title: title,
                 source: d["source"] as? String ?? "lumen",
-                updatedAt: date,
+                updatedAt: parseTimestamp(upd),
                 preview: d["preview"] as? String ?? "",
                 messageCount: d["message_count"] as? Int ?? 0
             )
         }
+        conversations = fresh
+
+        // Mirror enriched rows into the local cache so the next cold start
+        // paints with preview + count, not the bare title-only fallback.
+        let cacheRows: [LumenLocalDB.ConversationRow] = raw.compactMap { d in
+            guard let id = d["id"] as? String,
+                  let title = d["title"] as? String,
+                  let upd = d["updated_at"] as? String else { return nil }
+            return LumenLocalDB.ConversationRow(
+                id: id,
+                userId: "e9d9a15b-0e5a-4631-9b50-6225ee03a44f",
+                title: title,
+                source: d["source"] as? String ?? "lumen",
+                createdAt: d["created_at"] as? String ?? upd,
+                updatedAt: upd,
+                preview: d["preview"] as? String ?? "",
+                messageCount: d["message_count"] as? Int ?? 0
+            )
+        }
+        await LumenLocalDB.shared.upsertConversations(cacheRows)
+    }
+
+    /// Parse a Postgres ISO timestamp (with or without fractional seconds)
+    /// into a Date. Returns distantPast on failure so sort order doesn't blow up.
+    private func parseTimestamp(_ s: String) -> Date {
+        struct F {
+            static let full: ISO8601DateFormatter = {
+                let f = ISO8601DateFormatter()
+                f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                return f
+            }()
+            static let basic = ISO8601DateFormatter()
+        }
+        return F.full.date(from: s) ?? F.basic.date(from: s) ?? Date.distantPast
     }
 
     func loadConversation(id: String, title: String) async {
-        let msgs = await SupabaseClient.shared.fetchMessages(conversationId: id)
+        // Cache-first: paint the previously-cached transcript so the panel
+        // opens instantly even on slow networks. Then re-fetch from Supabase
+        // and replace if it returns. If the network is dead the cached
+        // messages stay — full offline conversation viewing.
         currentConversationId = id
         currentConversationTitle = title
-        messages = msgs
         loadedHistory = []
         loadedHistoryTitle = nil
         lastError = nil
-        titleGenerated = msgs.count >= 6
-        SupabaseClient.shared.cacheSession(conversationId: id, messages: msgs)
+
+        let cached = await LumenLocalDB.shared.fetchMessages(conversationId: id)
+        if !cached.isEmpty {
+            messages = cached.map { row in
+                ChatMessage(role: row.role == "user" ? .user : .assistant, content: row.content)
+            }
+            titleGenerated = cached.count >= 6
+        }
+
+        let msgs = await SupabaseClient.shared.fetchMessages(conversationId: id)
+        if !msgs.isEmpty {
+            messages = msgs
+            titleGenerated = msgs.count >= 6
+            // Mirror to the SQLite cache for next cold open. Single-conversation
+            // overwrite — small enough to be cheap.
+            let rows = msgs.map { msg in
+                LumenLocalDB.MessageRow(
+                    role: msg.role == .user ? "user" : "assistant",
+                    content: msg.content,
+                    createdAt: nil
+                )
+            }
+            await LumenLocalDB.shared.replaceMessages(conversationId: id, messages: rows)
+        }
+
+        // Keep the legacy session_cache.json path alive for the floating
+        // window's "last open" hint until that surface is migrated too.
+        SupabaseClient.shared.cacheSession(conversationId: id, messages: messages)
     }
 
     func clearHistory() {
@@ -1588,17 +1827,61 @@ class LumenStore: ObservableObject {
         }
     }
 
-    // Returns existing conversationId or creates a new one in Supabase
+    // Returns existing conversationId or creates a new one. Optimistic:
+    // the id is generated locally and the conversation lands in the cache
+    // + UI immediately. The server-side create runs in the background; if
+    // it fails, the row is still on the user's machine and the next sync
+    // pass will reconcile.
     private func ensureConversation(firstMessage: String) async -> String {
         if let id = currentConversationId { return id }
 
-        let title  = String(firstMessage.prefix(60))
-        let newId  = await SupabaseClient.shared.createConversation(title: title) ?? UUID().uuidString
+        let title    = String(firstMessage.prefix(60))
+        let newId    = UUID().uuidString.lowercased()
+        let nowIso   = isoNowString()
+        let userId   = "e9d9a15b-0e5a-4631-9b50-6225ee03a44f"  // TODO: pull from active human when Lumen goes multi-user
+
+        // Optimistic local insert — appears in cache immediately so the
+        // conversation list updates without waiting on the network.
+        await LumenLocalDB.shared.upsertConversations([
+            LumenLocalDB.ConversationRow(
+                id: newId, userId: userId, title: title, source: "lumen",
+                createdAt: nowIso, updatedAt: nowIso,
+                preview: "", messageCount: 0
+            )
+        ])
+
         await MainActor.run {
             currentConversationId = newId
             currentConversationTitle = title
+            // Splice into the in-memory list so the UI refreshes without a
+            // full fetchConversations round-trip. Newest first ordering.
+            let summary = ConversationSummary(
+                id: newId, title: title, source: "lumen",
+                updatedAt: Date(), preview: "", messageCount: 0
+            )
+            self.conversations.insert(summary, at: 0)
         }
+
+        // Server-side create in the background. We pass the explicit id so
+        // the server row has the same primary key — no after-the-fact swap.
+        // If the network call fails (offline, server down), flag the row so
+        // LumenSyncEngine retries it on the next pass instead of leaving an
+        // orphan in the local cache that never makes it to Supabase.
+        Task.detached {
+            let result = await SupabaseClient.shared.createConversation(title: title, explicitId: newId)
+            if result == nil {
+                await LumenLocalDB.shared.markConversationPendingSync(id: newId, pending: true)
+            }
+        }
+
         return newId
+    }
+
+    /// Helper for synthesizing ISO timestamps when we mint rows locally.
+    private func isoNowString() -> String {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f.string(from: Date())
     }
 
     // MARK: - Voice

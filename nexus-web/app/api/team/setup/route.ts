@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import crypto from "crypto"
+import { sessionCookieOptions } from "@/lib/auth/cookie"
 
 const COOKIE = "nx_session"
 const SESSION_DAYS = 14
@@ -191,16 +192,9 @@ export async function POST(req: NextRequest) {
     redirect: "/dashboard",
   })
   if (session?.id) {
-    // secure:true over plain http is silently dropped — env-gate so the
-    // freshly-onboarded user actually keeps the session on local dev.
-    const isProd = process.env.NODE_ENV === "production"
-    response.cookies.set(COOKIE, session.id, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: isProd ? "none" : "lax",
-      path: "/",
-      maxAge: SESSION_DAYS * 24 * 60 * 60,
-    })
+    response.cookies.set(COOKIE, session.id, sessionCookieOptions({
+      maxAgeSeconds: SESSION_DAYS * 24 * 60 * 60,
+    }))
   }
   return response
 }

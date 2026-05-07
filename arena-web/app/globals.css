@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+:root {
+  --arena-accent: oklch(0.78 0.18 265);
+  --background: oklch(0.06 0.012 240);
+  --foreground: oklch(0.95 0.005 240);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-feature-settings: "kern", "liga", "ss01";
+}
+
+body {
+  background-image:
+    linear-gradient(to right, color-mix(in oklch, var(--arena-accent) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklch, var(--arena-accent) 6%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+a { color: inherit; text-decoration: none; }
+
+button { font-family: inherit; }

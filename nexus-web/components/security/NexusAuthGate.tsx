@@ -22,6 +22,7 @@ export default function NexusAuthGate() {
   const [passcode, setPasscode] = useState("")
   const [passEmail, setPassEmail] = useState("")
   const [passStatus, setPassStatus] = useState<"idle" | "checking" | "denied">("idle")
+  const [passErrorMsg, setPassErrorMsg] = useState<string>("")
 
   // Live clock for the HUD
   const [time, setTime] = useState("")
@@ -178,15 +179,34 @@ export default function NexusAuthGate() {
           window.location.replace("/dashboard")
         }, 500)
       } else {
+        const data = await res.json().catch(() => ({}))
+        const code = (data?.error as string) || ""
+        setPassErrorMsg(friendlyAuthMessage(code))
         setPassStatus("denied")
         setPasscode("")
-        setTimeout(() => setPassStatus("idle"), 2500)
+        setTimeout(() => { setPassStatus("idle"); setPassErrorMsg("") }, 4500)
       }
     } catch (err) {
       console.error("[v0] Passcode error:", err)
+      setPassErrorMsg("Network error — try again")
       setPassStatus("denied")
       setPasscode("")
-      setTimeout(() => setPassStatus("idle"), 2500)
+      setTimeout(() => { setPassStatus("idle"); setPassErrorMsg("") }, 4500)
+    }
+  }
+
+  /// Map server error code → human message. Lives next to the form because
+  /// the same set of codes lights up the standalone /auth/pin page too.
+  function friendlyAuthMessage(code: string): string {
+    switch (code) {
+      case "UNKNOWN_EMAIL":       return "We don't recognize that email."
+      case "WRONG_PIN":           return "PIN doesn't match. Try again."
+      case "INVITE_NOT_ACCEPTED": return "Your invite hasn't been completed yet — check your email for the setup link."
+      case "ACCOUNT_LOCKED":      return "This account is locked. Contact your owner to unlock."
+      case "ACCOUNT_INACTIVE":    return "This account isn't active. Reach out to your owner."
+      case "IP_BLOCKED":          return "Too many attempts from this IP. Try again later."
+      case "INVALID_PASSPHRASE":  return "Owner passphrase incorrect."
+      default:                    return "Sign-in failed. Try again, or use the recovery link below."
     }
   }
 
@@ -522,9 +542,9 @@ export default function NexusAuthGate() {
                   onFocus={e => { (e.currentTarget as HTMLInputElement).style.borderColor = "oklch(0.75 0.18 200 / 0.6)" }}
                   onBlur={e => { (e.currentTarget as HTMLInputElement).style.borderColor = passStatus === "denied" ? "var(--nexus-danger)" : "oklch(0.75 0.18 200 / 0.25)" }}
                 />
-                {passStatus === "denied" && (
-                  <p className="font-mono text-[9px] tracking-widest uppercase mt-1.5" style={{ color: "var(--nexus-danger)" }}>
-                    Access denied — incorrect passcode
+                {passStatus === "denied" && passErrorMsg && (
+                  <p className="text-xs mt-1.5" style={{ color: "var(--nexus-danger)" }}>
+                    {passErrorMsg}
                   </p>
                 )}
               </div>
@@ -540,6 +560,14 @@ export default function NexusAuthGate() {
                   ? <><Loader2 size={13} className="animate-spin" /> Verifying...</>
                   : <><KeyRound size={13} /> Unlock Nexus</>}
               </button>
+              {/* Recovery link — always visible so users have an out without
+                  having to fail three times to discover the path. */}
+              <a
+                href="/auth/error?code=help"
+                className="font-mono text-[9px] tracking-[0.2em] uppercase text-center text-muted-foreground/55 hover:text-muted-foreground transition-colors mt-1"
+              >
+                I can&apos;t get in →
+              </a>
             </form>
           )}
         </div>

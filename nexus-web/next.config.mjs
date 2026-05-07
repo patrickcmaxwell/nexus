@@ -6,6 +6,9 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // Keep face-api / tfjs / sharp as runtime requires — Turbopack's static
+  // analysis trips on their internal optional deps and inflates the bundle.
+  serverExternalPackages: ["@vladmandic/face-api", "@tensorflow/tfjs", "sharp"],
   async headers() {
     return [
       {

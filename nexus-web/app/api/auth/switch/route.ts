@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { getActiveHuman } from "@/lib/auth/session"
+import { sessionCookieOptions } from "@/lib/auth/cookie"
 import crypto from "crypto"
 
 const COOKIE = "nx_session"
@@ -82,15 +83,8 @@ export async function POST(req: NextRequest) {
     displayName: target.display_name,
     role: target.role,
   })
-  // secure:true over plain http is silently dropped — env-gate so the
-  // switched session actually persists on local dev.
-  const isProd = process.env.NODE_ENV === "production"
-  response.cookies.set(COOKIE, session.id, {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? "none" : "lax",
-    path: "/",
-    maxAge: SESSION_MINUTES * 60,
-  })
+  response.cookies.set(COOKIE, session.id, sessionCookieOptions({
+    maxAgeSeconds: SESSION_MINUTES * 60,
+  }))
   return response
 }

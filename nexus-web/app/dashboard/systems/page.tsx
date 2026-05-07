@@ -56,10 +56,22 @@ export default function SystemsPage() {
   const arcPower = values[6]
 
   return (
-    <div className="p-8 scan-line min-h-screen">
-      <div className="mb-8">
+    <div className="p-4 md:p-8 scan-line min-h-screen">
+      <div className="mb-6 md:mb-8">
         <p className="font-mono text-xs text-muted-foreground mb-1" style={{ fontFamily: "var(--font-orbitron)" }}>{">"} ENGINEERING</p>
-        <h1 className="text-2xl font-bold text-hud-gold tracking-widest" style={{ fontFamily: "var(--font-orbitron)" }}>SYSTEM DIAGNOSTICS</h1>
+        <h1 className="text-xl md:text-2xl font-bold text-hud-gold tracking-widest" style={{ fontFamily: "var(--font-orbitron)" }}>SYSTEM DIAGNOSTICS</h1>
+      </div>
+
+      <div className="hud-border bg-[oklch(0.75_0.18_75/0.06)] p-4 mb-6 flex items-start gap-3">
+        <span className="font-mono text-[10px] text-hud-gold tracking-[0.25em] px-2 py-0.5 border border-[oklch(0.75_0.18_75/0.4)] flex-shrink-0 mt-0.5" style={{ fontFamily: "var(--font-orbitron)" }}>PREVIEW</span>
+        <div>
+          <p className="font-mono text-xs text-foreground leading-relaxed">
+            Demo telemetry — values jitter for show.
+          </p>
+          <p className="font-mono text-[11px] text-muted-foreground leading-relaxed mt-1">
+            Will become real-time health for your Nexus stack — <span className="text-hud-gold">Supabase queries, function p95s, Arena failure rates, sync lag</span>. Replaces the EndpointsHealth widget on /dashboard/console with a richer view.
+          </p>
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6 mb-6">
@@ -82,7 +94,7 @@ export default function SystemsPage() {
         {/* Subsystems */}
         <div className="lg:col-span-2 hud-border bg-card p-6">
           <p className="font-mono text-[10px] text-hud-gold tracking-widest mb-5" style={{ fontFamily: "var(--font-orbitron)" }}>SUBSYSTEM STATUS</p>
-          <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 sm:gap-x-8 gap-y-3">
             {SUBSYSTEMS.map((s, i) => (
               <div key={s.name}>
                 <div className="flex items-center justify-between mb-1">

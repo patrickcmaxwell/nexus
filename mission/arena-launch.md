@@ -1,5 +1,13 @@
 # Arena Launch Plan
 
+> **⚠️ SUPERSEDED 2026-05-07 by `arena-platform.md`.**
+>
+> This document described the original Express-based single-file Arena service at `arena/src/index.ts`. That has been **fully replaced** by a standalone Next.js app at `/code/nexus/arena-web/`, deployed as its own Vercel project. The new design covers all five provider integrations (ClickUp, Notion, GitHub, Stripe, Slack), connection management UI, webhook receiver, audit log, and Eve introspection tools.
+>
+> Read `mission/arena-platform.md` for the current state. This file is preserved for historical context only — most of the launch tracks below have been replaced by completely different solutions.
+
+---
+
 **Created:** 2026-05-04
 **Goal:** Get Arena from "wired but mocked" to "team-usable executor" so Eve can actually create ClickUp tasks, agents have caller-specific identities, and the service lives somewhere durable.
 

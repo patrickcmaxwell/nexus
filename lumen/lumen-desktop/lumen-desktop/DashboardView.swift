@@ -166,8 +166,7 @@ struct DashboardView: View {
                 .foregroundColor(.secondary)
         }
         .padding(.horizontal, 10).padding(.vertical, 6)
-        .background(C.surfaceHi.opacity(0.72))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .background(color.opacity(0.06), in: Capsule())
     }
 
     private func deltaLine(icon: String, color: Color, text: String) -> some View {
@@ -235,8 +234,7 @@ struct DashboardView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(C.surfaceHi.opacity(0.68))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .contentShape(Rectangle())
     }
 
@@ -271,11 +269,7 @@ struct DashboardView: View {
                     .foregroundColor(C.eve.opacity(0.85))
             }
             .padding(14)
-            .background(
-                LinearGradient(colors: [C.eve.opacity(0.12), C.eve.opacity(0.04)],
-                               startPoint: .leading, endPoint: .trailing)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .background(C.eve.opacity(0.06), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .buttonStyle(.plain)
         .keyboardShortcut("n", modifiers: [.command])
@@ -343,18 +337,17 @@ private struct DashboardCard<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
-                Rectangle().fill(accent).frame(width: 3, height: 12)
+                Circle().fill(accent.opacity(0.6)).frame(width: 5, height: 5)
                 Text(title)
                     .font(.system(size: 9.5, weight: .bold, design: .monospaced)).tracking(1.8)
-                    .foregroundColor(.primary.opacity(0.85))
+                    .foregroundColor(.primary.opacity(0.7))
                 Spacer()
                 trailing()
             }
             content()
         }
-        .padding(14)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(C.surface.opacity(0.92))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
