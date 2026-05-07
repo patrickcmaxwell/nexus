@@ -191,10 +191,13 @@ export async function POST(req: NextRequest) {
     redirect: "/dashboard",
   })
   if (session?.id) {
+    // secure:true over plain http is silently dropped — env-gate so the
+    // freshly-onboarded user actually keeps the session on local dev.
+    const isProd = process.env.NODE_ENV === "production"
     response.cookies.set(COOKIE, session.id, {
       httpOnly: true,
-      secure: true,
-      sameSite: "none",
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
       path: "/",
       maxAge: SESSION_DAYS * 24 * 60 * 60,
     })

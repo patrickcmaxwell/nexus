@@ -166,9 +166,8 @@ struct DashboardView: View {
                 .foregroundColor(.secondary)
         }
         .padding(.horizontal, 10).padding(.vertical, 6)
-        .background(C.surfaceHi)
+        .background(C.surfaceHi.opacity(0.72))
         .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(color.opacity(0.18), lineWidth: 1))
     }
 
     private func deltaLine(icon: String, color: Color, text: String) -> some View {
@@ -236,9 +235,8 @@ struct DashboardView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(C.surfaceHi)
+        .background(C.surfaceHi.opacity(0.68))
         .clipShape(RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(C.hairline, lineWidth: 1))
         .contentShape(Rectangle())
     }
 
@@ -278,7 +276,6 @@ struct DashboardView: View {
                                startPoint: .leading, endPoint: .trailing)
             )
             .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(C.eve.opacity(0.35), lineWidth: 1))
         }
         .buttonStyle(.plain)
         .keyboardShortcut("n", modifiers: [.command])
@@ -357,8 +354,7 @@ private struct DashboardCard<Content: View>: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(C.surface)
+        .background(C.surface.opacity(0.92))
         .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(C.hairline, lineWidth: 1))
     }
 }

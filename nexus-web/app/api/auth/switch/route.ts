@@ -82,10 +82,13 @@ export async function POST(req: NextRequest) {
     displayName: target.display_name,
     role: target.role,
   })
+  // secure:true over plain http is silently dropped — env-gate so the
+  // switched session actually persists on local dev.
+  const isProd = process.env.NODE_ENV === "production"
   response.cookies.set(COOKIE, session.id, {
     httpOnly: true,
-    secure: true,
-    sameSite: "none",
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
     path: "/",
     maxAge: SESSION_MINUTES * 60,
   })

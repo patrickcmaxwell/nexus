@@ -1,12 +1,19 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 
 type Stage = "loading_models" | "ready" | "scanning" | "enrolling" | "verifying" | "success" | "failed" | "no_camera"
 
+// Embedded mode (?embedded=1) is for the Lumen desktop WebView wrapper.
+// Strips redundant page chrome (the host card already shows LUMEN branding,
+// "Sign in" headers, etc.) and auto-starts the scan since the user already
+// chose face mode by tapping the FACE toggle. Standalone mode keeps the
+// full-screen HUD layout for direct browser use.
 export default function FacePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const embedded = searchParams.get("embedded") === "1"
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const faceapiRef = useRef<any>(null)
@@ -139,6 +146,15 @@ export default function FacePage() {
     setStatusMsg("CAMERA READY — PRESS SCAN TO VERIFY IDENTITY")
   }
 
+  // Auto-start scan in embedded mode. The user already opted in by selecting
+  // FACE mode in the Lumen desktop wrapper, so requiring a second "INITIATE
+  // SCAN" button click is friction with no protective value.
+  useEffect(() => {
+    if (embedded && stage === "ready") {
+      runScan()
+    }
+  }, [embedded, stage, runScan])
+
   const statusColor =
     stage === "success" ? "text-green-400"
     : stage === "failed" ? "text-hud-red"
@@ -148,20 +164,26 @@ export default function FacePage() {
   const scanning = stage === "scanning" || stage === "verifying" || stage === "enrolling"
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center scan-line">
-      <div className="w-full max-w-md px-6">
+    <div className={
+      embedded
+        ? "min-h-full bg-transparent flex items-center justify-center"
+        : "min-h-screen bg-background flex items-center justify-center scan-line"
+    }>
+      <div className={embedded ? "w-full px-4 py-3" : "w-full max-w-md px-6"}>
 
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="w-12 h-12 hud-border hud-glow-red mx-auto mb-4 flex items-center justify-center">
-            <span className="text-hud-red font-bold text-sm animate-pulse-glow" style={{ fontFamily: "var(--font-orbitron)" }}>MN</span>
+        {/* Header — hidden in embedded mode (host card supplies the branding) */}
+        {!embedded && (
+          <div className="text-center mb-8">
+            <div className="w-12 h-12 hud-border hud-glow-red mx-auto mb-4 flex items-center justify-center">
+              <span className="text-hud-red font-bold text-sm animate-pulse-glow" style={{ fontFamily: "var(--font-orbitron)" }}>MN</span>
+            </div>
+            <p className="font-mono text-[10px] text-muted-foreground tracking-widest mb-1">MAXWELL NEXUS SECURITY</p>
+            <h1 className="text-hud-gold text-xl font-bold tracking-widest" style={{ fontFamily: "var(--font-orbitron)" }}>
+              BIOMETRIC VERIFICATION
+            </h1>
+            <p className="font-mono text-[10px] text-muted-foreground mt-2 tracking-widest">LAYER 2 OF 2 — REQUIRED ON EVERY ENTRY</p>
           </div>
-          <p className="font-mono text-[10px] text-muted-foreground tracking-widest mb-1">MAXWELL NEXUS SECURITY</p>
-          <h1 className="text-hud-gold text-xl font-bold tracking-widest" style={{ fontFamily: "var(--font-orbitron)" }}>
-            BIOMETRIC VERIFICATION
-          </h1>
-          <p className="font-mono text-[10px] text-muted-foreground mt-2 tracking-widest">LAYER 2 OF 2 — REQUIRED ON EVERY ENTRY</p>
-        </div>
+        )}
 
         {/* Model loading progress bar */}
         {stage === "loading_models" && (
@@ -280,11 +302,14 @@ export default function FacePage() {
           )}
         </div>
 
-        <div className="mt-6 text-center">
-          <p className="font-mono text-[9px] text-muted-foreground/50 tracking-widest">
-            FACE SCAN REQUIRED ON EVERY ENTRY · CANNOT BE BYPASSED
-          </p>
-        </div>
+        {/* Footer — hidden in embedded mode for the same reason as the header */}
+        {!embedded && (
+          <div className="mt-6 text-center">
+            <p className="font-mono text-[9px] text-muted-foreground/50 tracking-widest">
+              FACE SCAN REQUIRED ON EVERY ENTRY · CANNOT BE BYPASSED
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )

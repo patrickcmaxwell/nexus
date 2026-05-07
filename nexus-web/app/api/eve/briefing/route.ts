@@ -8,14 +8,15 @@
 // Auth: same as the rest of /api/eve/* — Bearer for desktop, cookie for web.
 
 import { createServiceClient } from "@/lib/supabase/service"
-import { USER_ID } from "@/lib/operations/auth"
+import { getActiveAuthId } from "@/lib/auth/session"
 import { checkDesktopAuth } from "@/lib/desktop-auth"
 import { NextRequest, NextResponse } from "next/server"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(req: NextRequest) {
-  if (!await checkDesktopAuth(req)) {
+  const userId = await getActiveAuthId()
+  if (!userId || !await checkDesktopAuth(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
@@ -43,7 +44,7 @@ export async function GET(req: NextRequest) {
     supabase
       .from("operations")
       .select("id, name, codename, status, priority, created_at")
-      .eq("user_id", USER_ID)
+      .eq("user_id", userId)
       .gte("created_at", since)
       .order("created_at", { ascending: false })
       .limit(20),
@@ -51,7 +52,7 @@ export async function GET(req: NextRequest) {
     supabase
       .from("operations")
       .select("id, name, codename, status, priority, updated_at, created_at")
-      .eq("user_id", USER_ID)
+      .eq("user_id", userId)
       .gte("updated_at", since)
       .lt("created_at", since)
       .order("updated_at", { ascending: false })
@@ -60,7 +61,7 @@ export async function GET(req: NextRequest) {
     supabase
       .from("operation_records")
       .select("id, title, type, priority, operation_id, created_at")
-      .eq("user_id", USER_ID)
+      .eq("user_id", userId)
       .gte("created_at", since)
       .order("created_at", { ascending: false })
       .limit(20),
@@ -68,7 +69,7 @@ export async function GET(req: NextRequest) {
     supabase
       .from("agent_activity")
       .select("id, agent_id, action, summary, created_at")
-      .eq("user_id", USER_ID)
+      .eq("user_id", userId)
       .gte("created_at", since)
       .ilike("action", "%finding%")
       .order("created_at", { ascending: false })
@@ -77,7 +78,7 @@ export async function GET(req: NextRequest) {
     supabase
       .from("research_jobs")
       .select("id, operation_id, model, status, result_summary, completed_at")
-      .eq("user_id", USER_ID)
+      .eq("user_id", userId)
       .gte("completed_at", since)
       .in("status", ["complete", "completed"])
       .order("completed_at", { ascending: false })
@@ -85,19 +86,19 @@ export async function GET(req: NextRequest) {
     // Stats: active ops/agents, totals
     supabase.from("operations")
       .select("id, name, codename, status, priority", { count: "exact" })
-      .eq("user_id", USER_ID)
+      .eq("user_id", userId)
       .eq("status", "active"),
     supabase.from("agents")
       .select("id, name, role, status, total_findings, last_scanned_at", { count: "exact" })
-      .eq("user_id", USER_ID)
+      .eq("user_id", userId)
       .eq("status", "active"),
     supabase.from("eve_directives")
       .select("id", { count: "exact", head: true })
-      .eq("user_id", USER_ID)
+      .eq("user_id", userId)
       .eq("is_active", true),
     supabase.from("eve_memory")
       .select("id", { count: "exact", head: true })
-      .eq("user_id", USER_ID)
+      .eq("user_id", userId)
       .eq("is_active", true),
   ])
 
@@ -114,7 +115,7 @@ export async function GET(req: NextRequest) {
     const { data: agentRows } = await supabase
       .from("agents")
       .select("id, name")
-      .eq("user_id", USER_ID)
+      .eq("user_id", userId)
       .in("id", agentIds)
     for (const a of agentRows ?? []) {
       agentNameById[a.id] = a.name as string
@@ -128,7 +129,7 @@ export async function GET(req: NextRequest) {
     const { data: opRows } = await supabase
       .from("operations")
       .select("id, name, codename")
-      .eq("user_id", USER_ID)
+      .eq("user_id", userId)
       .in("id", opIds)
     for (const o of opRows ?? []) {
       opLabelById[o.id] = (o.codename as string) || (o.name as string)

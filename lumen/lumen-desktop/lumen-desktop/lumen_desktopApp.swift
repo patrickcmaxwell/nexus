@@ -33,7 +33,11 @@ struct LumenApp: App {
         }
         // When the active human flips (login, switch, restore), flush
         // per-user state in the store and refetch under the new cookie.
+        // Also update Eve's system prompt to address the new user by name —
+        // without this Eve would keep saying whatever name was baked in.
         authReg.onActiveHumanChanged = { [weak store] profile in
+            let firstName = profile?.displayName.split(separator: " ").first.map(String.init) ?? "the user"
+            LumenAPIManager.shared.activeUserFirstName = firstName
             // Skip the initial nil → restore case; switching away from a
             // valid user OR switching to a different valid user should both
             // flush. The store's reload guards an empty fetch result.
@@ -65,6 +69,12 @@ struct LumenApp: App {
             }
             .frame(minWidth: 1200, minHeight: 800)
             .task {
+                // Pick localhost vs remote BEFORE any auth/data calls — without
+                // this, every request goes to the default localhost:3000 which
+                // strands the user on a "CONNECTION ERROR" if `next dev` isn't
+                // running.
+                _ = await LumenAPIManager.shared.resolveBaseURL()
+
                 // Restore active session from Keychain BEFORE startup runs —
                 // startup uses the cookie for its initial fetches.
                 if await authRegistry.restoreActiveSession() {

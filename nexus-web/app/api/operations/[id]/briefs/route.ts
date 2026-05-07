@@ -2,7 +2,7 @@ export const maxDuration = 60
 
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/service"
-import { USER_ID } from "@/lib/operations/auth"
+import { getActiveAuthId } from "@/lib/auth/session"
 import { checkDesktopAuth } from "@/lib/desktop-auth"
 import {
   formatRecordsForPrompt,
@@ -25,14 +25,15 @@ const TASKS: Record<string, string> = {
 
 // GET — fetch all existing briefs for this operation
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await checkDesktopAuth(req))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const userId = await getActiveAuthId()
+  if (!userId || !(await checkDesktopAuth(req))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { id } = await params
   const supabase = createServiceClient()
   const { data, error } = await supabase
     .from("operation_briefs")
     .select("id, kind, content, generated_at")
     .eq("operation_id", id)
-    .eq("user_id", USER_ID)
+    .eq("user_id", userId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   const byKind = Object.fromEntries((data ?? []).map(b => [b.kind, b]))
   return NextResponse.json(byKind)
@@ -69,7 +70,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
 // DELETE — clear a brief (body: { kind })
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await checkDesktopAuth(req))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const userId = await getActiveAuthId()
+  if (!userId || !(await checkDesktopAuth(req))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { id } = await params
   const { kind } = await req.json()
   if (!KINDS.has(kind)) return NextResponse.json({ error: "invalid kind" }, { status: 400 })
@@ -78,7 +80,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     .from("operation_briefs")
     .delete()
     .eq("operation_id", id)
-    .eq("user_id", USER_ID)
+    .eq("user_id", userId)
     .eq("kind", kind)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })

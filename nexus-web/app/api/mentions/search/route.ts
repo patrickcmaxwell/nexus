@@ -2,7 +2,7 @@ export const runtime = "nodejs"
 
 import { NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/service"
-import { USER_ID } from "@/lib/operations/auth"
+import { getActiveAuthId } from "@/lib/auth/session"
 import type { MentionResult, MentionType } from "@/lib/mentions/types"
 
 // GET /api/mentions/search?q=arco&types=operation,record,conversation,topic,agent
@@ -12,6 +12,9 @@ import type { MentionResult, MentionType } from "@/lib/mentions/types"
 // type. If `q` is empty we still return recent items per type so the picker
 // is immediately useful when the user first hits `@`.
 export async function GET(req: Request) {
+  const userId = await getActiveAuthId()
+  if (!userId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+
   const url = new URL(req.url)
   const q = (url.searchParams.get("q") ?? "").trim()
   const typesParam = url.searchParams.get("types")
@@ -29,7 +32,7 @@ export async function GET(req: Request) {
   async function searchOperations(): Promise<MentionResult[]> {
     let qb = supabase.from("operations")
       .select("id, name, codename, status, updated_at")
-      .eq("user_id", USER_ID)
+      .eq("user_id", userId)
       .order("updated_at", { ascending: false }).limit(PER_TYPE)
     if (q) qb = qb.or(`name.ilike.%${q}%,codename.ilike.%${q}%`)
     const { data } = await qb
@@ -44,7 +47,7 @@ export async function GET(req: Request) {
   async function searchRecords(): Promise<MentionResult[]> {
     let qb = supabase.from("operation_records")
       .select("id, title, type, operation_id, updated_at, operations!inner(name, codename)")
-      .eq("user_id", USER_ID).eq("archived", false)
+      .eq("user_id", userId).eq("archived", false)
       .order("updated_at", { ascending: false }).limit(PER_TYPE)
     if (q) qb = qb.ilike("title", `%${q}%`)
     const { data } = await qb
@@ -63,7 +66,7 @@ export async function GET(req: Request) {
   async function searchConversations(): Promise<MentionResult[]> {
     let qb = supabase.from("eve_conversations")
       .select("id, title, updated_at")
-      .eq("user_id", USER_ID)
+      .eq("user_id", userId)
       .order("updated_at", { ascending: false }).limit(PER_TYPE)
     if (q) qb = qb.ilike("title", `%${q}%`)
     const { data } = await qb
@@ -77,7 +80,7 @@ export async function GET(req: Request) {
   async function searchTopics(): Promise<MentionResult[]> {
     let qb = supabase.from("eve_topics")
       .select("id, label, description, color, created_at, eve_conversations!inner(title)")
-      .eq("user_id", USER_ID)
+      .eq("user_id", userId)
       .order("created_at", { ascending: false }).limit(PER_TYPE)
     if (q) qb = qb.ilike("label", `%${q}%`)
     const { data } = await qb
@@ -96,7 +99,7 @@ export async function GET(req: Request) {
   async function searchAgents(): Promise<MentionResult[]> {
     let qb = supabase.from("agents")
       .select("id, name, codename, role, status, created_at")
-      .eq("user_id", USER_ID)
+      .eq("user_id", userId)
       .order("created_at", { ascending: false }).limit(PER_TYPE)
     if (q) qb = qb.or(`name.ilike.%${q}%,codename.ilike.%${q}%,role.ilike.%${q}%`)
     const { data } = await qb

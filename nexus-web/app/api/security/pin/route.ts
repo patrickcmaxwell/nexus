@@ -92,10 +92,15 @@ export async function POST(req: NextRequest) {
     path: "/",
     maxAge,
   })
+  // Cookie security must be env-aware. `secure:true` over plain http
+  // (localhost dev) is silently rejected by browsers, so PIN auth would
+  // succeed server-side but the cookie never lands in the client. Lax in
+  // dev, strict-cross-origin (none) only when actually on https.
+  const isProd = process.env.NODE_ENV === "production"
   response.cookies.set("nx_session", sessionId, {
     httpOnly: true,
-    secure: true,
-    sameSite: "none",
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
     path: "/",
     maxAge: 14 * 24 * 60 * 60,
   })

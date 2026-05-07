@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/service"
-import { USER_ID } from "@/lib/operations/auth"
+import { getActiveAuthId, getActiveHuman } from "@/lib/auth/session"
 import { NextResponse } from "next/server"
 
 export const dynamic = "force-dynamic"
@@ -19,6 +19,10 @@ type ActivityItem = {
 }
 
 export async function GET() {
+  const me = await getActiveHuman()
+  if (!me?.authId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+  const userId = me.authId
+  const userFirstName = (me.displayName ?? "").split(/\s+/)[0] || "there"
   const supabase = createServiceClient()
 
   const [
@@ -36,17 +40,17 @@ export async function GET() {
     arenaRes,
   ] = await Promise.all([
     // Counts
-    supabase.from("eve_conversations").select("id", { count: "exact", head: true }).eq("user_id", USER_ID),
-    supabase.from("eve_memory").select("id", { count: "exact", head: true }).eq("user_id", USER_ID).eq("is_active", true),
-    supabase.from("operations").select("id, name, status, priority, codename, updated_at").eq("user_id", USER_ID).order("updated_at", { ascending: false }),
-    supabase.from("agents").select("id, name, role, status, last_scanned_at, total_findings").eq("user_id", USER_ID).order("created_at", { ascending: false }),
-    supabase.from("operation_records").select("id", { count: "exact", head: true }).eq("user_id", USER_ID).is("archived_at", null),
+    supabase.from("eve_conversations").select("id", { count: "exact", head: true }).eq("user_id", userId),
+    supabase.from("eve_memory").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("is_active", true),
+    supabase.from("operations").select("id, name, status, priority, codename, updated_at").eq("user_id", userId).order("updated_at", { ascending: false }),
+    supabase.from("agents").select("id, name, role, status, last_scanned_at, total_findings").eq("user_id", userId).order("created_at", { ascending: false }),
+    supabase.from("operation_records").select("id", { count: "exact", head: true }).eq("user_id", userId).is("archived_at", null),
 
     // Active research (queued + running)
     supabase
       .from("research_jobs")
       .select("id, operation_id, record_id, model, status, prompt, progress_note, findings_count, started_at, created_at")
-      .eq("user_id", USER_ID)
+      .eq("user_id", userId)
       .in("status", ["queued", "running"])
       .order("created_at", { ascending: false })
       .limit(8),
@@ -55,7 +59,7 @@ export async function GET() {
     supabase
       .from("research_jobs")
       .select("id, operation_id, record_id, model, status, prompt, result_summary, findings_count, completed_at")
-      .eq("user_id", USER_ID)
+      .eq("user_id", userId)
       .in("status", ["complete", "completed", "failed"])
       .order("completed_at", { ascending: false })
       .limit(8),
@@ -64,7 +68,7 @@ export async function GET() {
     supabase
       .from("operation_records")
       .select("id, operation_id, title, type, status, priority, pinned, updated_at")
-      .eq("user_id", USER_ID)
+      .eq("user_id", userId)
       .is("archived_at", null)
       .or("pinned.eq.true,priority.in.(high,critical)")
       .order("pinned", { ascending: false })
@@ -75,7 +79,7 @@ export async function GET() {
     supabase
       .from("operation_briefs")
       .select("id, operation_id, kind, content, generated_at")
-      .eq("user_id", USER_ID)
+      .eq("user_id", userId)
       .in("kind", ["actions", "next_steps"])
       .order("generated_at", { ascending: false })
       .limit(6),
@@ -84,7 +88,7 @@ export async function GET() {
     supabase
       .from("operation_records")
       .select("id, operation_id, title, type, created_at")
-      .eq("user_id", USER_ID)
+      .eq("user_id", userId)
       .is("archived_at", null)
       .order("created_at", { ascending: false })
       .limit(8),
@@ -93,7 +97,7 @@ export async function GET() {
     supabase
       .from("eve_conversations")
       .select("id, title, updated_at, created_at")
-      .eq("user_id", USER_ID)
+      .eq("user_id", userId)
       .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
@@ -214,7 +218,7 @@ export async function GET() {
   const { data: recentConvs } = await supabase
     .from("eve_conversations")
     .select("id, title, updated_at")
-    .eq("user_id", USER_ID)
+    .eq("user_id", userId)
     .order("updated_at", { ascending: false })
     .limit(4)
   for (const c of recentConvs ?? []) {
@@ -239,7 +243,7 @@ export async function GET() {
   const highCount = pinnedRecords.filter(r => !r.pinned).length
   const activeOps = operations.filter(o => o.status === "active").length
 
-  const parts: string[] = [`Good ${period}, sir.`]
+  const parts: string[] = [`Good ${period}, ${userFirstName}.`]
   if (activeCount > 0) {
     parts.push(`${activeCount} research ${activeCount === 1 ? "job" : "jobs"} in progress.`)
   }

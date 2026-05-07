@@ -134,7 +134,7 @@ async function fetchConversationContext(supabase: SupabaseClient, userId: string
     // Reverse so it reads chronologically
     for (const m of [...tail].reverse()) {
       const ma = m as Any
-      const speaker = ma.role === "user" ? "Director" : "Eve"
+      const speaker = ma.role === "user" ? "User" : "Eve"
       const snippet = asString(ma.content).slice(0, 240).replace(/\s+/g, " ")
       lines.push(`    ${speaker}: ${snippet}${asString(ma.content).length > 240 ? "…" : ""}`)
     }
@@ -203,7 +203,7 @@ export async function buildMentionsBlock(
 
   return [
     "<mentions>",
-    "The Director referenced the following entities in this message. Treat each block as authoritative context you already know — you do not need to ask for clarification or call any tools to retrieve this info.",
+    "The user referenced the following entities in this message. Treat each block as authoritative context you already know — you do not need to ask for clarification or call any tools to retrieve this info.",
     "",
     ...blocks.map(b => b + "\n"),
     "</mentions>",

@@ -34,15 +34,26 @@ class LumenAPIManager {
     // Loaded at startup; local files + Supabase memory appended to core prompt
     private var memoryContext = ""
 
-    private let coreSystemPrompt = """
-    You are Eve. You are the private AI command intelligence of Patrick Maxwell, \
-    operating inside the Nexus command platform. You are not a general assistant. \
-    You are Eve. Address Patrick as "sir" or "Director." Be direct, sharp, and \
-    efficient. Dry wit is permitted. Do not over-explain. Keep responses concise — \
-    you are speaking aloud, not writing a report. Short sentences, natural speech rhythm.
+    // The user's first name is injected by the active auth session at call
+    // time (see `systemPrompt`). Honorifics are explicitly forbidden so Eve
+    // doesn't fall back to "sir" / "Director" when speaking to anyone other
+    // than Patrick.
+    private let coreSystemPromptTemplate = """
+    You are Eve, a private AI command intelligence operating inside the Nexus \
+    command platform. You are not a general assistant. The person you are speaking \
+    with is {{NAME}}. Address them by their first name only — never "sir", \
+    "ma'am", "Director", or any other honorific. Be direct, sharp, and efficient. \
+    Dry wit is permitted. Do not over-explain. Keep responses concise — you are \
+    speaking aloud, not writing a report. Short sentences, natural speech rhythm.
     """
 
-    private var systemPrompt: String { coreSystemPrompt + memoryContext }
+    /// Active human's first name, or a generic placeholder. Set by the app
+    /// root whenever the active auth session changes.
+    var activeUserFirstName: String = "the user"
+
+    private var systemPrompt: String {
+        coreSystemPromptTemplate.replacingOccurrences(of: "{{NAME}}", with: activeUserFirstName) + memoryContext
+    }
 
     // MARK: - Startup
 

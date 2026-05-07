@@ -72,10 +72,13 @@ export async function POST(req: NextRequest) {
     displayName: owner.display_name,
     role: owner.role,
   })
+  // secure:true over plain http is silently dropped by browsers, so the
+  // cookie wouldn't survive local dev. Gate by env so localhost works too.
+  const isProd = process.env.NODE_ENV === "production"
   response.cookies.set(COOKIE, sessionId, {
     httpOnly: true,
-    secure: true,
-    sameSite: "none",
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
     path: "/",
     maxAge: SESSION_DAYS * 24 * 60 * 60,
   })

@@ -1,27 +1,28 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/service"
-import { isAuthed, USER_ID } from "@/lib/operations/auth"
+import { getActiveAuthId } from "@/lib/auth/session"
 
 // GET — single record with children (nested research) and any source context
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await isAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const userId = await getActiveAuthId()
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { id } = await params
   const supabase = createServiceClient()
 
   const [{ data: record, error }, { data: children }, { data: research }] = await Promise.all([
-    supabase.from("operation_records").select("*").eq("id", id).eq("user_id", USER_ID).single(),
+    supabase.from("operation_records").select("*").eq("id", id).eq("user_id", userId).single(),
     supabase
       .from("operation_records")
       .select("id, title, type, content, created_at, status, pinned")
       .eq("parent_record_id", id)
-      .eq("user_id", USER_ID)
+      .eq("user_id", userId)
       .is("archived_at", null)
       .order("created_at", { ascending: true }),
     supabase
       .from("research_jobs")
       .select("id, status, prompt, model, started_at, completed_at, error, progress_note")
       .eq("record_id", id)
-      .eq("user_id", USER_ID)
+      .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(1),
   ])
@@ -36,7 +37,8 @@ const ALLOWED_FIELDS = new Set([
 ])
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await isAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const userId = await getActiveAuthId()
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { id } = await params
   const body = await req.json()
 
@@ -53,7 +55,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .from("operation_records")
     .update(update)
     .eq("id", id)
-    .eq("user_id", USER_ID)
+    .eq("user_id", userId)
     .select()
     .single()
 
@@ -63,14 +65,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 // DELETE — hard delete. For soft-delete, PATCH archived_at instead.
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await isAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const userId = await getActiveAuthId()
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { id } = await params
   const supabase = createServiceClient()
   const { error } = await supabase
     .from("operation_records")
     .delete()
     .eq("id", id)
-    .eq("user_id", USER_ID)
+    .eq("user_id", userId)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
 }

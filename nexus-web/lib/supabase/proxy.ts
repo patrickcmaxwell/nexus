@@ -70,11 +70,13 @@ export async function updateSession(request: NextRequest) {
       .eq("id", sessionId)
 
     // Refresh cookie lifetime so the browser keeps it around.
+    // secure:true silently drops on localhost — env-gate to keep dev usable.
     const res = NextResponse.next({ request })
+    const isProd = process.env.NODE_ENV === "production"
     res.cookies.set(COOKIE, sessionId, {
       httpOnly: true,
-      secure: true,
-      sameSite: "none",
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
       path: "/",
       maxAge: SESSION_MINUTES * 60,
     })
@@ -94,10 +96,17 @@ export async function createNexusSession(response: NextResponse, userId?: string
   const now = new Date().toISOString()
   const expiresAt = new Date(Date.now() + SESSION_MINUTES * 60 * 1000).toISOString()
 
+  // Refuse to create a session without an explicit user_id. The legacy
+  // `?? "director"` fallback predated multi-user and would have silently
+  // attached fresh sessions to nobody.
+  if (!userId) {
+    console.error("[nexus] createNexusSession called without userId")
+    return response
+  }
   const { data, error } = await supabase
     .from("security_sessions")
     .insert({
-      user_id: userId ?? "director",
+      user_id: userId,
       created_at: now,
       last_verified_at: now,
       expires_at: expiresAt,

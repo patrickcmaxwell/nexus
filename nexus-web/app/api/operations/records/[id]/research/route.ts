@@ -3,19 +3,20 @@ export const maxDuration = 300 // background work can run up to 5 min
 import { NextRequest, NextResponse } from "next/server"
 import { after } from "next/server"
 import { createServiceClient } from "@/lib/supabase/service"
-import { isAuthed, USER_ID } from "@/lib/operations/auth"
+import { getActiveAuthId } from "@/lib/auth/session"
 import { runResearchJob } from "@/lib/operations/research-runner"
 
 // GET — list research jobs for this record (most recent first)
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await isAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const userId = await getActiveAuthId()
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { id } = await params
   const supabase = createServiceClient()
   const { data, error } = await supabase
     .from("research_jobs")
     .select("*")
     .eq("record_id", id)
-    .eq("user_id", USER_ID)
+    .eq("user_id", userId)
     .order("created_at", { ascending: false })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data ?? [])
@@ -24,7 +25,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 // POST — kick off a new research job. Returns immediately; Eve works in the
 // background via Next.js `after()`.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await isAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const userId = await getActiveAuthId()
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { id } = await params
   const { prompt, model } = await req.json().catch(() => ({}))
 
@@ -35,7 +37,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .from("operation_records")
     .select("id, operation_id")
     .eq("id", id)
-    .eq("user_id", USER_ID)
+    .eq("user_id", userId)
     .single()
 
   if (!parent) return NextResponse.json({ error: "Record not found" }, { status: 404 })
@@ -46,7 +48,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .from("research_jobs")
     .select("id")
     .eq("record_id", id)
-    .eq("user_id", USER_ID)
+    .eq("user_id", userId)
     .in("status", ["queued", "running"])
     .limit(1)
 
@@ -59,7 +61,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .insert({
       record_id: id,
       operation_id: parent.operation_id,
-      user_id: USER_ID,
+      user_id: userId,
       status: "queued",
       prompt: prompt ?? null,
       model: model ?? "grok-4-fast-reasoning",

@@ -9,7 +9,7 @@ import { extractMentions } from "@/lib/mentions/parse"
 import { buildMentionsBlock } from "@/lib/mentions/context"
 import OpenAI from "openai"
 
-import { getActiveAuthId } from "@/lib/auth/session"
+import { getActiveAuthId, getActiveHuman } from "@/lib/auth/session"
 
 async function checkAuth(req: Request) {
   const supabase = createServiceClient()
@@ -31,8 +31,12 @@ async function checkAuth(req: Request) {
 // of directives and lose track of the user's actual message. Identity +
 // memory bank only; no tool-calling instructions, since this endpoint
 // does not run the tool loop.
-function buildLocalPrompt(memories: Array<{ type: string; content: string; priority: number }>): string {
-  const base = `You are Eve, the private AI command intelligence of Patrick Maxwell, operating inside the Nexus command platform. Address Patrick as "sir" or "Director." Be direct, sharp, and efficient. Dry wit is permitted. Do not over-explain. Keep responses short — you are speaking aloud, not writing a report.`
+function buildLocalPrompt(
+  memories: Array<{ type: string; content: string; priority: number }>,
+  userName: string = "the user"
+): string {
+  const firstName = userName.split(/\s+/)[0] || userName
+  const base = `You are Eve, a private AI command intelligence operating inside the Nexus command platform. The person you are speaking with is ${firstName}. Address them by their first name only — never use "sir", "ma'am", "Director", or any honorific. Be direct, sharp, and efficient. Dry wit is permitted. Do not over-explain. Keep responses short — you are speaking aloud, not writing a report.`
   if (!memories.length) return base
   const top = memories.slice(0, 12).map(m => `- ${m.content}`).join("\n")
   return `${base}\n\nMEMORY BANK (treat as ground truth):\n${top}`
@@ -65,7 +69,8 @@ export async function POST(req: Request) {
     .order("priority", { ascending: false })
     .limit(40)
 
-  let systemPrompt = buildLocalPrompt(memories ?? [])
+  const me = await getActiveHuman()
+  let systemPrompt = buildLocalPrompt(memories ?? [], me?.displayName ?? "the user")
 
   // Resolve @[label](type:id) tokens in the user message into a context block
   // (same behavior as /api/eve) so the local model can ground references to

@@ -59,6 +59,16 @@ struct MainView: View {
     @State private var showLauncher = false
     @State private var activePanel: PanelType = .none
     @State private var lmStatus: LMStatus = .checking
+    @SceneStorage("lumen.shell.canvasWidth") private var canvasWidth: Double = 430
+    @SceneStorage("lumen.shell.canvasCollapsed") private var canvasCollapsed = false
+    @SceneStorage("lumen.shell.canvasTakeover") private var canvasTakeover = false
+    @SceneStorage("lumen.shell.quickChatVisible") private var quickChatVisible = false
+    @SceneStorage("lumen.shell.quickChatWidth") private var quickChatWidth: Double = 560
+    @SceneStorage("lumen.shell.quickChatHeight") private var quickChatHeight: Double = 430
+    @SceneStorage("lumen.shell.quickChatExpanded") private var quickChatExpanded = false
+    @State private var railHovered = false
+    @State private var railPinned = false
+    @State private var railCollapseWorkItem: DispatchWorkItem?
 
     static func panelFor(mentionType type: String) -> PanelType {
         switch type {
@@ -105,26 +115,29 @@ struct MainView: View {
     }
 
     var body: some View {
-        NavigationSplitView {
-            SidebarNav(
-                store: store,
-                auth: auth,
-                lmStatus: lmStatus,
-                activePanel: $activePanel
-            )
-            .navigationSplitViewColumnWidth(min: 220, ideal: 244, max: 300)
-        } detail: {
-            DetailContainer(
+        ZStack {
+            BackgroundLayer()
+
+            WorkspaceRootShell(
                 activePanel: $activePanel,
                 store: store,
                 auth: auth,
                 lmStatus: lmStatus,
                 inputText: $inputText,
                 inputFocused: $inputFocused,
+                canvasWidth: $canvasWidth,
+                canvasCollapsed: $canvasCollapsed,
+                canvasTakeover: $canvasTakeover,
+                quickChatVisible: $quickChatVisible,
+                quickChatWidth: $quickChatWidth,
+                quickChatHeight: $quickChatHeight,
+                quickChatExpanded: $quickChatExpanded,
+                railHovered: $railHovered,
+                railPinned: $railPinned,
+                onRailHoverChanged: updateRailHover,
                 onSubmit: submitInput
             )
         }
-        .navigationSplitViewStyle(.balanced)
         .overlay {
             if store.commandPaletteVisible {
                 CommandPaletteOverlay(activePanel: $activePanel)
@@ -189,6 +202,958 @@ struct MainView: View {
         } catch {
             lmStatus = .offline
         }
+    }
+
+    private func updateRailHover(_ isHovering: Bool) {
+        railCollapseWorkItem?.cancel()
+        if isHovering {
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.9, blendDuration: 0.18)) {
+                railHovered = true
+            }
+            return
+        }
+
+        let work = DispatchWorkItem {
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.92, blendDuration: 0.16)) {
+                railHovered = false
+            }
+        }
+        railCollapseWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.14, execute: work)
+    }
+}
+
+struct WorkspaceRootShell: View {
+    @Binding var activePanel: MainView.PanelType
+    @ObservedObject var store: LumenStore
+    let auth: AuthManager
+    let lmStatus: MainView.LMStatus
+    @Binding var inputText: String
+    @FocusState.Binding var inputFocused: Bool
+    @Binding var canvasWidth: Double
+    @Binding var canvasCollapsed: Bool
+    @Binding var canvasTakeover: Bool
+    @Binding var quickChatVisible: Bool
+    @Binding var quickChatWidth: Double
+    @Binding var quickChatHeight: Double
+    @Binding var quickChatExpanded: Bool
+    @Binding var railHovered: Bool
+    @Binding var railPinned: Bool
+    let onRailHoverChanged: (Bool) -> Void
+    let onSubmit: () -> Void
+
+    @Environment(\.openWindow) private var openWindow
+
+    private var railExpanded: Bool { railPinned || railHovered }
+    private var hasConversationWindow: Bool { store.currentConversationId != nil }
+    private var showingWorkspacePanel: Bool { activePanel != .none }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let availableWidth = proxy.size.width - (railExpanded ? 252 : 130)
+            let clampedWidth = max(360, min(CGFloat(canvasWidth), max(availableWidth * 0.7, 420)))
+            let canvasVisible = !canvasCollapsed
+            let assistantWidth = max(360, min(CGFloat(canvasWidth), 520))
+            let quickWidth = quickChatExpanded
+                ? min(max(proxy.size.width * 0.72, 760), proxy.size.width - 72)
+                : min(max(CGFloat(quickChatWidth), 420), min(proxy.size.width - 32, 920))
+            let quickHeight = quickChatExpanded
+                ? min(max(proxy.size.height * 0.82, 520), proxy.size.height - 44)
+                : min(max(CGFloat(quickChatHeight), 320), min(proxy.size.height - 28, 760))
+
+            HStack(spacing: 18) {
+                CommandRail(
+                    activePanel: $activePanel,
+                    store: store,
+                    expanded: railExpanded,
+                    pinned: $railPinned,
+                    onToggleCanvas: {
+                        if showingWorkspacePanel {
+                            if canvasCollapsed {
+                                quickChatVisible.toggle()
+                            } else {
+                                withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+                                    canvasCollapsed = true
+                                    quickChatVisible = false
+                                }
+                            }
+                        } else if canvasCollapsed {
+                            canvasCollapsed = false
+                        } else {
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+                                canvasCollapsed = true
+                            }
+                        }
+                    }
+                )
+                .frame(width: railExpanded ? 196 : 74)
+                .animation(.spring(response: 0.42, dampingFraction: 0.9, blendDuration: 0.18), value: railExpanded)
+                .onHover(perform: onRailHoverChanged)
+
+                VStack(spacing: 14) {
+                    WorkspaceHeader(
+                        store: store,
+                        activePanel: $activePanel,
+                        canvasCollapsed: $canvasCollapsed,
+                        canvasTakeover: $canvasTakeover,
+                        quickChatVisible: $quickChatVisible,
+                        hasConversationWindow: hasConversationWindow,
+                        onOpenConversationWindow: openConversationWindow
+                    )
+
+                    HStack(spacing: 16) {
+                        primarySurface
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .layoutPriority(1)
+
+                        if !showingWorkspacePanel && canvasVisible {
+                            CanvasResizeHandle(width: $canvasWidth)
+                            AdaptiveCanvasSurface(
+                                activePanel: $activePanel,
+                                store: store,
+                                auth: auth,
+                                inputText: $inputText,
+                                inputFocused: $inputFocused,
+                                onSubmit: onSubmit
+                            )
+                            .frame(width: canvasTakeover ? max(clampedWidth, availableWidth * 0.56) : clampedWidth)
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                        } else if showingWorkspacePanel && canvasVisible {
+                            CanvasResizeHandle(width: $canvasWidth)
+                            AssistantDrawer(
+                                store: store,
+                                inputText: $inputText,
+                                inputFocused: $inputFocused,
+                                expanded: $canvasTakeover,
+                                onSubmit: onSubmit,
+                                onPopOut: openConversationWindow,
+                                onClose: {
+                                    withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+                                        canvasCollapsed = true
+                                    }
+                                }
+                            )
+                            .frame(width: assistantWidth)
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
+            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
+            .overlay(alignment: .bottomTrailing) {
+                if showingWorkspacePanel && canvasCollapsed {
+                    if quickChatVisible {
+                        QuickChatOverlay(
+                            store: store,
+                            inputText: $inputText,
+                            inputFocused: $inputFocused,
+                            width: $quickChatWidth,
+                            height: $quickChatHeight,
+                            expanded: $quickChatExpanded,
+                            onSubmit: onSubmit,
+                            onPopOut: openConversationWindow,
+                            onClose: { quickChatVisible = false }
+                        )
+                        .frame(width: quickWidth, height: quickHeight)
+                        .padding(.trailing, 18)
+                        .padding(.bottom, 18)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    } else {
+                        Button(action: {
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+                                quickChatVisible = true
+                            }
+                        }) {
+                            HStack(spacing: 10) {
+                                Image(systemName: "message.fill")
+                                    .font(.system(size: 12, weight: .semibold))
+                                Text("Open Chat")
+                                    .font(.system(size: 11, weight: .semibold))
+                            }
+                            .foregroundStyle(C.eve)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(.ultraThinMaterial, in: Capsule())
+                            .overlay(
+                                Capsule()
+                                    .strokeBorder(C.eve.opacity(0.18), lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.trailing, 18)
+                        .padding(.bottom, 18)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var primarySurface: some View {
+        Group {
+            if showingWorkspacePanel {
+                WorkspacePanelSurface(
+                    activePanel: $activePanel,
+                    store: store,
+                    auth: auth
+                )
+            } else {
+                if store.viewMode == .dashboard {
+                    DashboardView(
+                        store: store,
+                        auth: auth,
+                        lmStatus: lmStatus,
+                        inputText: $inputText,
+                        inputFocused: $inputFocused
+                    )
+                } else {
+                    LiveThreadView(
+                        store: store,
+                        inputText: $inputText,
+                        inputFocused: $inputFocused,
+                        onSubmit: onSubmit
+                    )
+                }
+            }
+        }
+        .background(WorkspaceSurfaceCard(material: .ultraThinMaterial, cornerRadius: 28))
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+    }
+
+    private func popOutActivePanel() {
+        guard activePanel != .none else { return }
+        openWindow(id: "panel", value: activePanel)
+    }
+
+    private func openConversationWindow() {
+        guard let cid = store.currentConversationId else { return }
+        openWindow(id: "conversation-detail", value: cid)
+    }
+}
+
+private struct WorkspaceHeader: View {
+    @ObservedObject var store: LumenStore
+    @Binding var activePanel: MainView.PanelType
+    @Binding var canvasCollapsed: Bool
+    @Binding var canvasTakeover: Bool
+    @Binding var quickChatVisible: Bool
+    let hasConversationWindow: Bool
+    let onOpenConversationWindow: () -> Void
+
+    private var eyebrow: String {
+        activePanel == .none ? (store.viewMode == .dashboard ? "MISSION CONTROL" : "LIVE CHAT") : activePanel.title.uppercased()
+    }
+
+    private var title: String {
+        if activePanel != .none {
+            return activePanel.title
+        }
+        if store.viewMode == .dashboard {
+            return "Nexus Workspace"
+        }
+        return store.currentConversationTitle ?? "Live Session"
+    }
+
+    private var detail: String {
+        if activePanel != .none {
+            return "This workspace owns the main window. Keep chat docked, hide it, or pop it up from the bottom when you need Eve."
+        }
+        if store.viewMode == .dashboard {
+            return "Overview first. Open datasets and companion workspaces as needed."
+        }
+        return "Chat remains primary while the canvas can inspect operations, code, files, and system surfaces."
+    }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 16) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text(eyebrow)
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundStyle(C.eve.opacity(0.9))
+                    .tracking(2.8)
+                Text(title)
+                    .font(.system(size: 24, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.primary.opacity(0.94))
+                Text(detail)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 12)
+
+            HStack(spacing: 10) {
+                EveStatusToolbar(store: store)
+                if hasConversationWindow {
+                    WorkspaceHeaderButton(icon: "rectangle.on.rectangle", label: "Pop Out Chat", tint: C.eve, action: onOpenConversationWindow)
+                }
+                WorkspaceHeaderButton(
+                    icon: canvasCollapsed ? "sidebar.right" : "sidebar.right",
+                    label: activePanel == .none
+                        ? (canvasCollapsed ? "Show Canvas" : "Hide Canvas")
+                        : (canvasCollapsed ? "Quick Chat" : "Hide Chat"),
+                    tint: C.listen,
+                    action: {
+                        if activePanel == .none {
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+                                canvasCollapsed.toggle()
+                                if canvasCollapsed {
+                                    canvasTakeover = false
+                                }
+                            }
+                        } else if canvasCollapsed {
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+                                quickChatVisible.toggle()
+                            }
+                        } else {
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+                                canvasCollapsed = true
+                            }
+                        }
+                    }
+                )
+                if !canvasCollapsed && activePanel == .none {
+                    WorkspaceHeaderButton(
+                        icon: canvasTakeover ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right",
+                        label: canvasTakeover ? "Balanced View" : "Canvas Takeover",
+                        tint: C.think,
+                        action: {
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+                                canvasTakeover.toggle()
+                            }
+                        }
+                    )
+                }
+                UserAvatarMenu()
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .background(WorkspaceSurfaceCard(material: .thinMaterial, cornerRadius: 22))
+    }
+}
+
+private struct CommandRail: View {
+    @Binding var activePanel: MainView.PanelType
+    @ObservedObject var store: LumenStore
+    let expanded: Bool
+    @Binding var pinned: Bool
+    let onToggleCanvas: () -> Void
+    @Environment(\.openWindow) private var openWindow
+    @EnvironmentObject var apps: LumenAppRegistry
+
+    var body: some View {
+        VStack(spacing: 12) {
+            VStack(spacing: 10) {
+                Button(action: { pinned.toggle() }) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(C.eve.opacity(0.12))
+                        Image(systemName: pinned ? "pin.fill" : "sparkles")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(C.eve)
+                    }
+                    .frame(width: 42, height: 42)
+                }
+                .buttonStyle(.plain)
+                .help(pinned ? "Unpin command rail" : "Pin command rail open")
+
+                Text("NEXUS")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundStyle(C.eve.opacity(0.88))
+                    .tracking(3)
+                    .frame(height: 14)
+                    .opacity(expanded ? 1 : 0)
+                    .offset(y: expanded ? 0 : -6)
+                    .blur(radius: expanded ? 0 : 2)
+            }
+
+            VStack(spacing: 8) {
+                railButton(.none, label: "Live", icon: "waveform.circle.fill", tint: C.eve)
+                railButton(.operations, label: "Operations", icon: "bolt.circle.fill", tint: C.think, badge: store.operations.count)
+                railButton(.agents, label: "Agents", icon: "person.3.fill", tint: C.listen, badge: store.agents.count)
+                railButton(.chats, label: "Chats", icon: "bubble.left.and.bubble.right.fill", tint: C.eve, badge: store.conversations.count)
+                railButton(.code, label: "Code", icon: "terminal.fill", tint: apps.runningCodeCount > 0 ? C.listen : C.eve, badge: apps.runningCodeCount > 0 ? apps.runningCodeCount : nil)
+                railButton(.files, label: "Files", icon: "folder.fill", tint: C.eve)
+                railButton(.nexusMap, label: "Map", icon: "globe", tint: C.eve)
+            }
+
+            Spacer(minLength: 0)
+
+            VStack(spacing: 8) {
+                Button(action: onToggleCanvas) {
+                    RailCapsule(icon: "sidebar.trailing", label: "Canvas", tint: C.listen, isSelected: false, expanded: expanded)
+                }
+                .buttonStyle(.plain)
+                .help("Toggle adaptive canvas")
+
+                railButton(.system, label: "System", icon: "cpu.fill", tint: C.listen)
+                railButton(.settings, label: "Settings", icon: "gearshape.fill", tint: C.think)
+            }
+        }
+        .padding(.horizontal, expanded ? 14 : 10)
+        .padding(.vertical, 16)
+        .background(WorkspaceSurfaceCard(material: .ultraThinMaterial, cornerRadius: 26))
+        .animation(.spring(response: 0.42, dampingFraction: 0.9, blendDuration: 0.18), value: expanded)
+    }
+
+    private func railButton(_ panel: MainView.PanelType, label: String, icon: String, tint: Color, badge: Int? = nil) -> some View {
+        Button(action: {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) {
+                if panel == .none {
+                    activePanel = .none
+                } else {
+                    activePanel = activePanel == panel ? .none : panel
+                }
+            }
+        }) {
+            RailCapsule(
+                icon: icon,
+                label: label,
+                tint: tint,
+                isSelected: activePanel == panel || (panel == .none && activePanel == .none),
+                badge: badge,
+                expanded: expanded
+            )
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            Button("Open in New Window") {
+                openWindow(id: "panel", value: panel)
+            }
+        }
+        .help(label)
+    }
+}
+
+private struct RailCapsule: View {
+    let icon: String
+    let label: String
+    let tint: Color
+    let isSelected: Bool
+    var badge: Int? = nil
+    var expanded: Bool = false
+
+    var body: some View {
+        HStack(spacing: expanded ? 10 : 0) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(isSelected ? tint.opacity(0.18) : Color.white.opacity(0.02))
+                    .frame(width: 34, height: 34)
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(isSelected ? tint : .secondary)
+            }
+
+            Text(label)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.primary.opacity(0.88))
+                .lineLimit(1)
+                .opacity(expanded ? 1 : 0)
+                .offset(x: expanded ? 0 : -8)
+                .frame(maxWidth: expanded ? .infinity : 0, alignment: .leading)
+                .clipped()
+
+            if expanded {
+                Spacer(minLength: 0)
+            }
+
+            if let badge, badge > 0 {
+                Text("\(badge)")
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(isSelected ? tint : .secondary)
+                    .opacity(expanded ? 1 : 0)
+                    .offset(x: expanded ? 0 : -6)
+            }
+        }
+        .padding(.horizontal, expanded ? 10 : 0)
+        .frame(height: 42)
+        .frame(maxWidth: .infinity, alignment: expanded ? .leading : .center)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(isSelected ? Color.white.opacity(0.06) : Color.clear)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(isSelected ? tint.opacity(0.28) : Color.white.opacity(0.04), lineWidth: 1)
+        )
+        .animation(.spring(response: 0.38, dampingFraction: 0.9, blendDuration: 0.14), value: expanded)
+    }
+}
+
+private struct SoftRowSurface: ViewModifier {
+    let isSelected: Bool
+    let isHovered: Bool
+    let accent: Color
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(isSelected ? accent.opacity(0.12) : (isHovered ? Color.white.opacity(0.05) : Color.white.opacity(0.025)))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(isSelected ? accent.opacity(0.16) : Color.clear, lineWidth: 1)
+            )
+            .shadow(
+                color: isSelected ? accent.opacity(0.12) : Color.black.opacity(isHovered ? 0.06 : 0.035),
+                radius: isSelected ? 18 : (isHovered ? 14 : 8),
+                y: isSelected ? 10 : 6
+            )
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+    }
+}
+
+private extension View {
+    func softRowSurface(isSelected: Bool, isHovered: Bool, accent: Color) -> some View {
+        modifier(SoftRowSurface(isSelected: isSelected, isHovered: isHovered, accent: accent))
+    }
+}
+
+private struct AdaptiveCanvasSurface: View {
+    @Binding var activePanel: MainView.PanelType
+    @ObservedObject var store: LumenStore
+    let auth: AuthManager
+    @Binding var inputText: String
+    @FocusState.Binding var inputFocused: Bool
+    let onSubmit: () -> Void
+
+    var body: some View {
+        ContextualCanvasView(activePanel: $activePanel, store: store)
+        .background(WorkspaceSurfaceCard(material: .ultraThinMaterial, cornerRadius: 28))
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+    }
+}
+
+private struct WorkspacePanelSurface: View {
+    @Binding var activePanel: MainView.PanelType
+    @ObservedObject var store: LumenStore
+    let auth: AuthManager
+
+    var body: some View {
+        Group {
+            switch activePanel {
+            case .none:
+                EmptyView()
+            case .chats:
+                ChatsPanel(store: store) { activePanel = .none }
+            case .agents:
+                AgentPanel(store: store) { activePanel = .none }
+            case .operations:
+                OpsPanel2(store: store) { activePanel = .none }
+            case .directives:
+                DirectivesPanel(store: store) { activePanel = .none }
+            case .memory:
+                MemoryPanel(store: store) { activePanel = .none }
+            case .nexusMap:
+                NexusMapView(store: store)
+            case .files:
+                FilesPanel(store: store) { activePanel = .none }
+            case .code:
+                CodePanel(store: store) { activePanel = .none }
+            case .system:
+                SystemPanel(store: store) { activePanel = .none }
+            case .settings:
+                SettingsPanel(store: store, auth: auth) { activePanel = .none }
+            }
+        }
+    }
+}
+
+private struct AssistantDrawer: View {
+    @ObservedObject var store: LumenStore
+    @Binding var inputText: String
+    @FocusState.Binding var inputFocused: Bool
+    @Binding var expanded: Bool
+    let onSubmit: () -> Void
+    let onPopOut: () -> Void
+    let onClose: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                Text("ASSISTANT")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundStyle(C.eve.opacity(0.88))
+                    .tracking(2)
+                Spacer()
+                WorkspaceHeaderButton(
+                    icon: expanded ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right",
+                    label: expanded ? "Standard" : "Expand",
+                    tint: C.listen
+                ) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.88)) {
+                        expanded.toggle()
+                    }
+                }
+                WorkspaceHeaderButton(icon: "rectangle.on.rectangle", label: "Pop Out", tint: C.eve, action: onPopOut)
+                WorkspaceHeaderButton(icon: "xmark", label: "Hide", tint: .secondary, action: onClose)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(Color.white.opacity(0.03))
+
+            LiveThreadView(
+                store: store,
+                inputText: $inputText,
+                inputFocused: $inputFocused,
+                onSubmit: onSubmit
+            )
+        }
+        .background(WorkspaceSurfaceCard(material: .ultraThinMaterial, cornerRadius: 28))
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+    }
+}
+
+private struct QuickChatOverlay: View {
+    @ObservedObject var store: LumenStore
+    @Binding var inputText: String
+    @FocusState.Binding var inputFocused: Bool
+    @Binding var width: Double
+    @Binding var height: Double
+    @Binding var expanded: Bool
+    let onSubmit: () -> Void
+    let onPopOut: () -> Void
+    let onClose: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("EVE")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .foregroundStyle(C.eve.opacity(0.88))
+                        .tracking(2)
+                    Text(expanded ? "Expanded quick chat" : "Bottom assistant window")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button(action: toggleExpanded) {
+                    Image(systemName: expanded ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(C.listen)
+                        .frame(width: 28, height: 28)
+                        .background(Color.white.opacity(0.04), in: Circle())
+                }
+                .buttonStyle(.plain)
+                Button(action: onPopOut) {
+                    Image(systemName: "rectangle.on.rectangle")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(C.eve)
+                        .frame(width: 28, height: 28)
+                        .background(Color.white.opacity(0.04), in: Circle())
+                }
+                .buttonStyle(.plain)
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 28, height: 28)
+                        .background(Color.white.opacity(0.04), in: Circle())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(Color.white.opacity(0.03))
+
+            LiveThreadView(
+                store: store,
+                inputText: $inputText,
+                inputFocused: $inputFocused,
+                onSubmit: onSubmit
+            )
+
+            HStack {
+                Text(expanded ? "Expanded" : "Drag to resize")
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .tracking(1.2)
+                Spacer()
+                QuickChatResizeHandle(width: $width, height: $height, isExpanded: expanded)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(Color.white.opacity(0.025))
+        }
+        .background(WorkspaceSurfaceCard(material: .ultraThinMaterial, cornerRadius: 24))
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .shadow(color: .black.opacity(0.22), radius: 28, y: 12)
+        .onAppear {
+            if width < 420 { width = 560 }
+            if height < 320 { height = 430 }
+        }
+    }
+
+    private func toggleExpanded() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) {
+            expanded.toggle()
+        }
+    }
+}
+
+private struct ContextualCanvasView: View {
+    @Binding var activePanel: MainView.PanelType
+    @ObservedObject var store: LumenStore
+    @EnvironmentObject var apps: LumenAppRegistry
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(store.viewMode == .dashboard ? "ADAPTIVE CANVAS" : "LIVE CONTEXT")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .foregroundStyle(C.eve.opacity(0.88))
+                        .tracking(2.5)
+                    Text(store.viewMode == .dashboard ? "Overview with fast pivots into the active workspace." : "Conversation-linked surfaces stay one action away.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                }
+
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    CanvasMetricCard(title: "Operations", value: "\(store.operations.count)", detail: "Open the full operations dataset", tint: C.think) { activePanel = .operations }
+                    CanvasMetricCard(title: "Agents", value: "\(store.agents.count)", detail: "Inspect active and standby units", tint: C.listen) { activePanel = .agents }
+                    CanvasMetricCard(title: "Code", value: apps.runningCodeCount > 0 ? "\(apps.runningCodeCount)" : "Ready", detail: "Claude Code sessions and companion workspaces", tint: apps.runningCodeCount > 0 ? C.listen : C.eve) { activePanel = .code }
+                    CanvasMetricCard(title: "Files", value: "Local", detail: "Evaluate source files and folders", tint: C.eve) { activePanel = .files }
+                }
+
+                ContextFocusCard(
+                    title: store.currentConversationTitle ?? "No active thread",
+                    subtitle: store.viewMode == .dashboard
+                        ? "Start a live conversation and the canvas will pivot to the related operation, code session, or dataset."
+                        : "Keep chat primary, then open related operations, code, files, or chats without losing the current thread.",
+                    primaryLabel: "Open Conversations",
+                    primaryAction: { activePanel = .chats },
+                    secondaryLabel: "Open System",
+                    secondaryAction: { activePanel = .system }
+                )
+
+                if let latest = store.messages.last {
+                    ContextDataCard(title: "Latest Exchange", accent: C.eve) {
+                        Text(latest.content)
+                            .font(.system(size: 13))
+                            .foregroundStyle(.primary.opacity(0.86))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .textSelection(.enabled)
+                            .lineLimit(8)
+                    }
+                }
+            }
+            .padding(20)
+        }
+    }
+}
+
+private struct CanvasMetricCard: View {
+    let title: String
+    let value: String
+    let detail: String
+    let tint: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(title.uppercased())
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .tracking(1.8)
+                    Spacer()
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(tint)
+                }
+                Text(value)
+                    .font(.system(size: 24, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.primary.opacity(0.92))
+                Text(detail)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.leading)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color.white.opacity(0.04))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(tint.opacity(0.16), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct ContextFocusCard: View {
+    let title: String
+    let subtitle: String
+    let primaryLabel: String
+    let primaryAction: () -> Void
+    let secondaryLabel: String
+    let secondaryAction: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("CURRENT FOCUS")
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .foregroundStyle(C.eve.opacity(0.88))
+                .tracking(2)
+            Text(title)
+                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                .foregroundStyle(.primary.opacity(0.9))
+            Text(subtitle)
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 10) {
+                PanelActionButton(label: primaryLabel.uppercased(), color: C.eve, disabled: false, action: primaryAction)
+                PanelActionButton(label: secondaryLabel.uppercased(), color: C.listen, disabled: false, action: secondaryAction)
+            }
+        }
+        .padding(18)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color.white.opacity(0.035))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.06), lineWidth: 1)
+        )
+    }
+}
+
+private struct ContextDataCard<Content: View>: View {
+    let title: String
+    let accent: Color
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Circle().fill(accent).frame(width: 7, height: 7)
+                Text(title.uppercased())
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .tracking(1.8)
+            }
+            content
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color.white.opacity(0.03))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.05), lineWidth: 1)
+        )
+    }
+}
+
+private struct CanvasResizeHandle: View {
+    @Binding var width: Double
+
+    var body: some View {
+        Capsule()
+            .fill(Color.white.opacity(0.08))
+            .frame(width: 6)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 2)
+                    .onChanged { value in
+                        width = max(360, min(900, width - Double(value.translation.width)))
+                    }
+            )
+            .overlay(
+                Capsule()
+                    .fill(C.eve.opacity(0.22))
+                    .frame(width: 2)
+            )
+    }
+}
+
+private struct QuickChatResizeHandle: View {
+    @Binding var width: Double
+    @Binding var height: Double
+    let isExpanded: Bool
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(isExpanded ? .secondary.opacity(0.4) : C.eve.opacity(0.82))
+        }
+        .frame(width: 28, height: 28)
+        .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.05), lineWidth: 1)
+        )
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(minimumDistance: 2)
+                .onChanged { value in
+                    guard !isExpanded else { return }
+                    width = max(420, min(920, width + Double(value.translation.width)))
+                    height = max(320, min(760, height - Double(value.translation.height)))
+                }
+        )
+    }
+}
+
+private struct WorkspaceHeaderButton: View {
+    let icon: String
+    let label: String
+    let tint: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 7) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(label)
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .foregroundStyle(tint)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.white.opacity(0.04))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(tint.opacity(0.16), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct WorkspaceSurfaceCard: View {
+    let material: Material
+    let cornerRadius: CGFloat
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(material)
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.06), lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.18), radius: 24, y: 12)
     }
 }
 
@@ -425,7 +1390,7 @@ private struct UserAvatarMenu: View {
                     // Director PIN/face into a different account. The prior
                     // session stays in Keychain so they can switch back later.
                     Task { @MainActor in
-                        await auth.signOut()
+                        auth.signOut()
                     }
                 } label: {
                     Label("Add Another User", systemImage: "person.badge.plus")
@@ -582,7 +1547,6 @@ struct LiveThreadView: View {
     var body: some View {
         VStack(spacing: 0) {
             ConversationThread(store: store)
-            Divider()
             ComposerBar(
                 text: $inputText,
                 inputFocused: $inputFocused,
@@ -591,19 +1555,133 @@ struct LiveThreadView: View {
             )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            LinearGradient(
+                colors: [Color.white.opacity(0.02), Color.clear],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
     }
 }
 
 // MARK: - Composer bar (inline, dock at bottom of conversation pane)
+
+private enum ComposerMode: String, CaseIterable, Identifiable {
+    case smart
+    case markdown
+    case code
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .smart: return "Smart"
+        case .markdown: return "Markdown"
+        case .code: return "Code"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .smart: return "sparkles"
+        case .markdown: return "text.alignleft"
+        case .code: return "curlybraces"
+        }
+    }
+}
 
 struct ComposerBar: View {
     @Binding var text: String
     @FocusState.Binding var inputFocused: Bool
     @ObservedObject var store: LumenStore
     let onSubmit: () -> Void
+    @SceneStorage("lumen.chat.composerMode") private var composerModeRaw = ComposerMode.smart.rawValue
+
+    private var composerMode: ComposerMode {
+        get { ComposerMode(rawValue: composerModeRaw) ?? .smart }
+        nonmutating set { composerModeRaw = newValue.rawValue }
+    }
+
+    private var detectedContentLabel: String? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if trimmed.contains("```") || trimmed.contains("func ") || trimmed.contains("class ") || trimmed.contains("import ") {
+            return "Code detected"
+        }
+        if trimmed.contains("# ") || trimmed.contains("- ") || trimmed.contains("* ") || trimmed.contains("[") && trimmed.contains("](") {
+            return "Markdown detected"
+        }
+        return nil
+    }
+
+    private var composerPlaceholder: String {
+        switch composerMode {
+        case .smart:
+            return "Send a directive…  (⇧↩ for newline)"
+        case .markdown:
+            return "Write in Markdown…  headings, bullets, links, @operations"
+        case .code:
+            return "Paste code or a technical prompt…  use ``` for blocks"
+        }
+    }
 
     var body: some View {
         VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                ForEach(ComposerMode.allCases) { mode in
+                    Button {
+                        withAnimation(.spring(response: 0.24, dampingFraction: 0.88)) {
+                            composerMode = mode
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: mode.icon)
+                                .font(.system(size: 11, weight: .semibold))
+                            Text(mode.title.uppercased())
+                                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                .tracking(1.2)
+                        }
+                        .foregroundStyle(composerMode == mode ? .white : .secondary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 7)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(composerMode == mode ? C.eve.opacity(0.88) : Color.white.opacity(0.04))
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Spacer()
+
+                if let detectedContentLabel {
+                    Text(detectedContentLabel.uppercased())
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .foregroundStyle(C.listen.opacity(0.88))
+                        .tracking(1.4)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 7)
+                        .background(
+                            Capsule()
+                                .fill(C.listen.opacity(0.1))
+                        )
+                }
+            }
+            .frame(maxWidth: 760)
+
+            HStack(spacing: 8) {
+                MentionShortcutChip(label: "@ops") { insertShortcut("@operations ") }
+                MentionShortcutChip(label: "@agents") { insertShortcut("@agents ") }
+                MentionShortcutChip(label: "@team") { insertShortcut("@team ") }
+                MentionShortcutChip(label: "`code`") { insertShortcut("```\n\n```") }
+                Spacer()
+                Text("Mentions and formatting stay copyable in-thread.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: 760)
+
             if !store.pendingImages.isEmpty {
                 HStack(spacing: 8) {
                     Image(systemName: "photo.on.rectangle")
@@ -617,6 +1695,7 @@ struct ComposerBar: View {
                         .controlSize(.small)
                 }
                 .padding(.horizontal, 14)
+                .frame(maxWidth: 760)
             }
 
             // Reply preview chip — appears when the Director picks "Reply"
@@ -624,7 +1703,7 @@ struct ComposerBar: View {
             // and dismisses on click of the X.
             if let target = store.replyTarget {
                 replyChip(target: target)
-                    .padding(.horizontal, 14)
+                    .frame(maxWidth: 760)
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
 
@@ -639,6 +1718,8 @@ struct ComposerBar: View {
                 }
                 .buttonStyle(.plain)
                 .help(store.fluidListening ? "Stop listening" : "Start listening")
+                .frame(width: 34, height: 34)
+                .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
                 Button(action: pickImage) {
                     Image(systemName: store.pendingImages.isEmpty ? "photo" : "photo.fill")
@@ -649,16 +1730,23 @@ struct ComposerBar: View {
                 }
                 .buttonStyle(.plain)
                 .help("Attach image")
+                .frame(width: 34, height: 34)
+                .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
                 ChatComposerField(
                     text: $text,
-                    placeholder: "Send a directive…  (⇧↩ for newline)",
+                    placeholder: composerPlaceholder,
                     minHeight: 22,
-                    maxHeight: 160,
+                    maxHeight: composerMode == .code ? 220 : 150,
                     onSubmit: onSubmit
                 )
                 .frame(minHeight: 22)
                 .padding(.vertical, 4)
+                .padding(.horizontal, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color.white.opacity(0.035))
+                )
 
                 if store.eveStatus == .speaking {
                     Button(action: { store.voice.stopSpeaking(); store.eveStatus = .idle }) {
@@ -683,10 +1771,17 @@ struct ComposerBar: View {
                 }
             }
             .padding(.horizontal, 14)
-            .padding(.vertical, 8)
+            .padding(.vertical, 10)
+            .frame(maxWidth: 760)
+            .background(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(Color.white.opacity(0.025))
+            )
         }
-        .padding(.vertical, 8)
-        .background(.bar)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 12)
+        .background(.ultraThinMaterial)
+        .frame(maxWidth: .infinity)
         .onDrop(of: [.image, .fileURL], isTargeted: nil) { providers in
             for provider in providers {
                 if provider.canLoadObject(ofClass: NSImage.self) {
@@ -734,6 +1829,23 @@ struct ComposerBar: View {
         }
     }
 
+    private func insertShortcut(_ insertion: String) {
+        if insertion == "```\n\n```" {
+            if text.isEmpty {
+                text = insertion
+            } else {
+                text += "\n" + insertion
+            }
+            return
+        }
+
+        if text.isEmpty || text.hasSuffix(" ") || text.hasSuffix("\n") {
+            text += insertion
+        } else {
+            text += " " + insertion
+        }
+    }
+
     /// Pinned-quote chip rendered above the composer when the Director has
     /// chosen to reply to an Eve message. The composer's submit path consumes
     /// `store.replyTarget` and prepends a quoted blockquote to the outgoing
@@ -761,10 +1873,33 @@ struct ComposerBar: View {
             .buttonStyle(.plain)
             .help("Cancel reply")
         }
-        .padding(8)
-        .background(C.surfaceHi)
+        .padding(10)
+        .background(C.surfaceHi.opacity(0.72))
         .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(C.eve.opacity(0.25), lineWidth: 1))
+    }
+}
+
+private struct MentionShortcutChip: View {
+    let label: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .foregroundStyle(C.eve.opacity(0.88))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule()
+                        .fill(C.eve.opacity(0.08))
+                )
+                .overlay(
+                    Capsule()
+                        .strokeBorder(C.eve.opacity(0.12), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -1524,10 +2659,6 @@ struct ConversationThread: View {
         }
     }
 
-    /// Persisted toggle — Director can hide the right command-rail when
-    /// they want a chat-only view without losing the new layout entirely.
-    @AppStorage("lumen.commandCenter.railVisible") private var railVisible: Bool = true
-
     /// Quick-view sheet target. When set, an overlay sheet slides in over
     /// the chat (without dismissing it) showing the entity's detail.
     enum QuickView: Identifiable, Hashable {
@@ -1546,7 +2677,6 @@ struct ConversationThread: View {
 
     var body: some View {
         ZStack {
-        HStack(spacing: 0) {
         VStack(spacing: 0) {
             liveThreadHeader
             if searchActive { searchBar }
@@ -1614,7 +2744,7 @@ struct ConversationThread: View {
                         Color.clear.frame(height: 8).id("bottom")
                     }
                     .padding(.horizontal, 24)
-                    .padding(.vertical, 18)
+                    .padding(.vertical, 24)
                     .frame(maxWidth: 820, alignment: .leading)
                     .frame(maxWidth: .infinity)
                     .animation(.spring(response: 0.28, dampingFraction: 0.8), value: displayMessages.count)
@@ -1660,43 +2790,13 @@ struct ConversationThread: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .toolbar {
-            if let cid = store.currentConversationId {
-                ToolbarItem(placement: .primaryAction) {
-                    Button(action: { openWindow(id: "conversation-detail", value: cid) }) {
-                        Label("Pop Out", systemImage: "rectangle.on.rectangle")
-                    }
-                    .help("Open this thread in its own window")
-                }
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Button(action: { withAnimation(.easeInOut(duration: 0.25)) { railVisible.toggle() } }) {
-                    Label(railVisible ? "Hide Rail" : "Show Rail", systemImage: railVisible ? "sidebar.right" : "sidebar.right")
-                }
-                .help("Toggle the command-center rail")
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Button(action: { store.newConversation() }) {
-                    Label("New Thread", systemImage: "plus.bubble")
-                }
-                .help("Start a fresh conversation")
-            }
-        }
-
-        // ── Right rail: live command-center widgets ───────────────────────
-        if railVisible {
-            CommandCenterRail(
-                store: store,
-                onSelectOperation: { id in quickView = .operation(id) },
-                onSelectAgent:     { id in quickView = .agent(id) },
-                onSelectDirective: { id in quickView = .directive(id) }
+        .background(
+            LinearGradient(
+                colors: [Color.white.opacity(0.015), Color.clear],
+                startPoint: .top,
+                endPoint: .bottom
             )
-            .frame(width: 340)
-            .background(.ultraThinMaterial)
-            .overlay(Rectangle().frame(width: 1).foregroundColor(.secondary.opacity(0.18)), alignment: .leading)
-            .transition(.move(edge: .trailing).combined(with: .opacity))
-        }
-        }  // end HStack
+        )
             // Selection action bar — appears when ⌘-click selection is non-empty
             if !selectedMessageIds.isEmpty {
                 selectionActionBar
@@ -1705,7 +2805,7 @@ struct ConversationThread: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .animation(.spring(response: 0.32, dampingFraction: 0.85), value: selectedMessageIds.count)
             }
-        }  // end ZStack
+        }
         // Quick-view sheet: a dashboard item slides up over the chat without
         // dismissing it, so the Director can dig into something while still
         // seeing Eve's stream.
@@ -1844,7 +2944,6 @@ struct ConversationThread: View {
         .padding(.horizontal, 18)
         .padding(.vertical, 8)
         .background(.ultraThinMaterial)
-        .overlay(Rectangle().frame(height: 1).foregroundColor(.secondary.opacity(0.18)), alignment: .bottom)
         .background(
             // ESC closes
             Button("") { closeSearch() }
@@ -1910,46 +3009,41 @@ struct ConversationThread: View {
         let isLive = store.currentConversationId != nil
         let count = displayMessages.count
 
-        HStack(spacing: 10) {
-            // Back to Dashboard — returns to the briefing surface without
-            // dropping the active conversation. State is preserved so the
-            // Director can re-engage with one click.
+        HStack(spacing: 14) {
             Button(action: { store.returnToDashboard() }) {
-                Image(systemName: "rectangle.grid.2x2")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.secondary)
-                    .frame(width: 26, height: 26)
-                    .background(Color.secondary.opacity(0.08))
-                    .clipShape(Circle())
+                ZStack {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(Color.white.opacity(0.04))
+                    Image(systemName: "square.grid.2x2.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(C.eve.opacity(0.85))
+                }
+                .frame(width: 34, height: 34)
             }
             .buttonStyle(.plain)
-            .help("Back to Dashboard (mission report)")
+            .help("Back to Dashboard")
 
-            // Status dot
-            Circle()
-                .fill(isLive ? C.eve : Color.secondary.opacity(0.4))
-                .frame(width: 7, height: 7)
-                .shadow(color: isLive ? C.eve : .clear, radius: 4)
-
-            // Title + meta
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.primary.opacity(0.92))
-                    .lineLimit(1)
-                HStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(isLive ? C.eve : Color.secondary.opacity(0.4))
+                        .frame(width: 7, height: 7)
+                        .shadow(color: isLive ? C.eve : .clear, radius: 4)
                     Text(isLive ? "LIVE THREAD" : "FRESH START")
-                        .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(1.5)
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .tracking(1.8)
                         .foregroundColor(isLive ? C.eve : .secondary)
-                    if count > 0 {
-                        Text("·")
-                            .font(.system(size: 8, design: .monospaced))
-                            .foregroundColor(.secondary)
-                        Text("\(count) MSG\(count == 1 ? "" : "S")")
-                            .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(1.5)
-                            .foregroundColor(.secondary)
-                    }
                 }
+
+                Text(title)
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                    .foregroundColor(.primary.opacity(0.94))
+                    .lineLimit(1)
+
+                Text(threadSubtitle)
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
             }
 
             Spacer()
@@ -2000,10 +3094,9 @@ struct ConversationThread: View {
             }
             .help("Start a brand-new conversation")
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 10)
-        .background(.ultraThinMaterial)
-        .overlay(Rectangle().frame(height: 1).foregroundColor(.secondary.opacity(0.18)), alignment: .bottom)
+        .padding(.horizontal, 22)
+        .padding(.vertical, 16)
+        .background(Color.white.opacity(0.025))
         // Hidden button binds ⌘F to search toggle
         .background(
             Button("") {
@@ -2024,12 +3117,12 @@ struct ConversationThread: View {
         Button(action: action) {
             HStack(spacing: 5) {
                 Image(systemName: icon).font(.system(size: 10, weight: .bold))
-                Text(label).font(.system(size: 9, weight: .bold, design: .monospaced)).tracking(1.5)
+                Text(label).font(.system(size: 10, weight: .bold, design: .monospaced)).tracking(1.5)
             }
             .foregroundColor(color)
-            .padding(.horizontal, 9).padding(.vertical, 5)
-            .background(color.opacity(0.12))
-            .overlay(Capsule().strokeBorder(color.opacity(0.4), lineWidth: 1))
+            .padding(.horizontal, 10).padding(.vertical, 7)
+            .background(color.opacity(0.10))
+            .overlay(Capsule().strokeBorder(color.opacity(0.22), lineWidth: 1))
             .clipShape(Capsule())
         }
         .buttonStyle(.plain)
@@ -3164,20 +4257,27 @@ private struct HoverActions: View {
             if let onSpeak {
                 Button(action: onSpeak) {
                     Image(systemName: "speaker.wave.2.fill")
-                        .font(.system(size: 10))
+                        .font(.system(size: 10, weight: .semibold))
                         .foregroundColor(.secondary)
+                        .frame(width: 24, height: 24)
+                        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 }
                 .buttonStyle(.plain)
                 .help("Read aloud")
             }
             Button(action: doCopy) {
                 Image(systemName: copied ? "checkmark.circle.fill" : "doc.on.doc")
-                    .font(.system(size: 10))
+                    .font(.system(size: 10, weight: .semibold))
                     .foregroundColor(copied ? C.listen : .secondary)
+                    .frame(width: 24, height: 24)
+                    .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
             .buttonStyle(.plain)
             .help("Copy message")
         }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 4)
+        .background(Color.black.opacity(0.12), in: Capsule())
         .frame(maxWidth: .infinity, alignment: alignTrailing ? .trailing : .leading)
         .transition(.opacity)
     }
@@ -3197,75 +4297,82 @@ struct EveMessage: View {
     @State private var hovering: Bool = false
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Circle()
-                .fill(C.eve)
-                .frame(width: 8, height: 8)
-                .padding(.top, 7)
+        HStack(alignment: .top, spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(C.eve.opacity(0.18))
+                    .frame(width: 34, height: 34)
+                Image(systemName: "sparkles")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(C.eve)
+            }
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 6) {
                     Text("Eve")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(C.eve)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.primary.opacity(0.9))
                     if let b = message.brain {
                         BrainPill(brain: b)
                     }
                     if !message.toolCalls.isEmpty {
                         Text("\(message.toolCalls.count) ACTION\(message.toolCalls.count == 1 ? "" : "S")")
-                            .font(.system(size: 8, weight: .bold, design: .monospaced)).tracking(1.5)
+                            .font(.system(size: 9, weight: .bold, design: .monospaced)).tracking(1.5)
                             .foregroundColor(C.listen)
-                            .padding(.horizontal, 5).padding(.vertical, 1)
-                            .background(C.listen.opacity(0.13))
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(C.listen.opacity(0.10))
                             .clipShape(Capsule())
                     }
+                    Spacer(minLength: 0)
                     if hovering {
-                        Spacer(minLength: 0)
                         HoverActions(
                             timestamp: message.timestamp,
                             copyText: message.content,
                             alignTrailing: true,
                             onSpeak: { store.voice.speak(message.content) {} }
                         )
-                    } else {
-                        Spacer(minLength: 0)
                     }
                 }
 
-                // Tool action chips — render before prose so the Director sees
-                // what Eve actually did before reading her summary.
-                if !message.toolCalls.isEmpty {
-                    VStack(spacing: 6) {
-                        ForEach(message.toolCalls) { tc in
-                            ToolCallCardView(summary: tc)
+                VStack(alignment: .leading, spacing: 10) {
+                    if !message.toolCalls.isEmpty {
+                        VStack(spacing: 6) {
+                            ForEach(message.toolCalls) { tc in
+                                ToolCallCardView(summary: tc)
+                            }
                         }
                     }
-                }
 
-                // Render Eve's reply as ordered segments — prose with markdown
-                // + mention chips, fenced code blocks as styled boxes.
-                ForEach(Array(MentionRenderer.segmented(message.content).enumerated()), id: \.offset) { _, seg in
-                    switch seg {
-                    case .prose(let text):
-                        if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            Text(MentionRenderer.attributedRich(text))
-                                .font(.system(size: 14))
-                                .foregroundStyle(.primary)
-                                .lineSpacing(4)
-                                .textSelection(.enabled)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .environment(\.openURL, OpenURLAction { url in
-                                    if MentionRenderer.handle(url: url) { return .handled }
-                                    return .systemAction
-                                })
+                    ForEach(Array(MentionRenderer.segmented(message.content).enumerated()), id: \.offset) { _, seg in
+                        switch seg {
+                        case .prose(let text):
+                            if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                Text(MentionRenderer.attributedRich(text))
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(.primary.opacity(0.92))
+                                    .lineSpacing(5)
+                                    .textSelection(.enabled)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .environment(\.openURL, OpenURLAction { url in
+                                        if MentionRenderer.handle(url: url) { return .handled }
+                                        return .systemAction
+                                    })
+                            }
+                        case .code(let lang, let body):
+                            CodeBlockView(language: lang, code: body)
                         }
-                    case .code(let lang, let body):
-                        CodeBlockView(language: lang, code: body)
                     }
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .background(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .fill(Color.white.opacity(0.04))
+                )
             }
             Spacer(minLength: 0)
         }
+        .contentShape(Rectangle())
         .onHover { hovering = $0 }
         .contextMenu {
             Button {
@@ -3604,7 +4711,7 @@ struct UserMessage: View {
     @State private var editText: String = ""
 
     var body: some View {
-        VStack(alignment: .trailing, spacing: 4) {
+        VStack(alignment: .trailing, spacing: 6) {
             if hovering && !isEditing {
                 HStack(spacing: 6) {
                     Spacer()
@@ -3612,29 +4719,41 @@ struct UserMessage: View {
                         .font(.system(size: 9, design: .monospaced))
                         .foregroundColor(.secondary)
                     Button(action: { store.voice.speak(message.content) {} }) {
-                        Image(systemName: "speaker.wave.2.fill").font(.system(size: 10))
+                        Image(systemName: "speaker.wave.2.fill")
+                            .font(.system(size: 10, weight: .semibold))
                             .foregroundColor(.secondary)
+                            .frame(width: 24, height: 24)
+                            .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                     }
                     .buttonStyle(.plain)
                     .help("Read aloud")
                     Button(action: startEdit) {
-                        Image(systemName: "pencil").font(.system(size: 10))
+                        Image(systemName: "pencil")
+                            .font(.system(size: 10, weight: .semibold))
                             .foregroundColor(.secondary)
+                            .frame(width: 24, height: 24)
+                            .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                     }
                     .buttonStyle(.plain)
                     .help("Edit this prompt and regenerate Eve's reply")
                     Button(action: { MessageMeta.copyToClipboard(message.content) }) {
-                        Image(systemName: "doc.on.doc").font(.system(size: 10))
+                        Image(systemName: "doc.on.doc")
+                            .font(.system(size: 10, weight: .semibold))
                             .foregroundColor(.secondary)
+                            .frame(width: 24, height: 24)
+                            .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                     }
                     .buttonStyle(.plain)
                     .help("Copy")
                 }
                 .padding(.trailing, 4)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 4)
+                .background(Color.black.opacity(0.12), in: Capsule())
                 .transition(.opacity)
             }
             HStack(alignment: .top, spacing: 0) {
-                Spacer(minLength: 80)
+                Spacer(minLength: 110)
                 if isEditing {
                     HStack(alignment: .top, spacing: 8) {
                         TextField("", text: $editText, axis: .vertical)
@@ -3642,11 +4761,11 @@ struct UserMessage: View {
                             .font(.system(size: 14))
                             .lineLimit(1...6)
                             .onSubmit(saveEdit)
-                            .padding(.horizontal, 14).padding(.vertical, 10)
-                            .background(C.eve.opacity(0.18), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .padding(.horizontal, 16).padding(.vertical, 12)
+                            .background(C.eve.opacity(0.16), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .stroke(C.eve, lineWidth: 1.2)
+                                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                    .stroke(C.eve.opacity(0.3), lineWidth: 1)
                             )
                             .frame(minWidth: 220)
                         VStack(spacing: 6) {
@@ -3668,15 +4787,15 @@ struct UserMessage: View {
                     }
                 } else {
                     Text(message.content)
-                        .font(.system(size: 14))
-                        .foregroundStyle(.primary)
-                        .lineSpacing(4)
+                        .font(.system(size: 15))
+                        .foregroundStyle(.primary.opacity(0.94))
+                        .lineSpacing(5)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                         .textSelection(.enabled)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(C.eve.opacity(0.18), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(C.eve.opacity(0.14), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                         .contextMenu {
                             Button {
                                 store.voice.speak(message.content) {}
@@ -3701,6 +4820,7 @@ struct UserMessage: View {
                 }
             }
         }
+        .contentShape(Rectangle())
         .onHover { hovering = $0 }
     }
 
@@ -4904,8 +6024,7 @@ private struct AgentRow: View {
                 .foregroundColor(.secondary)
         }
         .padding(.horizontal, 22).padding(.vertical, 13)
-        .background(isSelected ? Color.secondary.opacity(0.14) : (hovered ? Color.secondary.opacity(0.07) : Color.clear))
-        .overlay(Rectangle().frame(height: 1).foregroundColor(.secondary), alignment: .bottom)
+        .softRowSurface(isSelected: isSelected, isHovered: hovered, accent: statusColor)
         .onHover { hovered = $0 }
     }
 }
@@ -5378,8 +6497,7 @@ private struct OpsRow2: View {
                 .foregroundColor(.secondary)
         }
         .padding(.horizontal, 22).padding(.vertical, 12)
-        .background(isSelected ? Color.secondary.opacity(0.14) : (hovered ? Color.secondary.opacity(0.07) : Color.clear))
-        .overlay(Rectangle().frame(height: 1).foregroundColor(.secondary), alignment: .bottom)
+        .softRowSurface(isSelected: isSelected, isHovered: hovered, accent: priorityColor)
         .onHover { hovered = $0 }
     }
 }
@@ -6388,8 +7506,12 @@ struct ChatsPanel: View {
                     }
                 }
                 .padding(.horizontal, 14).padding(.vertical, 10)
-                .background(C.surfaceHi)
-                .overlay(Rectangle().frame(height: 1).foregroundColor(C.hairline), alignment: .bottom)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(C.surfaceHi.opacity(0.65))
+                )
+                .padding(.horizontal, 12)
+                .padding(.top, 6)
 
                 // Search results — when query yields hits, swap them in for
                 // the regular conversation list.
@@ -6443,15 +7565,25 @@ struct ChatsPanel: View {
                     .foregroundColor(C.eve)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 11)
-                    .background(C.eve.opacity(0.07))
-                    .overlay(Rectangle().frame(height: 1).foregroundColor(C.eve.opacity(0.12)), alignment: .bottom)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [C.eve.opacity(0.11), C.eve.opacity(0.04)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                    )
                 }
                 .buttonStyle(.plain)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
 
                 if splitLayout {
                     HStack(spacing: 0) {
                         ScrollView {
-                            LazyVStack(spacing: 1) {
+                            LazyVStack(spacing: 4) {
                                 ForEach(store.conversations) { conv in
                                     ChatRow2(conv: conv, isSelected: (selectedConversationId ?? store.conversations.first?.id) == conv.id)
                                         .onTapGesture { selectedConversationId = conv.id }
@@ -6466,10 +7598,11 @@ struct ChatsPanel: View {
                                         }
                                 }
                             }
-                            .padding(.bottom, 20)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 14)
                         }
                         .frame(width: 360)
-                        .overlay(Rectangle().frame(width: 1).foregroundColor(.secondary), alignment: .trailing)
+                        .padding(.trailing, 8)
 
                         ScrollView {
                             VStack(alignment: .leading, spacing: 16) {
@@ -6498,10 +7631,11 @@ struct ChatsPanel: View {
                             }
                             .padding(22)
                         }
+                        .padding(.leading, 8)
                     }
                 } else {
                     ScrollView {
-                        LazyVStack(spacing: 1) {
+                        LazyVStack(spacing: 4) {
                             ForEach(store.conversations) { conv in
                                 ChatRow2(conv: conv, isSelected: false)
                                     .onTapGesture {
@@ -6512,7 +7646,8 @@ struct ChatsPanel: View {
                                     }
                             }
                         }
-                        .padding(.bottom, 20)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 14)
                     }
                 }
                 }  // close `else` from search-active branch
@@ -6921,8 +8056,7 @@ private struct ChatRow2: View {
                 .foregroundColor(.secondary)
         }
         .padding(.horizontal, 22).padding(.vertical, 12)
-        .background(isSelected ? Color.secondary.opacity(0.14) : (hovered ? Color.secondary.opacity(0.07) : Color.clear))
-        .overlay(Rectangle().frame(height: 1).foregroundColor(.secondary), alignment: .bottom)
+        .softRowSurface(isSelected: isSelected, isHovered: hovered, accent: sourceColor)
         .contentShape(Rectangle())
         .onHover { hovered = $0 }
     }
@@ -6952,8 +8086,7 @@ private struct FileEntryRow: View {
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 12)
-        .background(isSelected ? Color.secondary.opacity(0.14) : (hovered ? Color.secondary.opacity(0.07) : Color.clear))
-        .overlay(Rectangle().frame(height: 1).foregroundColor(.secondary), alignment: .bottom)
+        .softRowSurface(isSelected: isSelected, isHovered: hovered, accent: url.hasDirectoryPath ? C.listen : C.eve)
         .onHover { hovered = $0 }
     }
 }
@@ -7072,13 +8205,10 @@ private struct DetailMetric: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .background(C.surfaceHi)
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(C.hairline, lineWidth: 1)
-        )
+        .padding(12)
+        .background(C.surfaceHi.opacity(0.58))
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .shadow(color: accent.opacity(0.08), radius: 14, y: 6)
     }
 }
 
@@ -7099,13 +8229,10 @@ private struct DetailSection: View {
                 .textSelection(.enabled)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .background(C.surfaceHi)
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(C.hairline, lineWidth: 1)
-        )
+        .padding(12)
+        .background(C.surfaceHi.opacity(0.58))
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .shadow(color: Color.black.opacity(0.05), radius: 12, y: 6)
     }
 }
 

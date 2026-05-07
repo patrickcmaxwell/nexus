@@ -42,12 +42,10 @@ struct CodePanel: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            Divider()
             if registry.codeSessions.isEmpty {
                 launcher
             } else {
                 tabStrip
-                Divider()
                 if let session = activeSession {
                     SessionContainer(session: session)
                         .id(session.id)
@@ -142,9 +140,9 @@ struct CodePanel: View {
                 .buttonStyle(.plain)
                 .help("New Claude Code session")
             }
-            .padding(.horizontal, 10).padding(.vertical, 6)
+        .padding(.horizontal, 10).padding(.vertical, 6)
         }
-        .background(C.surfaceHi.opacity(0.5))
+        .background(C.surfaceHi.opacity(0.35))
     }
 
     // MARK: Launcher (no sessions)
@@ -238,9 +236,8 @@ struct CodePanel: View {
                                 .font(.system(size: 9)).foregroundColor(C.listen)
                         }
                         .padding(.horizontal, 10).padding(.vertical, 8)
-                        .background(C.surfaceHi)
+                        .background(C.surfaceHi.opacity(0.7))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(C.hairline, lineWidth: 1))
                     }
                     .buttonStyle(.plain)
                 }

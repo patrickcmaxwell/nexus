@@ -41,7 +41,7 @@ export async function POST() {
   }
 
   const transcript = rows
-    .map((r) => `${r.role === "user" ? "DIRECTOR" : "EVE"}: ${r.content}`)
+    .map((r) => `${r.role === "user" ? "USER" : "EVE"}: ${r.content}`)
     .join("\n")
 
   // Ask Grok to extract structured memory from this conversation
@@ -57,7 +57,7 @@ export async function POST() {
         {
           role: "system",
           content: `You are Eve, analyzing a conversation to extract persistent memory entries.
-Extract ONLY items that should be remembered long-term: facts about the Director, active tasks, ongoing objectives, important decisions, preferences, or project details.
+Extract ONLY items that should be remembered long-term: facts about the user, active tasks, ongoing objectives, important decisions, preferences, or project details.
 Return ONLY valid JSON — an array of memory objects with this exact shape:
 [{"type":"fact|task|objective|preference|project","content":"concise description","importance":1-10,"tags":["tag1","tag2"]}]
 Be selective — only extract genuinely important, durable information. Skip pleasantries.`,
