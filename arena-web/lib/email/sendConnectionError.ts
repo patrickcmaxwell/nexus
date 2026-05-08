@@ -32,7 +32,7 @@ export async function sendConnectionErrorEmail(opts: {
   if (!apiKey) return { sent: false, reason: "RESEND_API_KEY not configured" }
 
   const from = process.env.RESEND_FROM || "Arena <onboarding@resend.dev>"
-  const arenaBase = process.env.ARENA_BASE_URL || "https://arena-web-green.vercel.app"
+  const arenaBase = process.env.ARENA_BASE_URL || "https://arena.maxnexus.io"
   const rotateUrl = `${arenaBase}/connect/${opts.provider}/${opts.connectionId}/edit`
 
   const providerName = capitalize(opts.provider)

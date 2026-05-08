@@ -24,7 +24,7 @@ export async function summarizeInBackground(
       .limit(60)
     if (!rows || rows.length < 10) return
 
-    const transcript = rows.map(r => `${r.role === "user" ? "DIRECTOR" : "EVE"}: ${r.content}`).join("\n")
+    const transcript = rows.map(r => `${r.role === "user" ? "USER" : "EVE"}: ${r.content}`).join("\n")
     const client = new OpenAI({ apiKey: process.env.XAI_API_KEY!, baseURL: "https://api.x.ai/v1" })
     const res = await client.chat.completions.create({
       model: "grok-3-mini",

@@ -136,7 +136,7 @@ function FacePageInner() {
       })
       if (enrollRes.ok) {
         setStage("success")
-        setStatusMsg("FACE ENROLLED AND CONFIRMED — WELCOME, DIRECTOR")
+        setStatusMsg("FACE ENROLLED AND CONFIRMED — WELCOME")
         setTimeout(() => { window.location.href = "/dashboard" }, 2000)
       } else {
         setStage("failed")

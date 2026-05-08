@@ -103,5 +103,5 @@ function Block({ title, body }: { title: string; body: string }) {
 }
 
 function nexusWebUrl(): string {
-  return process.env.NEXT_PUBLIC_NEXUS_WEB_URL || "https://nexus-web-five-chi.vercel.app"
+  return process.env.NEXT_PUBLIC_NEXUS_WEB_URL || "https://portal.maxnexus.io"
 }

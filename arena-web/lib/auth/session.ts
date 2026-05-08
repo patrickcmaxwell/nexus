@@ -2,7 +2,7 @@ import { cookies } from "next/headers"
 import { getServiceClient } from "@/lib/supabase/service"
 
 // Cross-subdomain cookie share: nexus-web sets `nx_session` with
-// `Domain=.talkcircles.io` so every subdomain (including arena) can read
+// `Domain=.maxnexus.io` so every subdomain (including arena) can read
 // the same cookie. We validate it against the shared `security_sessions`
 // table and resolve to a humans row + auth_id for data scoping.
 

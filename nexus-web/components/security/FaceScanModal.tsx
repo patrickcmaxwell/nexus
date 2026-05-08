@@ -131,7 +131,7 @@ export default function FaceScanModal({ onClose }: { onClose: () => void }) {
       })
       if (enrollRes.ok) {
         setStage("success")
-        setStatusMsg("BIOMETRIC ENROLLED — WELCOME, DIRECTOR")
+        setStatusMsg("BIOMETRIC ENROLLED — WELCOME")
         setTimeout(() => { window.location.href = "/api/security/enter" }, 1200)
       } else {
         setStage("failed")

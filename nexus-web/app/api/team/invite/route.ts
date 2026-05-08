@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
   const emailResult = await sendInviteEmail({
     to: email,
     inviteeName: name,
-    inviterName: inviter?.display_name ?? "Director",
+    inviterName: inviter?.display_name ?? "Someone at Nexus",
     inviterEmail: inviter?.email ?? "noreply@nexus",
     inviteUrl,
     role,

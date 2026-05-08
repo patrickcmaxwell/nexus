@@ -1255,7 +1255,7 @@ function NodeDetailPanel({ node, onClose }: { node: Node3D; onClose: () => void 
                     className="font-mono text-[8px] tracking-widest uppercase"
                     style={{ color: isEve ? "rgba(0,212,255,0.55)" : "rgba(255,255,255,0.2)" }}
                   >
-                    {isEve ? "Eve" : "Director"}
+                    {isEve ? "Eve" : "You"}
                   </span>
                   <span className="font-mono text-[8px]" style={{ color: "rgba(255,255,255,0.12)" }}>
                     {new Date(msg.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}

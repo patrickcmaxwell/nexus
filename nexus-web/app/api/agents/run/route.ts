@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
           if (!messages || messages.length === 0) return null
 
           const transcript = messages
-            .map((m) => `[${m.role === "user" ? "DIRECTOR" : "EVE"}]: ${m.content}`)
+            .map((m) => `[${m.role === "user" ? "USER" : "EVE"}]: ${m.content}`)
             .join("\n")
 
           return {
@@ -319,7 +319,7 @@ DIRECTIVES:
 ${agent.directives}
 
 TASK:
-Analyze the following conversations between the Director (Patrick Maxwell) and Eve (his AI). Based on your directives, extract actionable findings.
+Analyze the following conversations between the user and Eve (their AI). Based on your directives, extract actionable findings.
 
 For each finding, return a JSON object with:
 - title: Short, descriptive title (max 60 chars)
@@ -331,9 +331,9 @@ For each finding, return a JSON object with:
 RULES:
 1. Only extract findings that are genuinely interesting or actionable — no filler.
 2. If a conversation has nothing relevant, skip it entirely.
-3. Prioritize things the Director expressed interest in but hasn't acted on.
+3. Prioritize things the user expressed interest in but hasn't acted on.
 4. Look for patterns across conversations, not just individual mentions.
-5. Be specific. "The Director mentioned wanting to build an app" is too vague. "The Director discussed building a collaboration tool called TalkCircles" is specific.
+5. Be specific. "The user mentioned wanting to build an app" is too vague. "The user discussed building a collaboration tool called TalkCircles" is specific.
 
 Return ONLY a JSON array of findings. If no findings, return [].`
 }

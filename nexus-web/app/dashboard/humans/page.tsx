@@ -235,7 +235,7 @@ export default function TeamPage() {
 
           {/* ── Invite Panel ── */}
           {showInvite && (
-            <div className="mb-8 p-6 rounded-2xl border border-primary/20 bg-card">
+            <div className="mb-8 p-4 sm:p-6 rounded-2xl border border-primary/20 bg-card">
               {!inviteResult ? (
                 <form onSubmit={handleInvite} className="flex flex-col gap-5">
                   <div className="flex items-center justify-between">

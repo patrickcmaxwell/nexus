@@ -18,24 +18,28 @@ export type ResolvedTheme = {
 
 const STORAGE_KEY = "nexus_theme"
 
-function getSystemDark() {
-  if (typeof window === "undefined") return true
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-}
+// Color mode is locked to "dark" globally as of 2026-05-08. The light theme
+// has hardcoded dark-only inline styles in too many components — until those
+// are migrated to theme tokens, light mode produces broken contrast (cyan on
+// near-black inside white containers). Re-enable when the inline-style sweep
+// is done. uiMode (simple vs futuristic) is still user-controllable.
 
 function loadPrefs(): ThemePreference {
-  if (typeof window === "undefined") return { colorMode: "system", uiMode: "futuristic" }
+  if (typeof window === "undefined") return { colorMode: "dark", uiMode: "futuristic" }
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return { colorMode: "system", uiMode: "futuristic", ...JSON.parse(raw) }
+    if (raw) {
+      const stored = JSON.parse(raw) as Partial<ThemePreference>
+      return { colorMode: "dark", uiMode: stored.uiMode ?? "futuristic" }
+    }
   } catch { /* ignore */ }
-  return { colorMode: "system", uiMode: "futuristic" }
+  return { colorMode: "dark", uiMode: "futuristic" }
 }
 
 function resolveTheme(prefs: ThemePreference): ResolvedTheme {
-  const isDark = prefs.colorMode === "system" ? getSystemDark() : prefs.colorMode === "dark"
+  // Always dark for now — see note above.
   return {
-    isDark,
+    isDark: true,
     isSimple: prefs.uiMode === "simple",
     isFuturistic: prefs.uiMode === "futuristic",
   }
@@ -43,23 +47,14 @@ function resolveTheme(prefs: ThemePreference): ResolvedTheme {
 
 function applyTheme(prefs: ThemePreference) {
   const html = document.documentElement
-  const resolved = resolveTheme(prefs)
-
-  // Color mode
-  if (resolved.isDark) {
-    html.classList.remove("light")
-    html.classList.add("dark")
-  } else {
-    html.classList.add("light")
-    html.classList.remove("dark")
-  }
-
-  // UI mode
+  // Always dark.
+  html.classList.remove("light")
+  html.classList.add("dark")
   html.setAttribute("data-ui", prefs.uiMode)
 }
 
 export function useTheme() {
-  const [prefs, setPrefs] = useState<ThemePreference>({ colorMode: "system", uiMode: "futuristic" })
+  const [prefs, setPrefs] = useState<ThemePreference>({ colorMode: "dark", uiMode: "futuristic" })
   const [resolved, setResolved] = useState<ResolvedTheme>({ isDark: true, isSimple: false, isFuturistic: true })
 
   // Load on mount
@@ -68,23 +63,12 @@ export function useTheme() {
     setPrefs(loaded)
     setResolved(resolveTheme(loaded))
     applyTheme(loaded)
-
-    // Watch system preference changes
-    const mq = window.matchMedia("(prefers-color-scheme: dark)")
-    const handler = () => {
-      const current = loadPrefs()
-      if (current.colorMode === "system") {
-        applyTheme(current)
-        setResolved(resolveTheme(current))
-      }
-    }
-    mq.addEventListener("change", handler)
-    return () => mq.removeEventListener("change", handler)
   }, [])
 
   const update = useCallback((next: Partial<ThemePreference>) => {
     setPrefs(prev => {
-      const merged = { ...prev, ...next }
+      // colorMode is locked to dark — silently drop any colorMode change.
+      const merged = { ...prev, ...next, colorMode: "dark" as const }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(merged))
       applyTheme(merged)
       setResolved(resolveTheme(merged))

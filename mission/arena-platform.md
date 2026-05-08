@@ -2,7 +2,7 @@
 
 **Updated:** 2026-05-07
 **Supersedes:** `arena-launch.md` (which described the old Express single-file design).
-**Status:** ✅ Live in production at `https://arena-web-green.vercel.app` (Vercel-issued URL). Custom domain `arena.talkcircles.io` pending DNS setup by Patrick.
+**Status:** ✅ Live in production at `https://arena.maxnexus.io`. DNS, custom domain, env vars all wired (2026-05-07).
 
 ---
 
@@ -13,7 +13,7 @@ Arena is a **standalone Next.js 16 app** (not the old Express service) deployed 
 **Repo path:** `/Users/shadow/code/nexus/arena-web/`
 **Vercel project:** `arena-web` (separate from `nexus-web`)
 **Database:** shares the same Supabase project as nexus-web (`rtkzvsqulliaoizutsqz`)
-**Auth:** users sign in via the same `nx_session` cookie as nexus-web — once `SESSION_COOKIE_DOMAIN` is set on both projects (after `arena.talkcircles.io` DNS lands), cross-subdomain auth flows automatically.
+**Auth:** users sign in via the same `nx_session` cookie as nexus-web. `SESSION_COOKIE_DOMAIN=.maxnexus.io` is set on both Vercel projects so cross-subdomain auth flows automatically.
 
 ## Architecture summary
 
@@ -98,19 +98,19 @@ These can't happen autonomously:
 
 | Task | Where | Impact if skipped |
 |---|---|---|
-| **DNS: add `arena.talkcircles.io`** | DNS provider for talkcircles.io | Must use Vercel-issued URL; cross-subdomain cookie auth doesn't work |
-| **Vercel: attach `arena.talkcircles.io` to arena-web project** | Vercel dashboard → arena-web → Domains | (depends on DNS) |
-| **Set `SESSION_COOKIE_DOMAIN=.talkcircles.io` on BOTH nexus-web AND arena-web** | Vercel env vars | Without this, signing into nexus-web doesn't carry to arena-web — users have to sign in twice |
+| **DNS: add `arena.maxnexus.io`** | DNS provider for maxnexus.io | Must use Vercel-issued URL; cross-subdomain cookie auth doesn't work |
+| **Vercel: attach `arena.maxnexus.io` to arena-web project** | Vercel dashboard → arena-web → Domains | (depends on DNS) |
+| **Set `SESSION_COOKIE_DOMAIN=.maxnexus.io` on BOTH nexus-web AND arena-web** | Vercel env vars | Without this, signing into nexus-web doesn't carry to arena-web — users have to sign in twice |
 | **Set `RESEND_API_KEY` on arena-web** | Vercel env vars (copy from nexus-web) | Connection error emails won't send (graceful — flips status, dashboard shows banner, but no email) |
-| **Set `ARENA_BASE_URL=https://arena.talkcircles.io` on nexus-web** | Vercel env vars | Eve will keep using `https://arena-web-green.vercel.app` — works, just not pretty |
+| **Set `ARENA_BASE_URL=https://arena.maxnexus.io` on nexus-web** | Vercel env vars | Eve will keep using `https://arena.maxnexus.io` — works, just not pretty |
 | **Provider API keys** | Either env vars OR per-connection in the UI | Without them, providers fall back to safe-mock mode (action logged with `mocked: true` flag) |
 
 ## Test plan once domain is live
 
-1. Open `https://arena.talkcircles.io` → signs you in via existing nexus-web session (cookie auth)
+1. Open `https://arena.maxnexus.io` → signs you in via existing nexus-web session (cookie auth)
 2. Land on `/dashboard` → first-run guide appears (no connections yet)
 3. Click "Connect ClickUp" → paste API key + list id → save → connection appears in list
-4. Click the pencil → see the webhook URL (https://arena.talkcircles.io/api/webhooks/...)
+4. Click the pencil → see the webhook URL (https://arena.maxnexus.io/api/webhooks/...)
 5. Test it: POST a fake event to the webhook URL → check audit log for `inbound/clickup/X` entry
 6. In nexus-web Eve chat: "create a task to test the integration" → Eve fires `arena_task_create`, real ClickUp task appears
 7. Ask Eve: "is anything broken?" → calls `arena_failures` → returns `healthy: true`

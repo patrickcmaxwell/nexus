@@ -72,10 +72,10 @@ export default async function AuthErrorPage({
             Back to Sign In
           </Link>
           <a
-            href="mailto:patrick@talkcircles.com?subject=Nexus%20access%20help"
+            href="mailto:patrick@maxnexus.io?subject=Nexus%20access%20help"
             className="px-6 py-3 font-mono text-[10px] tracking-[0.25em] uppercase text-center text-muted-foreground/55 hover:text-muted-foreground"
           >
-            Contact the Director →
+            Get access help →
           </a>
         </div>
       </div>

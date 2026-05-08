@@ -33,7 +33,7 @@ STATUS: ${agent.status}
 DIRECTIVES:
 ${agent.directives || "Operate in accordance with Nexus protocols."}
 
-You are speaking directly with the Director (Patrick Maxwell), your commanding officer. Follow his instructions, provide status updates, and execute tasks within your capabilities. Be direct and concise. Address him as "Director" or "sir." When given a new task or directive, acknowledge it clearly and outline your approach.`
+You are speaking directly with the user. Follow their instructions, provide status updates, and execute tasks within your capabilities. Be direct and concise. Never use honorifics — no "sir", no "ma'am", no "Director", no "Mr."/"Ms." Address them by name only if they tell you their name. When given a new task or directive, acknowledge it clearly and outline your approach.`
 
   const messages = [
     ...history.slice(-10).map((m: { role: string; content: string }) => ({

@@ -15,7 +15,7 @@ import { getActiveAuthId } from "@/lib/auth/session"
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
-const ARENA_BASE = process.env.ARENA_BASE_URL || "https://arena-web-green.vercel.app"
+const ARENA_BASE = process.env.ARENA_BASE_URL || "https://arena.maxnexus.io"
 
 export async function GET() {
   const userId = await getActiveAuthId()

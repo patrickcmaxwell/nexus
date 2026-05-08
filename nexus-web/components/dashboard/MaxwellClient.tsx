@@ -9,7 +9,7 @@ import { stripMentionsToPlain } from "@/lib/mentions/parse"
 import {
   Mic, MicOff, Send, Plus, Brain, GitCommitHorizontal,
   Volume2, VolumeX, Square, Pencil, Trash2, Tag, ChevronRight, ChevronDown, X,
-  Menu, MessageSquare, Search, CalendarDays, GripVertical, Copy,
+  Menu, MessageSquare, Search, CalendarDays, GripVertical, Copy, AlertTriangle,
 } from "lucide-react"
 
 type Conversation = { id: string; title: string; created_at: string; updated_at: string }
@@ -31,7 +31,7 @@ const TOPIC_COLORS: Record<string, { border: string; text: string; bg: string; d
 const WELCOME: Message = {
   id: "welcome",
   role: "assistant",
-  content: "Good evening, sir. Eve online — all systems nominal. Memory bank active. How may I assist you?",
+  content: "Eve online. All systems nominal. Memory bank active. What's the move?",
 }
 
 function formatDate(iso: string) {
@@ -471,8 +471,19 @@ export default function MaxwellClient({
         return [{ ...conv, updated_at: new Date().toISOString() }, ...prev.filter(c => c.id !== convId)]
       })
     } catch (err) {
-      const errMsg = `System error: ${err instanceof Error ? err.message : "Unknown error"}`
-      setMessages(prev => [...prev, { id: crypto.randomUUID(), role: "assistant", content: errMsg }])
+      // Mark errors with a sentinel prefix so the renderer styles them as
+      // a subtle dim line, not a full Eve bubble. Drop any empty placeholder
+      // assistant message that the streaming path created — it'd render as
+      // an empty card otherwise.
+      const detail = err instanceof Error ? err.message : "Unknown error"
+      setMessages(prev => {
+        const cleaned = prev.filter(m => !(m.role === "assistant" && !m.content.trim()))
+        return [...cleaned, {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: `[error]Something went wrong on my end — ${detail}. Try again.`,
+        }]
+      })
     } finally {
       setIsLoading(false)
     }
@@ -578,8 +589,8 @@ export default function MaxwellClient({
       setMessages(prev => [...prev, {
         id: crypto.randomUUID(), role: "assistant",
         content: data.skipped
-          ? "Memory bank is current, sir. Not enough new messages to summarize yet."
-          : `Memory bank updated, sir. ${data.memoriesExtracted} new memory entries committed to long-term storage.`,
+          ? "Memory bank is current. Not enough new messages to summarize yet."
+          : `Memory bank updated. ${data.memoriesExtracted} new memory entries committed to long-term storage.`,
       }])
     } finally {
       setSummarizing(false)
@@ -1182,6 +1193,24 @@ export default function MaxwellClient({
                     const matchHit = chatSearchActive && chatSearchQuery.trim() &&
                       m.content.toLowerCase().includes(chatSearchQuery.trim().toLowerCase())
                     const isEditing = editingId === m.id
+
+                    // Drop empty assistant placeholders (failed streams). A
+                    // bubble with no text + no tool calls is just visual noise.
+                    if (!isUser && !m.content.trim() && (!m.toolCalls || m.toolCalls.length === 0)) {
+                      return null
+                    }
+
+                    // System error sentinel — render as a dim, italic single line
+                    // instead of the full Eve message UI.
+                    if (!isUser && m.content.startsWith("[error]")) {
+                      return (
+                        <div key={m.id} className="flex items-start gap-2 text-xs text-muted-foreground/70 italic px-1 py-1">
+                          <AlertTriangle size={12} className="text-amber-400/70 mt-0.5 flex-shrink-0" />
+                          <span>{m.content.slice("[error]".length)}</span>
+                        </div>
+                      )
+                    }
+
                     return (
                       <div
                         key={m.id}
@@ -1222,9 +1251,9 @@ export default function MaxwellClient({
                             </button>
                           )}
                         </div>
-                        <div className={`rounded-2xl px-3.5 md:px-5 py-2.5 md:py-3.5 ${isUser
-                          ? "bg-primary/12 border border-primary/20 max-w-[92%] md:max-w-[75%]"
-                          : "bg-card border border-border w-full"}`}
+                        <div className={isUser
+                          ? "rounded-2xl px-3.5 md:px-5 py-2.5 md:py-3.5 bg-primary/12 border border-primary/20 max-w-[92%] md:max-w-[75%]"
+                          : "w-full"}
                         >
                           {isUser ? (
                             isEditing ? (
@@ -1260,7 +1289,7 @@ export default function MaxwellClient({
                                 </div>
                               </div>
                             ) : (
-                              <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{renderPlainWithMentions(m.content)}</p>
+                              <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">{renderPlainWithMentions(m.content)}</p>
                             )
                           ) : (
                             <EveMessage content={m.content} citations={m.citations ?? []} toolCalls={m.toolCalls ?? []} brain={m.brain} />

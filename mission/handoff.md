@@ -6,7 +6,7 @@ Updated: 2026-05-07 ~10:30 AM (Patrick-time) — by Vera Locke during extended w
 
 ## TL;DR — read this first
 
-- **Arena platform is live** at `https://arena-web-green.vercel.app` as a standalone Next.js app with 5 provider integrations, webhooks, audit log, and Eve self-introspection. Custom domain `arena.talkcircles.io` pending Patrick DNS — see `mission/pending-changes.md` "Arena domain bring-up" for the exact steps.
+- **Arena platform is live** at `https://arena.maxnexus.io` as a standalone Next.js app with 5 provider integrations, webhooks, audit log, and Eve self-introspection. DNS + env vars done.
 - **nexus-web mobile + chat polish shipped** — Maxwell chat width fixes, Settings/Console mobile, Suits page wired to real agents, Systems honesty banner, multiple touch-target + error-handling fixes. Full catalog in `mission/nexus-web-polish-2026-05.md`.
 - **Lumen face login server-side fix** — `/api/security/face/match` was 500ing because face-api was loading the wrong entrypoint (needs `face-api.node-wasm.js` explicit import + tfjs-backend-wasm dep). Fixed and deployed. Lumen tap-FACE works now.
 - **Working tree has extensive uncommitted changes** across nexus-web, arena-web, lumen, and mission docs. Patrick needs to commit + push.
@@ -21,16 +21,13 @@ Read in order:
 4. `mission/nexus-web-polish-2026-05.md` (catalog of recent UI/fix work)
 5. `/code/echo/op-pickup.md` (cross-project resume primer)
 
-## Critical things Patrick needs to do (this session's deliverable)
+## What's actionable now
 
-In order:
-1. **Commit + push working tree** — extensive accumulated work. Suggested commit grouping in `mission/pending-changes.md`.
-2. **DNS for `arena.talkcircles.io`** — point CNAME at Vercel (exact target shown in Vercel dashboard → arena-web → Domains → Add).
-3. **Vercel: attach the domain** to arena-web project.
-4. **Set `SESSION_COOKIE_DOMAIN=.talkcircles.io`** on BOTH nexus-web AND arena-web Vercel projects (both must have it).
-5. **Set `RESEND_API_KEY`** on arena-web (copy from nexus-web env).
-6. **Set `ARENA_BASE_URL=https://arena.talkcircles.io`** on nexus-web.
-7. **Test the full Arena flow** — see `mission/arena-platform.md` "Test plan once domain is live" for the 9-step verification.
+- **Test Arena end-to-end** — see `mission/arena-platform.md` "Test plan once domain is live" for the 9-step verification.
+- **Have invited users (Londynn, Merlin) try face login** — face verify was loosened 2026-05-07 to use all stored references (face_descriptor + face_descriptors[] + seed_face_descriptor). On mismatch the response now includes `nearest: { name, distance }` for diagnosis.
+- **Rebuild Lumen.app** — pulls in server-side face-api wasm fix + uncommitted Swift work (native face capture, Console window, sync engine).
+- **Rebuild iOS** — multi-user code is in tree.
+- **Splash page lives at `https://maxnexus.io`** — type `lumen` (or any 1-typo variant) to enter the portal. Click the Dagaz rune for the riddle UI.
 
 ## What was shipped 2026-05-06 → 2026-05-07
 
@@ -64,7 +61,7 @@ In order:
 ## What's still pending (rolling forward)
 
 ### Decisions Patrick needs to make (in `/code/echo/decisions.md`)
-- N1 — repoint `nexus.talkcircles.io` (less critical now Arena uses `arena.talkcircles.io`)
+- N1 — repoint `nexus.maxnexus.io` (less critical now Arena uses `arena.maxnexus.io`)
 - N2 — owner recovery model (A/B/C/D)
 - N3 — PIN length policy
 - N5 — promote Merlin to admin

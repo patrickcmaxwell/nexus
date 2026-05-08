@@ -69,7 +69,7 @@ export async function runResearchJob(jobId: string) {
       messages: [
         {
           role: "system",
-          content: `You are Eve, acting as a senior research analyst for the Director of Nexus. You will produce a structured JSON dossier on the given topic. Be thorough, specific, and cite concrete facts. Do not fabricate sources.
+          content: `You are Eve, acting as a senior research analyst for the user of Nexus. You will produce a structured JSON dossier on the given topic. Be thorough, specific, and cite concrete facts. Do not fabricate sources.
 
 Return ONLY valid JSON matching this TypeScript type:
 {

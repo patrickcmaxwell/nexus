@@ -31,7 +31,7 @@ const DIRECTIVE_QUESTIONS: { key: string; title: string; placeholder: string }[]
   {
     key: "address",
     title: "How should Eve address you?",
-    placeholder: "e.g. \"Just call me by my first name\" — or \"Always sir / madam\"",
+    placeholder: "e.g. \"Just call me by my first name\" — or \"Use a nickname\" — or \"They/them, please\"",
   },
   {
     key: "remember",
@@ -315,7 +315,7 @@ export default function InvitePage() {
       <Centered>
         <Shield size={48} className="mx-auto mb-6 text-destructive" />
         <h1 className="text-xl font-bold text-foreground mb-2">Invalid Invite</h1>
-        <p className="text-sm text-muted-foreground">This invite link is invalid or has expired. Contact the Director for a new one.</p>
+        <p className="text-sm text-muted-foreground">This invite link is invalid or has expired. Ask the person who invited you for a new one.</p>
       </Centered>
     )
   }

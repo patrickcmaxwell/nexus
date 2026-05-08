@@ -7,7 +7,7 @@
 | Service | Where | Notes |
 |---|---|---|
 | **nexus-web** (production) | Vercel project `nexus-web`, latest deploy Ready | Multi-user-aware, mobile-friendly, face-api wasm-backed |
-| **arena-web** (production) | Vercel project `arena-web`, latest deploy Ready | Standalone Next.js app at `arena-web-green.vercel.app`. Custom domain `arena.talkcircles.io` pending Patrick DNS |
+| **arena-web** (production) | Vercel project `arena-web`, latest deploy Ready | Standalone Next.js app at `arena.maxnexus.io`. Custom domain `arena.maxnexus.io` pending Patrick DNS |
 | nexus-web (dev) | port 3000, PID 57531 (next-server) | Hot-reload; running locally, Patrick uses for testing |
 | **Lumen.app** | `/Applications/Lumen.app` | Native face capture working as of 2026-05-07 server-side wasm fix. Multi-user code committed |
 | nexus-ios | committed locally | Multi-user auth code in repo; needs rebuild + install |
@@ -19,7 +19,7 @@
 |---|---|---|
 | **Operation Multi-User** | ✅ Shipped end-to-end | Phases 0-7 + 4b complete. Email + PIN auth, Lumen multi-user, iOS multi-user, Vercel deploy live, Resend invites working |
 | **Operation Keyholder** | 🟡 Phase A shipped; B-G pending | Lock/Reset/Audit endpoints + UI live. Owner recovery (Phase B) blocked on decision N2 |
-| **Arena Platform** | ✅ Shipped, awaiting domain | Standalone Next.js at `arena-web-green.vercel.app`. 5 providers, webhooks, Eve introspection. See `mission/arena-platform.md` |
+| **Arena Platform** | ✅ Shipped + domain live | Standalone Next.js at `https://arena.maxnexus.io`. 5 providers, webhooks, Eve introspection. See `mission/arena-platform.md` |
 | **nexus-web polish & mobile** | ✅ Shipped 2026-05-06/07 | Mobile fixes across chat/settings/console/agents/humans. Suits → real agents data. Lumen face-login server fix. See `mission/nexus-web-polish-2026-05.md` |
 | **Operation Letsgo** | 🟢 Active background | Lumen at /Applications/Lumen.app; native face working as of today |
 
@@ -27,8 +27,8 @@
 
 | Project | URL | Last deployed |
 |---|---|---|
-| nexus-web | `https://nexus-web-five-chi.vercel.app` (also various nexus-XXX preview URLs) | 2026-05-07 ~10:30 AM (face-api wasm fix) |
-| arena-web | `https://arena-web-green.vercel.app` | 2026-05-07 (webhook receiver foundation) |
+| nexus-web | `https://portal.maxnexus.io` (also various nexus-XXX preview URLs) | 2026-05-07 ~10:30 AM (face-api wasm fix) |
+| arena-web | `https://arena.maxnexus.io` | 2026-05-07 (webhook receiver foundation) |
 
 ## Editor activity (latest check)
 
@@ -45,19 +45,12 @@ Working tree:
 
 Remote: `https://github.com/patrickcmaxwell/nexus.git`. Branch: `main`.
 
-## What needs Patrick's hand right now (pre-Arena testing)
+## What needs Patrick's hand right now
 
-In rough sequence:
-
-1. **Push working tree to GitHub** — extensive accumulated work spans nexus-web, arena-web, lumen, mission docs.
-2. **DNS** — add `arena.talkcircles.io` CNAME (or A record) pointing at Vercel's arena-web project. Vercel dashboard → arena-web → Domains will show the exact target.
-3. **Vercel domain attach** — Vercel dashboard → arena-web → Domains → add `arena.talkcircles.io`.
-4. **Cross-subdomain cookie** — set `SESSION_COOKIE_DOMAIN=.talkcircles.io` on BOTH `nexus-web` and `arena-web` Vercel projects. Without this, signing into nexus-web doesn't carry to arena.
-5. **Resend** — copy `RESEND_API_KEY` from nexus-web env to arena-web env (so connection error emails actually send).
-6. **Eve points at custom domain** — set `ARENA_BASE_URL=https://arena.talkcircles.io` on nexus-web (currently Eve uses the `arena-web-green.vercel.app` default).
-7. **Provider keys** — optional now, can wait until first user wants a provider.
-
-Detailed steps in `mission/pending-changes.md` entry "Arena domain bring-up."
+- **Test Arena end-to-end** — connect a provider, ask Eve to fire a tool, verify audit log. Test plan in `mission/arena-platform.md` "Test plan once domain is live."
+- **Provider API keys per connection** — optional, can wait until you want to connect ClickUp / Notion / GitHub / Stripe / Slack for real.
+- **Rebuild Lumen.app** — server-side face-api fix is live; Lumen itself has uncommitted Swift work.
+- **Rebuild + install iOS app** — multi-user code is in tree.
 
 ## Foundational framings (still active)
 
@@ -82,16 +75,17 @@ Detailed steps in `mission/pending-changes.md` entry "Arena domain bring-up."
 ## Decisions blocking next moves
 
 See `/code/echo/decisions.md` for the canonical queue. Most actionable:
-- N1 — repoint nexus.talkcircles.io (less critical now we have arena.talkcircles.io as the new flagship subdomain)
+- N1 — repoint nexus.maxnexus.io (less critical now we have arena.maxnexus.io as the new flagship subdomain)
 - N2 — owner recovery model
 - N5 — promote Merlin to admin
 - P1-P3 — TalkCircles + Unstuck orientation
 
 ## What's next (in priority order)
 
-1. **Patrick deploys + sets up Arena domain** (this session's deliverable)
-2. **Test Arena end-to-end** with the test plan in `mission/arena-platform.md` "Test plan once domain is live"
-3. **Wire Systems page to real telemetry** (or leave PREVIEW banner until there's appetite for the work)
-4. **Per-provider HMAC verification on Arena webhooks** — first follow-up for Arena
-5. **Operation Keyholder Phase B-D** once N2 lands
-6. **Mobile sweep on Operations / Humans / Groups / Directives** (deferred from polish session — Patrick paused after Maxwell chat)
+1. **Mobile sweep on Operations / Humans / Groups / Directives** (deferred from polish session — Patrick paused after Maxwell chat)
+2. **Test Arena end-to-end** with the test plan in `mission/arena-platform.md`
+3. **Console parity** — bring nexus-web `/dashboard/console` to Lumen Console (add Search + Status tabs)
+4. **Wire Systems page to real telemetry** (or leave PREVIEW banner until there's appetite for the work)
+5. **Per-provider HMAC verification on Arena webhooks** — first follow-up for Arena
+6. **Operation Keyholder Phase B-D** once N2 lands
+7. **Light-mode theme support** — currently locked to dark; reactivate when inline-style sweep is done

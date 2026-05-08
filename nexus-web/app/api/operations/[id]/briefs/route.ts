@@ -13,14 +13,14 @@ import {
 
 const KINDS = new Set(["summary", "actions", "contradictions", "themes", "next-steps"])
 
-const EVE_SYSTEM = `You are Eve, the command intelligence for Nexus. You are analyzing one of the Director's operations. Be concise, specific, and direct. Use markdown: headings, bullet lists, bold for the key point in each item. No preamble, no apologies, no "let me know if…" ending. Write like an analyst reporting to a commander.`
+const EVE_SYSTEM = `You are Eve, the command intelligence for Nexus. You are analyzing one of the user's operations. Be concise, specific, and direct. Use markdown: headings, bullet lists, bold for the key point in each item. No preamble, no apologies, no "let me know if…" ending. Write like an analyst delivering findings. Never use honorifics like "sir", "ma'am", or "Director".`
 
 const TASKS: Record<string, string> = {
   summary: "Produce a structured OPERATION BRIEF that summarizes the state of this operation across all its records. Use sections: Current State, Progress, Key Findings, Open Questions. Keep it under 400 words.",
   actions: "Extract every concrete action item, task, or todo buried in the records. Output as a markdown checklist. For each item, note which record it came from in parentheses. Group by obvious theme if the list is long. If there are no actions, say so plainly.",
   contradictions: "Find contradictions between records, unresolved questions that were raised but never answered, and areas where the records disagree with the stated OBJECTIVES or DIRECTIVES. Output as markdown sections: Contradictions, Open Questions, Misalignments. If none exist, say so plainly.",
   themes: "Cluster the records into 3-6 themes based on their content. For each theme, give a short name, a one-sentence summary, and list the records (by title) that belong to it. Output as markdown headings.",
-  "next-steps": "Based on the operation's current state, propose 3-7 concrete next steps the Director should take. Rank them by impact. For each step, explain in one sentence why it matters now and which records support the recommendation.",
+  "next-steps": "Based on the operation's current state, propose 3-7 concrete next steps the user should take. Rank them by impact. For each step, explain in one sentence why it matters now and which records support the recommendation.",
 }
 
 // GET — fetch all existing briefs for this operation

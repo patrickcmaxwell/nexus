@@ -19,7 +19,7 @@ type Message = {
 const WELCOME: Message = {
   id: "welcome",
   role: "assistant",
-  content: "Eve online. How can I assist, sir?",
+  content: "Eve online. How can I help?",
 }
 
 // Animated audio waveform bars shown when Eve is speaking
@@ -146,7 +146,7 @@ export default function FloatingEve() {
         setTimeout(() => setPulse(false), 3000)
       }
     } catch {
-      setMessages(prev => [...prev, { id: crypto.randomUUID(), role: "assistant", content: "System error, sir." }])
+      setMessages(prev => [...prev, { id: crypto.randomUUID(), role: "assistant", content: "Something went wrong on my end. Try again." }])
     } finally {
       setIsLoading(false)
     }

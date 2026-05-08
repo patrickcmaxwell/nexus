@@ -97,6 +97,7 @@ function collectReferences(human: {
     for (const d of human.face_descriptors) if (isValidDescriptor(d)) refs.push(d)
   }
   if (isValidDescriptor(human.face_descriptor)) refs.push(human.face_descriptor)
+  if (isValidDescriptor(human.seed_face_descriptor)) refs.push(human.seed_face_descriptor)
   return refs
 }
 
@@ -187,21 +188,26 @@ export async function POST(req: NextRequest) {
   }
 
   let bestMatch: { id: string; name: string; role: string; distance: number } | null = null
+  let bestNearMiss: { name: string; distance: number } | null = null
   for (const human of humans) {
     const refs = collectReferences(human)
-    const refsToCheck = refs.length > 0
-      ? refs
-      : isValidDescriptor(human.seed_face_descriptor) ? [human.seed_face_descriptor] : []
-    for (const ref of refsToCheck) {
+    for (const ref of refs) {
       const distance = euclideanDistance(descriptor, ref)
       if (distance <= MATCH_THRESHOLD && (!bestMatch || distance < bestMatch.distance)) {
         bestMatch = { id: human.id, name: human.display_name, role: human.role, distance }
+      }
+      if (!bestNearMiss || distance < bestNearMiss.distance) {
+        bestNearMiss = { name: human.display_name, distance }
       }
     }
   }
 
   if (!bestMatch) {
-    return NextResponse.json({ error: "FACE_MISMATCH" }, { status: 401 })
+    return NextResponse.json({
+      error: "FACE_MISMATCH",
+      nearest: bestNearMiss ? { name: bestNearMiss.name, distance: Number(bestNearMiss.distance.toFixed(3)) } : null,
+      threshold: MATCH_THRESHOLD,
+    }, { status: 401 })
   }
 
   // Mint a session for the matched human. Same shape as the other auth

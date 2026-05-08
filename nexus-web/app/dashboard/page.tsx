@@ -18,7 +18,7 @@ async function fetchInitial(): Promise<Overview | null> {
 }
 
 const EMPTY_OVERVIEW: Overview = {
-  greeting: "Good day, sir. Systems initializing. Stand by.",
+  greeting: "Systems initializing. Stand by.",
   suggestions: ["What's the objective?", "Start a new operation", "Show recent activity"],
   stats: { conversations: 0, memories: 0, operations: 0, agents: 0, records: 0, activeOperations: 0, activeResearch: 0 },
   operations: [],

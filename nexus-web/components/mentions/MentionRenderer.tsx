@@ -34,12 +34,12 @@ export function expandMentionsInChildren(children: ReactNode): ReactNode {
   })
 }
 
-// Render plain text (no markdown) with chips inline.
+// Render plain text (no markdown) with chips inline AND bare URLs autolinked.
+// The two passes don't overlap (mention tokens use @[...] syntax, URLs start
+// with http(s)://) so we can run them sequentially: split on mentions first,
+// then linkify URLs inside each text fragment.
 export function renderPlainWithMentions(text: string): ReactNode[] {
-  // Plain text doesn't have sentinels — it has raw tokens. Reuse the
-  // splitByMentions utility by protecting and splitting.
   if (!text) return []
-  // Avoid a round-trip: split by the raw token regex directly.
   const TOKEN_RE = /@\[([^\]\n]+)\]\((operation|record|conversation|topic|agent):([a-zA-Z0-9_-]+)\)/g
   const parts: ReactNode[] = []
   let last = 0
@@ -47,10 +47,53 @@ export function renderPlainWithMentions(text: string): ReactNode[] {
   let i = 0
   TOKEN_RE.lastIndex = 0
   while ((m = TOKEN_RE.exec(text)) !== null) {
-    if (m.index > last) parts.push(<Fragment key={`t${i++}`}>{text.slice(last, m.index)}</Fragment>)
+    if (m.index > last) parts.push(...linkifyUrls(text.slice(last, m.index), `t${i++}`))
     parts.push(<MentionChip key={`c${i++}`} type={m[2] as "operation" | "record" | "conversation" | "topic" | "agent"} id={m[3]} label={m[1]} />)
     last = m.index + m[0].length
   }
-  if (last < text.length) parts.push(<Fragment key={`t${i++}`}>{text.slice(last)}</Fragment>)
+  if (last < text.length) parts.push(...linkifyUrls(text.slice(last), `t${i++}`))
   return parts
+}
+
+// Walk a plain text fragment and turn bare URLs into clickable <a> tags.
+// Matches http(s)://… and naked www.… (which we prefix with https). Trailing
+// punctuation (period, comma, paren, bracket) is excluded from the link so
+// "see https://x.com." doesn't capture the period.
+const URL_RE = /\b(https?:\/\/[^\s<>"'`]+|www\.[^\s<>"'`]+)/g
+const TRAILING_PUNCT_RE = /[.,;:!?)\]}>]+$/
+
+function linkifyUrls(text: string, keyPrefix: string): ReactNode[] {
+  const out: ReactNode[] = []
+  let last = 0
+  let m: RegExpExecArray | null
+  let i = 0
+  URL_RE.lastIndex = 0
+  while ((m = URL_RE.exec(text)) !== null) {
+    let url = m[0]
+    let trailing = ""
+    const trailMatch = url.match(TRAILING_PUNCT_RE)
+    if (trailMatch) {
+      trailing = trailMatch[0]
+      url = url.slice(0, -trailing.length)
+    }
+    if (m.index > last) out.push(<Fragment key={`${keyPrefix}-pre${i}`}>{text.slice(last, m.index)}</Fragment>)
+    const href = url.startsWith("www.") ? `https://${url}` : url
+    out.push(
+      <a
+        key={`${keyPrefix}-a${i}`}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="underline decoration-accent/40 hover:decoration-accent text-accent break-all"
+      >
+        {url}
+      </a>
+    )
+    if (trailing) out.push(<Fragment key={`${keyPrefix}-trail${i}`}>{trailing}</Fragment>)
+    last = m.index + m[0].length
+    i++
+  }
+  if (last < text.length) out.push(<Fragment key={`${keyPrefix}-tail`}>{text.slice(last)}</Fragment>)
+  if (out.length === 0) out.push(<Fragment key={`${keyPrefix}-only`}>{text}</Fragment>)
+  return out
 }

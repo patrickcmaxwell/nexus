@@ -390,7 +390,7 @@ export async function POST(req: Request) {
           // then pulls the user's connections from the shared DB. Eve gets
           // both halves in one tool call: "registered server-side" +
           // "actually connected for this user."
-          const ARENA_BASE = process.env.ARENA_BASE_URL || "https://arena-web-green.vercel.app"
+          const ARENA_BASE = process.env.ARENA_BASE_URL || "https://arena.maxnexus.io"
           let registered: Array<{ id: string; name: string; methods: string[] }> = []
           try {
             const res = await fetch(`${ARENA_BASE}/api/health`, { signal: AbortSignal.timeout(4_000) })
@@ -423,7 +423,7 @@ export async function POST(req: Request) {
           // problem), and recent failed action-log rows (the transient
           // signal). Combined, Eve has a complete "what's broken" picture.
           const limit = Math.min(Number(args.limit) || 8, 30)
-          const ARENA_BASE = process.env.ARENA_BASE_URL || "https://arena-web-green.vercel.app"
+          const ARENA_BASE = process.env.ARENA_BASE_URL || "https://arena.maxnexus.io"
           const [erroredConnsRes, failedActionsRes] = await Promise.all([
             supabase
               .from("arena_connections")

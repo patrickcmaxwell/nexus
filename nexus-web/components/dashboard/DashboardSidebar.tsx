@@ -103,19 +103,6 @@ export default function DashboardSidebar({ userEmail, userName, userRole, userAv
             })}
           </nav>
 
-          {/* Theme picker panel */}
-          {showTheme && (
-            <div className="mx-3 mb-3 p-4 rounded-2xl bg-card simple-card">
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-sm font-semibold text-card-foreground">Appearance</p>
-                <button onClick={() => setShowTheme(false)} className="w-7 h-7 rounded-lg bg-secondary flex items-center justify-center hover:bg-muted transition-colors">
-                  <X size={14} className="text-muted-foreground" />
-                </button>
-              </div>
-              <ThemePicker />
-            </div>
-          )}
-
           {/* Footer */}
           <div className="px-3 pb-4 pt-3 border-t border-sidebar-border">
             {/* User card — clickable to /dashboard/settings */}
@@ -136,25 +123,13 @@ export default function DashboardSidebar({ userEmail, userName, userRole, userAv
               <Settings size={14} className="text-muted-foreground/50 flex-shrink-0" />
             </Link>
 
-            {/* Action buttons */}
-            <div className="flex gap-2">
-              <button onClick={() => setShowTheme(v => !v)}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-medium transition-all duration-200 ${
-                  showTheme
-                    ? "bg-primary/10 text-primary"
-                    : "bg-secondary text-muted-foreground hover:text-sidebar-foreground"
-                }`}
-              >
-                <Palette size={14} />
-                Theme
-              </button>
-              <button onClick={handleSignOut} disabled={loggingOut}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-medium bg-secondary text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all duration-200 disabled:opacity-40"
-              >
-                <LogOut size={14} />
-                {loggingOut ? "..." : "Sign out"}
-              </button>
-            </div>
+            {/* Sign out — Theme toggle hidden until light mode is supported cleanly across all components. */}
+            <button onClick={handleSignOut} disabled={loggingOut}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-medium bg-secondary text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all duration-200 disabled:opacity-40"
+            >
+              <LogOut size={14} />
+              {loggingOut ? "..." : "Sign out"}
+            </button>
           </div>
         </aside>
 
@@ -270,21 +245,6 @@ export default function DashboardSidebar({ userEmail, userName, userRole, userAv
           })}
         </nav>
 
-        {/* Theme picker panel */}
-        {showTheme && (
-          <div className="mx-3 mb-3 p-4 rounded-xl bg-card border border-border nexus-glow-cyan">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-bold text-card-foreground">Appearance</p>
-              <button onClick={() => setShowTheme(false)}
-                className="w-6 h-6 rounded flex items-center justify-center bg-secondary hover:bg-muted transition-colors"
-              >
-                <X size={12} className="text-muted-foreground" />
-              </button>
-            </div>
-            <ThemePicker />
-          </div>
-        )}
-
         {/* Footer */}
         <div className="px-3 pb-4 pt-3 border-t border-sidebar-border">
           {/* User card — clickable to /dashboard/settings */}
@@ -305,25 +265,13 @@ export default function DashboardSidebar({ userEmail, userName, userRole, userAv
             <Settings size={14} className="text-primary/40 flex-shrink-0" />
           </Link>
 
-          {/* Action buttons */}
-          <div className="flex gap-2">
-            <button onClick={() => setShowTheme(v => !v)}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-semibold transition-all duration-300 border ${
-                showTheme
-                  ? "bg-primary/10 border-primary/30 text-primary"
-                  : "bg-secondary border-border text-muted-foreground hover:text-sidebar-foreground hover:border-sidebar-border"
-              }`}
-            >
-              <Palette size={14} />
-              Theme
-            </button>
-            <button onClick={handleSignOut} disabled={loggingOut}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-semibold transition-all duration-300 border bg-secondary border-border text-muted-foreground hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive disabled:opacity-40"
-            >
-              <LogOut size={14} />
-              {loggingOut ? "..." : "Sign out"}
-            </button>
-          </div>
+          {/* Sign out — Theme toggle hidden until light mode is supported cleanly across all components. */}
+          <button onClick={handleSignOut} disabled={loggingOut}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-semibold transition-all duration-300 border bg-secondary border-border text-muted-foreground hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive disabled:opacity-40"
+          >
+            <LogOut size={14} />
+            {loggingOut ? "..." : "Sign out"}
+          </button>
         </div>
       </aside>
 

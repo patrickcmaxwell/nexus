@@ -396,7 +396,7 @@ export default function GroupsPage() {
       {/* Manage Group Modal */}
       {managingGroup && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-xl w-full max-w-lg shadow-2xl p-6 flex flex-col max-h-[90vh]">
+          <div className="bg-card border border-border rounded-xl w-full max-w-lg shadow-2xl p-4 sm:p-6 flex flex-col max-h-[90vh]">
             <div className="flex items-center justify-between mb-6 flex-shrink-0">
               <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
                 <Settings className="text-accent" size={20} />

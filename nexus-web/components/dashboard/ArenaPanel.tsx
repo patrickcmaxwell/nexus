@@ -43,7 +43,7 @@ const ARENA_ENDPOINTS: EndpointDef[] = [
   { id: "arena-conn",    group: "Arena", method: "GET",  path: "/api/connections", purpose: "Your connections (cookie-auth)" },
 ]
 
-const ARENA_BASE = "https://arena-web-green.vercel.app"
+const ARENA_BASE = "https://arena.maxnexus.io"
 
 export default function ArenaPanel({
   initialActions, initialConnections,

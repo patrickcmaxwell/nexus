@@ -4,55 +4,11 @@ Proposed code changes waiting on a condition. Each entry has a **trigger** that 
 
 ---
 
-## NEW (2026-05-07): Arena domain bring-up
+## ✅ DONE 2026-05-07: Arena domain bring-up
 
-**Trigger:** Patrick is ready to set up Arena as a real production service on `arena.talkcircles.io`.
-**Context:** Arena is live at `https://arena-web-green.vercel.app` (Vercel-issued URL). It works today via that URL but cookie auth doesn't flow cleanly across subdomains until the custom domain lands. Once domain is wired, Arena and nexus-web share `nx_session` cookies via `SESSION_COOKIE_DOMAIN=.talkcircles.io`.
+DNS, custom domain, env vars all set by Patrick. Arena is live at `https://arena.maxnexus.io` with cross-subdomain cookie auth from `portal.maxnexus.io`. Splash at `https://maxnexus.io` (passphrase doorway). All previously-listed bring-up steps complete.
 
-### Sequence (do in order)
-
-1. **DNS** — In your DNS provider for `talkcircles.io`, add a record pointing `arena.talkcircles.io` at Vercel.
-   - Vercel will tell you the exact target (CNAME `cname.vercel-dns.com.` or A records). Open Vercel dashboard → arena-web project → Settings → Domains → Add Domain → `arena.talkcircles.io` — it'll show the DNS instructions.
-2. **Vercel domain attach** — Same Vercel screen. Vercel auto-issues TLS via Let's Encrypt once DNS resolves (usually 1-5 min after propagation).
-3. **Cross-subdomain cookie env var** — In Vercel:
-   - On `nexus-web` project → Environment Variables → add `SESSION_COOKIE_DOMAIN` = `.talkcircles.io` (note the leading dot)
-   - On `arena-web` project → Environment Variables → add `SESSION_COOKIE_DOMAIN` = `.talkcircles.io`
-   - Redeploy both (Vercel does this automatically on env var change).
-4. **Resend key on arena-web** — Copy `RESEND_API_KEY` from nexus-web env to arena-web env. Without this, connection-error notification emails won't send (graceful — dashboard banner still shows, but no email).
-5. **Eve points at custom domain** — On `nexus-web` project → Environment Variables → add `ARENA_BASE_URL` = `https://arena.talkcircles.io`. Without this, Eve's introspection tools (`arena_failures`, `arena_providers`) include the Vercel-issued URL in their "manage_url" responses.
-
-### Optional (per-provider env vars)
-
-You can leave these unset and let users supply credentials per-connection in the UI (recommended). If you want a fallback global default for solo use:
-- `CLICKUP_API_KEY` — for the ClickUp provider
-- (Notion/GitHub/Stripe/Slack don't have global env fallback in code yet — per-connection only.)
-
-### Verification once DNS + env are in
-
-```bash
-# 1. Domain resolves and serves Arena
-curl -I https://arena.talkcircles.io
-# expect: HTTP/2 200 with vercel headers
-
-# 2. Cross-subdomain cookie auth
-# Open https://nexus-web-five-chi.vercel.app, sign in with face/passcode
-# Then open https://arena.talkcircles.io/dashboard
-# expect: lands directly on dashboard WITHOUT a sign-in prompt
-# (if it asks you to sign in, SESSION_COOKIE_DOMAIN isn't set on both projects)
-
-# 3. Health check
-curl https://arena.talkcircles.io/api/health
-# expect: {"ok":true,"providers":["clickup","notion","github","stripe","slack"]}
-```
-
-### Then test the full flow (per `mission/arena-platform.md`)
-
-1. Open `arena.talkcircles.io/dashboard` — first-run guide appears
-2. Click "Connect ClickUp" → paste API key + list id → save → connection appears
-3. Click pencil → see webhook URL (https://arena.talkcircles.io/api/webhooks/...)
-4. POST a test event to that webhook URL → audit log shows `inbound/clickup/...`
-5. In nexus-web Eve chat: "create a task to test integration" → real ClickUp task lands
-6. Ask Eve: "is anything broken?" → calls `arena_failures` → returns healthy
+Test flow remains in `mission/arena-platform.md` "Test plan once domain is live."
 
 ---
 
