@@ -12,8 +12,13 @@
 import SwiftUI
 
 struct ConversationWindow: View {
-    let conversationId: String
+    let initialConversationId: String
     @EnvironmentObject var store: LumenStore
+
+    // The thread this window is currently viewing. Starts at whatever id
+    // the App opened the window with, but the in-window sidebar lets the
+    // Director swap to any other thread without spawning a new window.
+    @State private var conversationId: String = ""
     @State private var messages: [ChatMessage] = []
     @State private var input: String = ""
     @State private var loading = true
@@ -22,21 +27,136 @@ struct ConversationWindow: View {
     @State private var title: String = "Conversation"
     @FocusState private var inputFocused: Bool
 
+    /// Sidebar visibility — Director can collapse to maximize the message
+    /// area, or expand to browse + switch threads. Defaults to visible
+    /// because the #1 ask for pop-out was "show me my conversations."
+    @State private var sidebarVisible: Bool = true
+
+    /// Composer expansion. Defaults to false — chat input must NEVER eat
+    /// half the window. Tapping the expand chevron flips to a taller mode
+    /// that grows upward into the message area for paragraph composition.
+    @State private var composerExpanded: Bool = false
+
+    // Compact: ~3 lines, fits a sentence comfortably without dominating
+    // the window. Expanded: up to ~12 lines, paragraph-friendly.
+    private var composerMaxHeight: CGFloat { composerExpanded ? 240 : 88 }
+
+    init(conversationId: String) {
+        self.initialConversationId = conversationId
+        self._conversationId = State(initialValue: conversationId)
+    }
+
     var body: some View {
         ZStack {
             BackgroundLayer()
-            VStack(spacing: 0) {
-                header
-                messageList
-                inputBar
+            HStack(spacing: 0) {
+                if sidebarVisible {
+                    sidebar
+                        .frame(width: 200)
+                        .transition(.move(edge: .leading).combined(with: .opacity))
+                    Divider().background(Color.secondary.opacity(0.18))
+                }
+                VStack(spacing: 0) {
+                    header
+                    messageList
+                    inputBar
+                }
             }
         }
-        .task { await loadHistory() }
+        .task(id: conversationId) {
+            // Re-runs whenever the user clicks a different thread in the
+            // sidebar. Also runs once on first appear.
+            store.registerActiveConversation(id: conversationId, title: title)
+            await loadHistory()
+            store.registerActiveConversation(id: conversationId, title: title)
+        }
+    }
+
+    // ── Sidebar ───────────────────────────────────────────────────────────
+    private var sidebar: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("THREADS")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .tracking(1.5)
+                    .foregroundColor(.secondary.opacity(0.75))
+                Spacer()
+                Text("\(store.conversations.count)")
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundColor(.secondary.opacity(0.55))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .overlay(Rectangle().frame(height: 1).foregroundColor(.secondary.opacity(0.12)), alignment: .bottom)
+
+            ScrollView {
+                LazyVStack(spacing: 1) {
+                    ForEach(store.conversations) { conv in
+                        sidebarRow(conv)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+        }
+        .background(Color.secondary.opacity(0.04))
+    }
+
+    @ViewBuilder
+    private func sidebarRow(_ conv: ConversationSummary) -> some View {
+        let isActive = conv.id == conversationId
+        Button(action: { switchTo(conv) }) {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(isActive ? C.eve : Color.secondary.opacity(0.35))
+                    .frame(width: 6, height: 6)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(conv.title.isEmpty ? "Untitled" : conv.title)
+                        .font(.system(size: 11, weight: isActive ? .semibold : .regular))
+                        .foregroundColor(.primary.opacity(isActive ? 1.0 : 0.78))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    if !conv.source.isEmpty {
+                        Text(conv.source.uppercased())
+                            .font(.system(size: 8, weight: .semibold, design: .monospaced))
+                            .tracking(1)
+                            .foregroundColor(.secondary.opacity(0.55))
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(isActive ? C.eve.opacity(0.12) : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 4)
+    }
+
+    private func switchTo(_ conv: ConversationSummary) {
+        guard conv.id != conversationId else { return }
+        // Clear visible state immediately so the user sees the swap, then
+        // the .task(id:) re-runs and pulls history.
+        title = conv.title
+        messages = []
+        loading = true
+        conversationId = conv.id
     }
 
     // ── Header ────────────────────────────────────────────────────────────
     private var header: some View {
         HStack(spacing: 10) {
+            Button(action: { withAnimation(.easeOut(duration: 0.18)) { sidebarVisible.toggle() } }) {
+                Image(systemName: sidebarVisible ? "sidebar.left" : "sidebar.left")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(sidebarVisible ? C.eve : .secondary)
+                    .frame(width: 26, height: 26)
+                    .background(Color.secondary.opacity(sidebarVisible ? 0.0 : 0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 5))
+            }
+            .buttonStyle(.plain)
+            .help(sidebarVisible ? "Hide thread list" : "Show thread list")
+
             Image(systemName: "bubble.left.and.bubble.right.fill")
                 .font(.system(size: 12))
                 .foregroundColor(C.eve)
@@ -150,19 +270,35 @@ struct ConversationWindow: View {
                 .transition(.opacity.combined(with: .scale))
             }
 
-            ChatComposerField(
-                text: $input,
-                placeholder: "Send to this thread…  (⇧↩ for newline)",
-                minHeight: 22,
-                maxHeight: 140,
-                fontSize: 13,
-                onSubmit: { Task { await submit() } }
-            )
-            .frame(minHeight: 22)
-            .padding(8)
-            .background(Color.secondary.opacity(0.08))
-            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.secondary.opacity(0.18), lineWidth: 1))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            ZStack(alignment: .topTrailing) {
+                ChatComposerField(
+                    text: $input,
+                    placeholder: "Send to this thread…  (⇧↩ for newline)",
+                    minHeight: 22,
+                    maxHeight: composerMaxHeight,
+                    fontSize: 13,
+                    onSubmit: { Task { await submit() } }
+                )
+                .frame(minHeight: 22)
+                .padding(8)
+                .padding(.trailing, 22) // leave room for the expand chevron
+                .background(Color.secondary.opacity(0.08))
+                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.secondary.opacity(0.18), lineWidth: 1))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                Button(action: { withAnimation(.easeOut(duration: 0.14)) { composerExpanded.toggle() } }) {
+                    Image(systemName: composerExpanded ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundColor(.secondary.opacity(0.7))
+                        .frame(width: 18, height: 18)
+                        .background(Color.secondary.opacity(0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 4)
+                .padding(.trailing, 4)
+                .help(composerExpanded ? "Minimize composer" : "Expand composer for longer messages")
+            }
 
             Button(action: { Task { await submit() } }) {
                 Image(systemName: sending ? "hourglass" : "arrow.up")

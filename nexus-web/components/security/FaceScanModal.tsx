@@ -148,10 +148,10 @@ export default function FaceScanModal({ onClose }: { onClose: () => void }) {
     e.preventDefault()
     if (!passphrase.trim()) return
     setPassStatus("checking")
-    const res = await fetch("/api/passphrase", {
+    const res = await fetch("/api/security/reverify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ passphrase }),
+      body: JSON.stringify({ pin: passphrase }),
     })
     if (res.ok) {
       setStage("success")

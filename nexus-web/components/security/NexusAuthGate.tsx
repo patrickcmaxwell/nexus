@@ -155,25 +155,23 @@ export default function NexusAuthGate() {
   async function handlePasscode(e: React.FormEvent) {
     e.preventDefault()
     if (!passcode.trim()) return
-    setPassStatus("checking")
-    // Email + PIN → multi-user route. Empty email → legacy owner passphrase
-    // shortcut against MAXWELL_PIN. Both paths set the same nx_session cookie.
     const email = passEmail.trim()
-    const request = email
-      ? fetch("/api/security/pin", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, pin: passcode, remember: true }),
-          credentials: "include",
-        })
-      : fetch("/api/passphrase", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ passphrase: passcode }),
-          credentials: "include",
-        })
+    if (!email) {
+      // Email is required. Empty-email used to invoke the shared passphrase
+      // backdoor (/api/passphrase → owner session). That endpoint is gone.
+      setPassErrorMsg("Enter your email")
+      setPassStatus("denied")
+      setTimeout(() => { setPassStatus("idle"); setPassErrorMsg("") }, 3000)
+      return
+    }
+    setPassStatus("checking")
     try {
-      const res = await request
+      const res = await fetch("/api/security/pin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, pin: passcode, remember: true }),
+        credentials: "include",
+      })
       if (res.ok) {
         setTimeout(() => {
           window.location.replace("/dashboard")

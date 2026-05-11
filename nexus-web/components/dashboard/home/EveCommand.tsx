@@ -382,7 +382,7 @@ export default function EveCommand({ greeting, suggestions, lastConversation, ac
             />
             {activeResearch > 0 && (
               <div
-                className="absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full font-mono text-[9px] uppercase tracking-widest border"
+                className="absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border"
                 style={{ color: "#06b6d4", borderColor: "rgba(6,182,212,0.35)", background: "rgba(6,182,212,0.08)" }}
               >
                 <Telescope size={10} className="animate-pulse" />
@@ -395,7 +395,7 @@ export default function EveCommand({ greeting, suggestions, lastConversation, ac
           <div className="mt-4 flex items-center gap-2">
             <button
               onClick={startSession}
-              className="flex items-center gap-2 px-5 py-2 rounded font-mono text-[10px] uppercase tracking-widest transition-all hover:opacity-90 active:scale-95"
+              className="flex items-center gap-2 px-5 py-2 rounded text-xs font-medium transition-all hover:opacity-90 active:scale-95"
               style={{
                 border: "1px solid rgba(0,200,255,0.4)",
                 color: "#00c8ff",
@@ -479,7 +479,10 @@ export default function EveCommand({ greeting, suggestions, lastConversation, ac
               placeholder="Ask Eve anything… (@ to mention)"
               disabled={sending}
               minHeightClass="min-h-[42px]"
-              maxHeightClass="max-h-[120px]"
+              maxHeightClass="max-h-[88px]"
+              expandable
+              expandedMaxHeightClass="max-h-[55vh]"
+              className="pr-8"
               rightAdornment={
                 <button
                   type="submit"
@@ -512,7 +515,7 @@ export default function EveCommand({ greeting, suggestions, lastConversation, ac
               </button>
             )}
           </div>
-          <p className="mt-1.5 font-mono text-[9px] tracking-widest text-muted-foreground/60 uppercase">
+          <p className="mt-1.5 text-xs text-muted-foreground">
             Enter to send · Hold mic to speak · @ to mention
           </p>
         </form>
@@ -520,11 +523,11 @@ export default function EveCommand({ greeting, suggestions, lastConversation, ac
         {/* Quick actions */}
         <div className="flex-none mt-4 pt-4 border-t border-border/60">
           <div className="flex items-center justify-between mb-2">
-            <span className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground">Quick Actions</span>
+            <span className="text-xs font-medium text-muted-foreground">Quick Actions</span>
             {conversationId && (
               <Link
                 href={`/dashboard/maxwell?c=${conversationId}`}
-                className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-widest text-accent/70 hover:text-accent transition-colors"
+                className="flex items-center gap-1 text-xs font-medium text-accent/70 hover:text-accent transition-colors"
               >
                 Full session <ArrowRight size={10} />
               </Link>
@@ -547,9 +550,9 @@ export default function EveCommand({ greeting, suggestions, lastConversation, ac
             </button>
             <button
               onClick={() => setShowResearch(true)}
-              className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg border border-border hover:border-cyan-500/40 hover:bg-cyan-500/5 transition-colors group"
+              className="flex flex-col items-center gap-1 px-3 py-2.5 rounded-lg border border-border hover:border-primary/40 hover:bg-primary/5 transition-colors group"
             >
-              <Telescope size={14} className="text-cyan-500/70 group-hover:text-cyan-400" />
+              <Telescope size={14} className="text-primary/70 group-hover:text-primary" />
               <span className="text-[10px] text-muted-foreground group-hover:text-foreground">Research</span>
             </button>
           </div>
@@ -617,14 +620,14 @@ function QuickPromptModal({ title, placeholder, submitLabel, onClose, onSubmit }
         <div className="flex justify-end gap-2 mt-3">
           <button
             onClick={onClose}
-            className="text-[11px] font-mono uppercase tracking-widest px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground"
+            className="text-xs font-medium px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground"
           >
             Cancel
           </button>
           <button
             onClick={() => value.trim() && onSubmit(value.trim())}
             disabled={!value.trim()}
-            className="text-[11px] font-mono uppercase tracking-widest px-3 py-1.5 rounded bg-accent text-accent-foreground hover:bg-accent/90 disabled:opacity-40"
+            className="text-xs font-medium px-3 py-1.5 rounded bg-accent text-accent-foreground hover:bg-accent/90 disabled:opacity-40"
           >
             {submitLabel}
           </button>

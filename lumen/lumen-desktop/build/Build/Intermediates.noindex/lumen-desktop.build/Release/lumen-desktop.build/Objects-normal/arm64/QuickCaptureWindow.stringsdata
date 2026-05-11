@@ -1,0 +1,72 @@
+{
+  "source": "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/QuickCaptureWindow.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 67
+        }
+      },
+      {
+        "comment": "",
+        "key": "EVE · QUICK CAPTURE",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 81
+        }
+      },
+      {
+        "comment": "",
+        "key": "ESC to dismiss",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 94
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tell Eve what's on your mind…",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 106
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 17,
+          "startingLine": 104
+        }
+      },
+      {
+        "comment": "",
+        "key": "Continue this thread in the main Lumen window",
+        "location": {
+          "startingColumn": 19,
+          "startingLine": 160
+        }
+      },
+      {
+        "comment": "",
+        "key": "EVE",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 133
+        }
+      },
+      {
+        "comment": "",
+        "key": "OPEN",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 151
+        }
+      }
+    ]
+  },
+  "version": 1
+}

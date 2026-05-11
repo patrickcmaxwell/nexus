@@ -30,11 +30,11 @@ export default function ActiveResearchWidget({ jobs }: { jobs: Job[] }) {
   if (!jobs.length) return null
 
   return (
-    <section className="rounded-xl border border-cyan-500/15 bg-cyan-500/[0.03] overflow-hidden">
-      <header className="flex items-center justify-between px-4 py-3 border-b border-cyan-500/10">
+    <section className="rounded-xl border border-border bg-card overflow-hidden">
+      <header className="flex items-center justify-between px-4 py-3 border-b border-primary/10">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-cyan-500/10 border border-cyan-500/20">
-            <Telescope size={13} className="text-cyan-400" />
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-primary/10 border border-primary/20">
+            <Telescope size={13} className="text-primary" />
           </div>
           <div>
             <h2 className="text-[13px] font-semibold text-foreground">Active Research</h2>
@@ -43,7 +43,7 @@ export default function ActiveResearchWidget({ jobs }: { jobs: Job[] }) {
         </div>
       </header>
 
-      <div className="divide-y divide-cyan-500/5">
+      <div className="divide-y divide-border">
         {jobs.map(j => {
           const isRunning = j.status === "running"
           const isQueued = j.status === "queued"
@@ -51,7 +51,7 @@ export default function ActiveResearchWidget({ jobs }: { jobs: Job[] }) {
             <Link
               key={j.id}
               href={j.record_id ? `/dashboard/operations?record=${j.record_id}` : "/dashboard/operations"}
-              className="flex items-center gap-3 px-4 py-3 hover:bg-cyan-500/[0.04] transition-colors group"
+              className="flex items-center gap-3 px-4 py-3 hover:bg-primary/[0.04] transition-colors group"
             >
               <ProgressRing running={isRunning} queued={isQueued} />
               <div className="flex-1 min-w-0">
@@ -59,7 +59,7 @@ export default function ActiveResearchWidget({ jobs }: { jobs: Job[] }) {
                   <span className="text-[13px] font-medium truncate text-foreground">
                     {j.record_title ?? j.prompt.slice(0, 60)}
                   </span>
-                  <span className="font-mono text-[9px] uppercase tracking-widest text-cyan-400/70">
+                  <span className="text-xs font-medium text-primary/70">
                     {j.status}
                   </span>
                 </div>
@@ -72,7 +72,7 @@ export default function ActiveResearchWidget({ jobs }: { jobs: Job[] }) {
                   {j.started_at ? ` · started ${timeAgo(j.started_at)}` : j.created_at ? ` · queued ${timeAgo(j.created_at)}` : ""}
                 </p>
               </div>
-              <ArrowRight size={12} className="text-muted-foreground/40 group-hover:text-cyan-400 transition-colors flex-none" />
+              <ArrowRight size={12} className="text-muted-foreground/40 group-hover:text-primary transition-colors flex-none" />
             </Link>
           )
         })}
@@ -107,7 +107,7 @@ function ProgressRing({ running, queued }: { running: boolean; queued: boolean }
       </svg>
       {running && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+          <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
         </div>
       )}
     </div>

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import Link from "next/link"
 import {
   Plus, ChevronRight, Circle,
   Trash2, UserPlus, X, Shield, Clock,
@@ -258,7 +259,7 @@ export default function OperationsPage() {
       <div className={`${selected ? "hidden md:flex" : "flex"} w-full md:w-72 md:shrink-0 flex-col border-b md:border-b-0 md:border-r border-border bg-card md:h-full`}>
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <div>
-            <p className="text-[10px] font-mono text-muted-foreground tracking-widest uppercase">Nexus</p>
+            <p className="text-xs font-medium text-muted-foreground">Nexus</p>
             <h1 className="text-sm font-semibold text-foreground">Operations</h1>
           </div>
           <button
@@ -353,13 +354,22 @@ export default function OperationsPage() {
                   Updated {timeAgo(selected.updated_at)}
                 </p>
               </div>
-              <button
-                onClick={() => deleteOperation(selected.id)}
-                className="text-muted-foreground hover:text-destructive transition-colors p-1 shrink-0"
-                title="Delete operation"
-              >
-                <Trash2 size={14} />
-              </button>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <Link
+                  href={`/dashboard/operations/${selected.id}`}
+                  className="text-muted-foreground hover:text-foreground transition-colors p-1 text-xs flex items-center gap-1"
+                  title="Open full view"
+                >
+                  Full view ↗
+                </Link>
+                <button
+                  onClick={() => deleteOperation(selected.id)}
+                  className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                  title="Delete operation"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
             </div>
 
             {/* Eve analyst bar — collapsible panel of 5 bulk actions */}
@@ -372,19 +382,19 @@ export default function OperationsPage() {
               <div className="p-4 md:p-5 md:overflow-y-auto space-y-6 border-b md:border-b-0 border-border">
                 {selected.objectives ? (
                   <div>
-                    <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-2">Objectives</p>
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Objectives</p>
                     <p className="text-[12px] text-foreground/80 leading-relaxed whitespace-pre-wrap">{selected.objectives}</p>
                   </div>
                 ) : null}
                 {selected.directives ? (
                   <div>
-                    <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-2">Directives</p>
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Directives</p>
                     <p className="text-[12px] text-foreground/80 leading-relaxed whitespace-pre-wrap">{selected.directives}</p>
                   </div>
                 ) : null}
                 {selected.tags?.length > 0 && (
                   <div>
-                    <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-2">Tags</p>
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Tags</p>
                     <div className="flex flex-wrap gap-1">
                       {selected.tags.map(t => (
                         <span key={t} className="text-[10px] font-mono border border-border text-muted-foreground px-1.5 py-0.5 rounded">{t}</span>
@@ -409,7 +419,7 @@ export default function OperationsPage() {
               {/* Col 3: Assigned Agents */}
               <div className="p-4 md:p-5 md:overflow-y-auto">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Personnel</p>
+                  <p className="text-xs font-medium text-muted-foreground">Personnel</p>
                   <button
                     onClick={() => setShowAssign(true)}
                     className="text-[10px] font-mono border border-border text-muted-foreground hover:text-accent hover:border-accent/40 px-2 py-0.5 rounded transition-colors flex items-center gap-1"
@@ -466,24 +476,24 @@ export default function OperationsPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
-                <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Name *</label>
+                <label className="text-xs font-medium text-muted-foreground">Name *</label>
                 <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Operation name"
                   className="w-full mt-1 bg-background border border-border rounded px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent/50" />
               </div>
               <div>
-                <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Codename</label>
+                <label className="text-xs font-medium text-muted-foreground">Codename</label>
                 <input value={newCodename} onChange={e => setNewCodename(e.target.value)} placeholder="GHOST, SHADE..."
                   className="w-full mt-1 bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent/50" />
               </div>
               <div>
-                <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Priority</label>
+                <label className="text-xs font-medium text-muted-foreground">Priority</label>
                 <select value={newPriority} onChange={e => setNewPriority(e.target.value as OpPriority)}
                   className="w-full mt-1 bg-background border border-border rounded px-3 py-2 text-sm text-foreground focus:outline-none focus:border-accent/50">
                   {(["low","medium","high","critical"] as OpPriority[]).map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
               <div>
-                <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Visibility</label>
+                <label className="text-xs font-medium text-muted-foreground">Visibility</label>
                 <select value={newVisibility} onChange={e => setNewVisibility(e.target.value as any)}
                   className="w-full mt-1 bg-background border border-border rounded px-3 py-2 text-sm text-foreground focus:outline-none focus:border-accent/50">
                   <option value="private">Private (Only You)</option>
@@ -493,18 +503,18 @@ export default function OperationsPage() {
                 </select>
               </div>
               <div className="col-span-2">
-                <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Description</label>
+                <label className="text-xs font-medium text-muted-foreground">Description</label>
                 <input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="What is this operation about?"
                   className="w-full mt-1 bg-background border border-border rounded px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent/50" />
               </div>
               <div className="col-span-2">
-                <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Objectives</label>
+                <label className="text-xs font-medium text-muted-foreground">Objectives</label>
                 <textarea value={newObjectives} onChange={e => setNewObjectives(e.target.value)} rows={2}
                   placeholder="What needs to be accomplished..."
                   className="w-full mt-1 bg-background border border-border rounded px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent/50 resize-none" />
               </div>
               <div className="col-span-2">
-                <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Directives</label>
+                <label className="text-xs font-medium text-muted-foreground">Directives</label>
                 <textarea value={newDirectives} onChange={e => setNewDirectives(e.target.value)} rows={2}
                   placeholder="Rules Eve and agents must follow in this operation..."
                   className="w-full mt-1 bg-background border border-border rounded px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent/50 resize-none" />
@@ -529,14 +539,14 @@ export default function OperationsPage() {
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Type</label>
+                  <label className="text-xs font-medium text-muted-foreground">Type</label>
                   <select value={recType} onChange={e => setRecType(e.target.value as RecordType)}
                     className="w-full mt-1 bg-background border border-border rounded px-3 py-2 text-sm text-foreground focus:outline-none focus:border-accent/50">
                     {(["note","intel","data","finding","alert","file"] as RecordType[]).map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Priority</label>
+                  <label className="text-xs font-medium text-muted-foreground">Priority</label>
                   <select value={recPriority} onChange={e => setRecPriority(e.target.value)}
                     className="w-full mt-1 bg-background border border-border rounded px-3 py-2 text-sm text-foreground focus:outline-none focus:border-accent/50">
                     {["low","normal","high","critical"].map(p => <option key={p} value={p}>{p}</option>)}
@@ -544,18 +554,18 @@ export default function OperationsPage() {
                 </div>
               </div>
               <div>
-                <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Title *</label>
+                <label className="text-xs font-medium text-muted-foreground">Title *</label>
                 <input value={recTitle} onChange={e => setRecTitle(e.target.value)} placeholder="Record title"
                   className="w-full mt-1 bg-background border border-border rounded px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent/50" />
               </div>
               <div>
-                <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Content</label>
+                <label className="text-xs font-medium text-muted-foreground">Content</label>
                 <textarea value={recContent} onChange={e => setRecContent(e.target.value)} rows={4}
                   placeholder="Details, findings, data collected..."
                   className="w-full mt-1 bg-background border border-border rounded px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent/50 resize-none" />
               </div>
               <div>
-                <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Source</label>
+                <label className="text-xs font-medium text-muted-foreground">Source</label>
                 <input value={recSource} onChange={e => setRecSource(e.target.value)} placeholder="Eve, Shade, manual..."
                   className="w-full mt-1 bg-background border border-border rounded px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent/50" />
               </div>

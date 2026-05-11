@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import EveCommand from "./home/EveCommand"
+import { StatTile } from "@/components/ui/primitives"
 import ActiveResearchWidget from "./home/ActiveResearchWidget"
 import PinnedRecordsWidget from "./home/PinnedRecordsWidget"
 import ActionItemsWidget from "./home/ActionItemsWidget"
@@ -133,30 +134,38 @@ export default function DashboardHome({ initial }: { initial: Overview }) {
 
       {/* Right: live system data */}
       <section className="flex-1 min-w-0 lg:h-full lg:overflow-y-auto">
-        <div className="p-5 lg:p-6 space-y-4 max-w-3xl">
-          {/* Header stats strip */}
+        <div className="px-5 lg:px-8 py-6 lg:py-8 space-y-6 max-w-3xl">
+          {/* Header */}
           <header className="flex items-center justify-between gap-4 flex-wrap">
             <div>
-              <h1 className="text-lg font-semibold text-foreground tracking-tight">Command Deck</h1>
-              <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                {data.stats.activeOperations} active ops · {data.stats.records} records · {data.stats.memories} memories
-              </p>
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground">Today</h1>
+              <p className="text-sm text-muted-foreground mt-1.5">A live read on what&apos;s moving across Nexus.</p>
             </div>
             <button
               onClick={() => fetchOverview()}
               disabled={loading}
-              className="text-[10px] font-mono uppercase tracking-widest px-3 py-1.5 rounded border border-border hover:border-accent/40 hover:text-accent transition-colors text-muted-foreground disabled:opacity-50"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
             >
               {loading ? "Refreshing…" : "Refresh"}
             </button>
           </header>
 
-          <BriefingDeltaWidget />
-          <ActiveResearchWidget jobs={data.activeResearch} />
-          <PinnedRecordsWidget records={data.pinnedRecords} />
-          <ActionItemsWidget items={data.actionItems} />
-          <ArenaActivityWidget entries={data.arena ?? []} />
-          <ActivityFeedWidget activity={data.activity} />
+          {/* Stats — clean number tiles, single accent on focus */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <StatTile label="Active ops"  value={data.stats.activeOperations} />
+            <StatTile label="Records"     value={data.stats.records} />
+            <StatTile label="Agents"      value={data.stats.agents} />
+            <StatTile label="Memories"    value={data.stats.memories} />
+          </div>
+
+          <div className="space-y-4">
+            <BriefingDeltaWidget />
+            <ActiveResearchWidget jobs={data.activeResearch} />
+            <PinnedRecordsWidget records={data.pinnedRecords} />
+            <ActionItemsWidget items={data.actionItems} />
+            <ArenaActivityWidget entries={data.arena ?? []} />
+            <ActivityFeedWidget activity={data.activity} />
+          </div>
         </div>
       </section>
     </div>

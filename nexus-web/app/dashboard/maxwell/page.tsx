@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import { createServiceClient } from "@/lib/supabase/service"
-import { getActiveAuthId } from "@/lib/auth/session"
+import { getActiveAuthId, getActiveHuman } from "@/lib/auth/session"
 import MaxwellClient from "@/components/dashboard/MaxwellClient"
 
 export default async function MaxwellPage({
@@ -11,8 +11,14 @@ export default async function MaxwellPage({
   const userId = await getActiveAuthId()
   if (!userId) redirect("/auth/login")
 
+  const me = await getActiveHuman()
   const { c } = await searchParams
   const supabase = createServiceClient()
+
+  // Pull avatar separately — getActiveHuman doesn't include it today.
+  const { data: humanExtra } = me
+    ? await supabase.from("humans").select("avatar_url").eq("id", me.humanId).single()
+    : { data: null }
 
   // Load all conversations for the sidebar
   const { data: conversations } = await supabase
@@ -44,6 +50,8 @@ export default async function MaxwellPage({
       conversations={allConvs}
       initialConversationId={targetId}
       initialMessages={initialMessages}
+      userName={me?.displayName ?? "You"}
+      userAvatarUrl={(humanExtra?.avatar_url as string | null | undefined) ?? null}
     />
   )
 }

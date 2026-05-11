@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react"
 import { useEveVoice } from "@/hooks/useEveVoice"
 import EveMessage from "@/components/dashboard/EveMessage"
+import { UserAvatar, EveAvatar } from "@/components/ui/UserAvatar"
 import MentionInput, { type MentionInputHandle } from "@/components/mentions/MentionInput"
 import { renderPlainWithMentions } from "@/components/mentions/MentionRenderer"
 import { stripMentionsToPlain } from "@/lib/mentions/parse"
@@ -21,7 +22,7 @@ type Memory = { id: string; type: string; content: string; priority: number; sou
 type Topic = { id: string; conversation_id: string; label: string; description: string; color: string; created_at: string }
 
 const TOPIC_COLORS: Record<string, { border: string; text: string; bg: string; dot: string }> = {
-  cyan:    { border: "border-cyan-500/40",    text: "text-cyan-400",    bg: "bg-cyan-500/8",    dot: "bg-cyan-400" },
+  cyan:    { border: "border-primary/40",    text: "text-primary",    bg: "bg-primary/8",    dot: "bg-primary" },
   amber:   { border: "border-amber-500/40",   text: "text-amber-400",   bg: "bg-amber-500/8",   dot: "bg-amber-400" },
   emerald: { border: "border-emerald-500/40", text: "text-emerald-400", bg: "bg-emerald-500/8", dot: "bg-emerald-400" },
   rose:    { border: "border-rose-500/40",    text: "text-rose-400",    bg: "bg-rose-500/8",    dot: "bg-rose-400" },
@@ -74,10 +75,14 @@ export default function MaxwellClient({
   conversations: initialConversations,
   initialConversationId,
   initialMessages,
+  userName,
+  userAvatarUrl,
 }: {
   conversations: Conversation[]
   initialConversationId: string | null
   initialMessages: HistoryRow[]
+  userName: string
+  userAvatarUrl: string | null
 }) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<MentionInputHandle>(null)
@@ -869,7 +874,7 @@ export default function MaxwellClient({
                   className="w-full px-3 py-2 sticky top-0 bg-card z-10 flex items-center gap-2 hover:bg-muted/20 transition-colors text-left"
                 >
                   {isDateCollapsed ? <ChevronRight size={10} className="text-muted-foreground/40" /> : <ChevronDown size={10} className="text-muted-foreground/40" />}
-                  <p className="text-[10px] text-muted-foreground/50 tracking-widest uppercase font-medium flex-1">{date}</p>
+                  <p className="text-xs font-medium text-muted-foreground flex-1">{date}</p>
                   <span className="text-[9px] text-muted-foreground/30 tabular-nums">{convs.length}</span>
                 </button>
                 {!isDateCollapsed && convs.map(conv => {
@@ -1004,25 +1009,25 @@ export default function MaxwellClient({
         {/* Multi-select floating action bar */}
         {selectedIds.size > 0 && (
           <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-3 py-2 rounded-full bg-card/95 backdrop-blur border border-accent/40 shadow-lg shadow-black/30">
-            <span className="text-[9px] font-mono font-bold tracking-widest text-accent">
+            <span className="text-xs font-medium text-accent">
               {selectedIds.size} SELECTED
             </span>
             <span className="w-px h-4 bg-border" />
             <button
               onClick={readSelected}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent text-accent-foreground text-[10px] font-mono font-bold tracking-widest hover:opacity-90"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent text-accent-foreground text-xs font-medium hover:opacity-90"
             >
               <Volume2 size={11} /> READ ALOUD
             </button>
             <button
               onClick={copySelected}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/40 hover:bg-muted/60 text-foreground text-[10px] font-mono font-bold tracking-widest"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/40 hover:bg-muted/60 text-foreground text-xs font-medium"
             >
               <Copy size={11} /> COPY
             </button>
             <button
               onClick={() => stopEve()}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/30 hover:bg-muted/50 text-foreground/80 text-[10px] font-mono font-bold tracking-widest"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/30 hover:bg-muted/50 text-foreground/80 text-xs font-medium"
             >
               STOP
             </button>
@@ -1052,11 +1057,11 @@ export default function MaxwellClient({
             <div className="relative flex items-center justify-center w-9 h-9 flex-shrink-0">
               {/* Animated ring when speaking */}
               {eveSpeaking && (
-                <span className="absolute inset-0 rounded-full border-2 border-nexus-cyan animate-ping opacity-60" />
+                <span className="absolute inset-0 rounded-full border-2 border-primary animate-ping opacity-60" />
               )}
               <div className={`w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
                 eveSpeaking
-                  ? "border-nexus-cyan bg-nexus-cyan/10 text-nexus-cyan"
+                  ? "border-primary bg-primary/10 text-primary"
                   : isLoading
                   ? "border-amber-400/60 bg-amber-400/10 text-amber-400"
                   : "border-emerald-500/60 bg-emerald-500/10 text-emerald-400"
@@ -1089,7 +1094,7 @@ export default function MaxwellClient({
               title={voiceEnabled ? "Voice on — click to mute Eve" : "Voice off — click to unmute Eve"}
               className={`relative flex items-center gap-2 px-2 md:px-4 py-1.5 md:py-2 rounded-xl border text-sm font-semibold transition-all duration-200 ${
                 voiceEnabled
-                  ? "bg-nexus-cyan/15 border-nexus-cyan/60 text-nexus-cyan shadow-[0_0_12px_rgba(0,200,255,0.2)]"
+                  ? "bg-primary/15 border-primary/60 text-primary "
                   : "bg-card border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
               }`}
             >
@@ -1114,7 +1119,7 @@ export default function MaxwellClient({
               <button
                 onClick={() => speakAsEve(stripMentionsToPlain(lastEveMessage.content), ttsMode)}
                 title="Replay last Eve message"
-                className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl border border-nexus-cyan/30 bg-nexus-cyan/5 text-nexus-cyan/70 text-sm font-semibold hover:bg-nexus-cyan/15 hover:text-nexus-cyan hover:border-nexus-cyan/60 transition-all duration-200"
+                className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl border border-primary/30 bg-primary/5 text-primary/70 text-sm font-semibold hover:bg-primary/15 hover:text-primary hover:border-primary/60 transition-all duration-200"
               >
                 <Volume2 size={15} />
               </button>
@@ -1171,7 +1176,7 @@ export default function MaxwellClient({
                         <div key={`topic-${t.id}`} className={`flex items-center gap-3 py-2 px-4 rounded-xl border ${c.border} ${c.bg} group/tdiv`}>
                           <Tag size={12} className={c.text} />
                           <div className="flex-1">
-                            <span className={`text-xs font-bold uppercase tracking-widest ${c.text}`}>{t.label}</span>
+                            <span className={`text-xs font-semibold ${c.text}`}>{t.label}</span>
                             {t.description && (
                               <p className="text-xs text-muted-foreground mt-0.5">{t.description}</p>
                             )}
@@ -1231,8 +1236,13 @@ export default function MaxwellClient({
                         }}
                       >
                         <div className="flex items-center gap-2">
-                          <span className={`text-sm font-bold ${isUser ? "text-accent" : "text-foreground/80"}`}>
-                            {isUser ? "You" : "Eve"}
+                          {isUser ? (
+                            <UserAvatar name={userName} src={userAvatarUrl} size="xs" ring="none" />
+                          ) : (
+                            <EveAvatar size="xs" />
+                          )}
+                          <span className={`text-sm font-medium ${isUser ? "text-foreground" : "text-foreground/80"}`}>
+                            {isUser ? userName : "Eve"}
                           </span>
                           {m.created_at && (
                             <span className="text-xs text-foreground/40">{formatTime(m.created_at)}</span>
@@ -1368,7 +1378,7 @@ export default function MaxwellClient({
                       >
                         <span className="text-[12px] font-mono font-semibold text-violet-400 min-w-[64px]">{c.id}</span>
                         <span className="text-[11px] text-foreground/80 truncate flex-1">{c.detail}</span>
-                        <span className="text-[8px] font-mono tracking-widest text-muted-foreground/70 uppercase">
+                        <span className="text-xs text-muted-foreground/70">
                           {c.kind === "template" ? "TEMPLATE" : "ACTION"}
                         </span>
                       </button>
@@ -1397,8 +1407,10 @@ export default function MaxwellClient({
                     disabled={isLoading}
                     unstyled
                     minHeightClass="min-h-[28px]"
-                    maxHeightClass="max-h-40"
-                    className="flex-1"
+                    maxHeightClass="max-h-[96px]"
+                    expandable
+                    expandedMaxHeightClass="max-h-[55vh]"
+                    className="flex-1 pr-8"
                   />
 
                   <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0 pb-0.5">
@@ -1485,7 +1497,7 @@ export default function MaxwellClient({
                   memories.map(mem => (
                     <div key={mem.id} className={`border rounded-xl p-3 relative group ${memoryTypeColor(mem.type)}`}>
                       <div className="flex items-center justify-between mb-2">
-                        <span className={`text-[10px] font-bold uppercase tracking-widest ${memoryTypeColor(mem.type).split(" ")[0]}`}>
+                        <span className={`text-xs font-semibold ${memoryTypeColor(mem.type).split(" ")[0]}`}>
                           {mem.type}
                         </span>
                         <div className="flex items-center gap-2">

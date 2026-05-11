@@ -1,0 +1,120 @@
+{
+  "source": "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/CodePanel.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "CODE · CLAUDE CODE INSIDE LUMEN",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 79
+        }
+      },
+      {
+        "comment": "",
+        "key": "Launch Claude Code in another folder (each session runs independently)",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 93
+        }
+      },
+      {
+        "comment": "",
+        "key": "Close panel",
+        "location": {
+          "startingColumn": 19,
+          "startingLine": 101
+        }
+      },
+      {
+        "comment": "",
+        "key": "New Session",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 88
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld RUNNING",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 111
+        }
+      },
+      {
+        "comment": "",
+        "key": "New Claude Code session",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 147
+        }
+      },
+      {
+        "comment": "",
+        "key": "Run Claude Code inside Lumen",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 177
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pick a folder. Each session runs independently and persists across navigation — start one, switch to Eve, and it keeps working.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 179
+        }
+      },
+      {
+        "comment": "",
+        "key": "Path to claude binary",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 188
+        }
+      },
+      {
+        "comment": "",
+        "key": "Auto-detect",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 191
+        }
+      },
+      {
+        "comment": "",
+        "key": "Choose a working directory…",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 206
+        }
+      },
+      {
+        "comment": "",
+        "key": "Lumen will run Claude Code rooted at this folder",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 209
+        }
+      },
+      {
+        "comment": "",
+        "key": "RECENT FOLDERS",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 227
+        }
+      },
+      {
+        "comment": "",
+        "key": "End this session",
+        "location": {
+          "startingColumn": 19,
+          "startingLine": 361
+        }
+      }
+    ]
+  },
+  "version": 1
+}

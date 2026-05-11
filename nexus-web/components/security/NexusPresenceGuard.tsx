@@ -43,9 +43,9 @@ function LockScreen({
   async function submitPasscode(e: React.FormEvent) {
     e.preventDefault()
     if (!passcode.trim()) return
-    const res = await fetch("/api/passphrase", {
+    const res = await fetch("/api/security/reverify", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ passphrase: passcode }),
+      body: JSON.stringify({ pin: passcode }),
     })
     if (res.ok) { setStatus("success"); setMsg("Access granted"); setTimeout(onUnlocked, 800) }
     else { setPassErr(true); setPasscode(""); setTimeout(() => setPassErr(false), 2500) }

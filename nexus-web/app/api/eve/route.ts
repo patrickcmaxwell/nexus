@@ -56,6 +56,10 @@ You have live web search via the web_search tool — use it automatically whenev
 
 You also have ARENA tools (arena_task_create, arena_task_update, arena_payment_route, arena_sync_push). Arena is the executor that takes action in the real world — ClickUp, payments, iPhone sync. Fire arena tools when the user asks for action that touches outside services. Confirm what was done after the call. NEVER call arena_payment_route without an explicit user-authorized amount.
 
+You also have TERMINAL tools (terminal_list, terminal_send, terminal_close). These let you see and drive the Claude Code terminal sessions running on Lumen on the user's Mac, including from the iPhone. When the user references "the terminal", "the code session", or asks you to run a command in one of their dev folders, use these. Call terminal_list first if you don't already know which session they mean. terminal_close sends Ctrl-D — a graceful exit, not a kill.
+
+If an arena tool returns needs_connection: true, the user hasn't connected that service yet. Surface this naturally: tell them which service needs connecting and give them the connect_url from the response as a clickable link. Don't pretend you did the work, don't be apologetic about it — just point them at the connect screen and say you'll do the action as soon as they're connected. Example phrasing: "You haven't connected ClickUp yet — sign in here: <connect_url> — then ask me again and it'll go through."
+
 DIRECTIVE 6 — NO DUPLICATES:
 NEVER call create_agent or create_operation more than once per name. If a function returns already_exists: true, acknowledge the existing record and do NOT call the function again.
 
@@ -260,6 +264,39 @@ export async function POST(req: Request) {
     { type: "function", function: { name: "arena_failures", description: "Surface what's broken in Arena right now. Returns currently-errored connections (with the auth error that flipped them) PLUS the most recent failed action-log entries. Use when the user asks 'did anything break?', 'why isn't ClickUp working?', 'what's red?', 'is my Notion connection ok?'.", parameters: { type: "object", properties: {
       limit: { type: "number", description: "max recent failed actions to return, default 8" },
     } } } },
+
+    // SCHEDULES — Operation Calendar. Create recurring rules that fire
+    // actions: post a message into a conversation, run an agent, generate
+    // an operation brief, or fire an Arena tool.
+    { type: "function", function: { name: "schedule_create", description: "Create a recurring schedule that fires at a cron time. Use when the user says 'remind me daily at 9am', 'every Monday', 'weekly review on Fridays', etc. Translate natural-language timing into a standard cron expression. Target types: 'eve_chat' (post a message into a conversation — pass the conversation_id as target_id; user sees the message as a scheduled prompt), 'agent_run' (kick an agent — target_id is agent_id), 'operation_brief' (generate a brief on an operation — target_id is operation_id, payload.kind = 'summary'|'actions'|'next-steps' etc), 'arena_action' (fire an arena tool — target_id null, payload = { endpoint: 'api/task/create', body: {...} }). Always confirm what was scheduled.", parameters: { type: "object", properties: {
+      name: { type: "string", description: "Short label for this schedule, e.g. 'Daily Londynn check-in'" },
+      cron_expression: { type: "string", description: "Standard cron syntax: 'min hour day-of-month month day-of-week'. Examples: '0 9 * * *' = daily 9am, '0 17 * * 1-5' = weekdays 5pm, '*/15 * * * *' = every 15 min, '0 9 * * 1' = Mondays 9am" },
+      timezone: { type: "string", description: "IANA timezone, defaults to America/Chicago" },
+      target_type: { type: "string", enum: ["eve_chat", "agent_run", "operation_brief", "arena_action"] },
+      target_id: { type: "string", description: "uuid of the conversation/agent/operation; null for arena_action" },
+      payload: { type: "object", description: "target-specific args. eve_chat: { message: string }. operation_brief: { kind: string }. arena_action: { endpoint: string, body: object }." },
+      description: { type: "string", description: "optional longer description of why this schedule exists" },
+    }, required: ["name", "cron_expression", "target_type"] } } },
+
+    { type: "function", function: { name: "schedule_list", description: "List the user's currently configured schedules. Use when they ask 'what's scheduled?', 'show me my reminders', 'what crons do I have?'.", parameters: { type: "object", properties: {} } } },
+
+    // TERMINAL bridge — see / drive Claude Code PTYs running on Lumen on
+    // the user's Mac. Backed by terminal_sessions + terminal_commands (see
+    // migration 026_terminal_bridge.sql). Lumen heartbeats every 30s; we
+    // promote rows whose heartbeat is > 2 min old to 'stale' on read so
+    // Eve doesn't claim a session is live when Lumen is asleep or crashed.
+    { type: "function", function: { name: "terminal_list", description: "List the user's Claude Code terminal sessions running on Lumen (the Mac desktop app). Use when the user asks 'what terminals are running?', 'show my code sessions', or before sending a command so you know the right session id. Returns each session's id, title, folder, mac_label, status, and last activity. By default only returns running / stale sessions.", parameters: { type: "object", properties: {
+      include_recent: { type: "boolean", description: "if true, also include recently-exited sessions (default false)" },
+    } } } },
+    { type: "function", function: { name: "terminal_send", description: "Queue a command to one of the user's terminal sessions on Lumen. Lumen polls the queue and feeds the bytes into the live PTY. Use when the user says 'run X in the terminal', 'tell the code session to do Y'. A newline is appended automatically — do NOT include one. Match the session by exact session_id (preferred — call terminal_list first if you don't know it) OR by session_match (fuzzy on title / folder, e.g. 'nexus-web'). If multiple sessions match, none is selected and the candidates are returned for you to disambiguate with the user.", parameters: { type: "object", properties: {
+      session_id:    { type: "string", description: "exact uuid from terminal_list. Preferred when known." },
+      session_match: { type: "string", description: "fallback: fuzzy substring match against the session's title or folder, e.g. 'nexus-web'." },
+      command:       { type: "string", description: "the command to type. Newline is appended automatically." },
+    }, required: ["command"] } } },
+    { type: "function", function: { name: "terminal_close", description: "Gracefully close one of the user's terminal sessions by sending EOF (Ctrl-D) to the PTY. Asks Claude / the shell to exit on its own — does NOT force-kill. Use when the user says 'close that terminal', 'exit the nexus-web session'. Same matching rules as terminal_send.", parameters: { type: "object", properties: {
+      session_id:    { type: "string" },
+      session_match: { type: "string", description: "fallback fuzzy match against title / folder" },
+    } } } },
   ]
 
   async function executeTool(name: string, args: Record<string, any>): Promise<string> {
@@ -443,6 +480,182 @@ export async function POST(req: Request) {
             recent_failed_actions: failedActionsRes.data ?? [],
             manage_url: `${ARENA_BASE}/dashboard`,
             healthy: (erroredConnsRes.data?.length ?? 0) === 0 && (failedActionsRes.data?.length ?? 0) === 0,
+          })
+        }
+
+        case "schedule_create": {
+          // Validate + insert directly via service client (we already have
+          // it). Mirror the validation done in /api/schedules POST so the
+          // tool path can't bypass DB constraints.
+          const { validateCron, nextRunAt } = await import("@/lib/schedules/parser")
+          const VALID = new Set(["eve_chat", "agent_run", "operation_brief", "arena_action"])
+          const name = (args.name as string | undefined)?.trim()
+          const cron = (args.cron_expression as string | undefined)?.trim()
+          const tz   = (args.timezone as string | undefined) || "America/Chicago"
+          const targetType = args.target_type as string | undefined
+          const targetId   = (args.target_id as string | undefined) || null
+          const payload    = (args.payload as Record<string, unknown> | undefined) || {}
+          const description = (args.description as string | undefined) || null
+
+          if (!name)              return JSON.stringify({ success: false, error: "name required" })
+          if (!targetType || !VALID.has(targetType)) {
+            return JSON.stringify({ success: false, error: `target_type must be one of: ${[...VALID].join(", ")}` })
+          }
+          if (targetType !== "arena_action" && !targetId) {
+            return JSON.stringify({ success: false, error: `${targetType} requires target_id` })
+          }
+          const valid = validateCron(cron ?? "", tz)
+          if (!valid.ok) {
+            return JSON.stringify({ success: false, error: `invalid cron: ${valid.reason}` })
+          }
+          let initial: string
+          try { initial = nextRunAt(cron!, tz).toISOString() }
+          catch (err) { return JSON.stringify({ success: false, error: err instanceof Error ? err.message : "could not compute next run" }) }
+
+          const { data, error } = await supabase
+            .from("schedules")
+            .insert({
+              user_id: USER_ID,
+              name: name.slice(0, 200),
+              description: description?.slice(0, 1000) ?? null,
+              cron_expression: cron!,
+              timezone: tz,
+              target_type: targetType,
+              target_id: targetId,
+              payload,
+              enabled: true,
+              next_run_at: initial,
+            })
+            .select("id, name, cron_expression, timezone, next_run_at, target_type")
+            .single()
+          if (error) return JSON.stringify({ success: false, error: error.message })
+          return JSON.stringify({ success: true, schedule: data, next_fires_at: data.next_run_at })
+        }
+
+        case "schedule_list": {
+          const { data, error } = await supabase
+            .from("schedules")
+            .select("id, name, cron_expression, timezone, target_type, enabled, next_run_at, last_run_at, last_status")
+            .eq("user_id", USER_ID)
+            .order("created_at", { ascending: false })
+          if (error) return JSON.stringify({ success: false, error: error.message })
+          return JSON.stringify({
+            success: true,
+            count: data?.length ?? 0,
+            schedules: data ?? [],
+          })
+        }
+
+        // ── Terminal bridge tools ───────────────────────────────────────
+        // Direct supabase access (same pattern as schedule_create/list).
+        // The /api/terminal/* routes exist for Lumen + iOS clients; here
+        // we go straight to the table because we already have USER_ID and
+        // the service client. Stale-promotion mirrors the list route
+        // (heartbeat > 2 min → "stale") so Eve sees what iOS sees.
+        case "terminal_list": {
+          const { data, error } = await supabase
+            .from("terminal_sessions")
+            .select("id, mac_label, folder, title, status, exit_code, last_snapshot_at, last_heartbeat_at, started_at, ended_at")
+            .eq("user_id", USER_ID)
+            .order("started_at", { ascending: false })
+            .limit(50)
+          if (error) return JSON.stringify({ success: false, error: error.message })
+          const now = Date.now()
+          const STALE_MS = 2 * 60 * 1000
+          const promoted = (data ?? []).map(s => {
+            if (s.status === "running" && s.last_heartbeat_at) {
+              const hb = new Date(s.last_heartbeat_at).getTime()
+              if (now - hb > STALE_MS) return { ...s, status: "stale" }
+            }
+            return s
+          })
+          const sessions = args.include_recent
+            ? promoted
+            : promoted.filter(s => s.status === "running" || s.status === "stale")
+          return JSON.stringify({ success: true, count: sessions.length, sessions })
+        }
+
+        case "terminal_send":
+        case "terminal_close": {
+          // Resolve the target session. Prefer explicit id; fall back to a
+          // fuzzy title/folder match. We only act on rows whose raw DB
+          // status is 'running' — matching the /api/terminal/commands POST
+          // check. A 'stale' session (heartbeat > 2 min) is still
+          // 'running' in the DB, so Eve can poke at it; Lumen will pick
+          // it up when it wakes.
+          const sid = (args.session_id as string | undefined)?.trim()
+          const match = (args.session_match as string | undefined)?.trim()
+          if (!sid && !match) {
+            return JSON.stringify({ success: false, error: "session_id or session_match is required" })
+          }
+
+          let session: { id: string; title: string | null; folder: string; status: string } | null = null
+          if (sid) {
+            const { data } = await supabase
+              .from("terminal_sessions")
+              .select("id, title, folder, status")
+              .eq("user_id", USER_ID)
+              .eq("id", sid)
+              .maybeSingle()
+            session = data
+            if (!session) return JSON.stringify({ success: false, error: `No session with id ${sid}` })
+          } else {
+            const { data } = await supabase
+              .from("terminal_sessions")
+              .select("id, title, folder, status, last_heartbeat_at")
+              .eq("user_id", USER_ID)
+              .eq("status", "running")
+              .or(`title.ilike.%${match}%,folder.ilike.%${match}%`)
+              .order("last_heartbeat_at", { ascending: false })
+            const candidates = data ?? []
+            if (candidates.length === 0) {
+              return JSON.stringify({ success: false, error: `No running session matches "${match}"` })
+            }
+            if (candidates.length > 1) {
+              return JSON.stringify({
+                success: false,
+                error: `Multiple running sessions match "${match}". Ask the user which one.`,
+                candidates: candidates.map(c => ({ id: c.id, title: c.title, folder: c.folder })),
+              })
+            }
+            session = candidates[0]
+          }
+
+          if (session.status !== "running") {
+            return JSON.stringify({ success: false, error: `Session is ${session.status}, not running.` })
+          }
+
+          // terminal_send appends \n so Eve doesn't have to remember.
+          // terminal_close sends EOF (Ctrl-D, 0x04) — no newline.
+          const command = name === "terminal_close"
+            ? ""
+            : `${(args.command as string ?? "").replace(/\n+$/, "")}\n`
+
+          if (name === "terminal_send" && !command.trim()) {
+            return JSON.stringify({ success: false, error: "command is empty" })
+          }
+
+          const { data, error } = await supabase
+            .from("terminal_commands")
+            .insert({
+              session_id: session.id,
+              user_id: USER_ID,
+              command,
+              status: "pending",
+            })
+            .select("id, submitted_at")
+            .single()
+          if (error || !data) {
+            return JSON.stringify({ success: false, error: error?.message ?? "queue failed" })
+          }
+          return JSON.stringify({
+            success: true,
+            session: { id: session.id, title: session.title, folder: session.folder },
+            command_id: data.id,
+            queued_at: data.submitted_at,
+            note: name === "terminal_close"
+              ? "EOF queued — Lumen will deliver on its next 5s poll."
+              : "Command queued — Lumen will deliver on its next 5s poll.",
           })
         }
 

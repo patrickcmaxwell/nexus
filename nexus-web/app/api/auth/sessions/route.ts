@@ -25,7 +25,7 @@ export async function GET() {
   const supabase = getServiceClient()
   const { data, error } = await supabase
     .from("security_sessions")
-    .select("id, created_at, last_verified_at, expires_at, auth_method")
+    .select("id, created_at, last_verified_at, expires_at, auth_method, device_label, ip_address")
     .eq("team_member_id", me.humanId)
     .eq("invalidated", false)
     .gt("expires_at", new Date().toISOString())

@@ -36,16 +36,13 @@ export default function ConsoleClient({ initial }: { initial: Initial }) {
   return (
     <div className="min-h-screen p-4 sm:p-6 md:p-10 max-w-4xl mx-auto">
       <header className="mb-8">
-        <p className="font-mono text-[10px] tracking-[0.3em] uppercase mb-1" style={{ color: "var(--nexus-cyan)" }}>
-          Console
-        </p>
-        <h1 className="text-2xl font-bold text-foreground">Engine room</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          What just changed, what's reachable, who you are, and what's signed in.
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Console</h1>
+        <p className="text-sm text-muted-foreground mt-2">
+          Recent changes, endpoint health, sessions, and settings — what&apos;s under the hood.
         </p>
       </header>
 
-      <nav className="flex md:flex-wrap gap-1 mb-6 p-1 bg-white/[0.04] border border-white/8 overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-1 scrollbar-thin" style={{ borderRadius: 8 }}>
+      <nav className="flex md:flex-wrap gap-1 mb-6 p-1 rounded-lg bg-muted overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-1">
         <TabButton label="Today"     active={tab === "today"}     onClick={() => setTab("today")}     icon={Calendar} />
         <TabButton label="Endpoints" active={tab === "endpoints"} onClick={() => setTab("endpoints")} icon={Activity} />
         <TabButton label="Sessions"  active={tab === "sessions"}  onClick={() => setTab("sessions")}  icon={Monitor} />
@@ -72,15 +69,13 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-2 px-3 py-2 font-mono text-[10px] tracking-[0.2em] uppercase transition-all whitespace-nowrap flex-shrink-0"
-      style={{
-        color: active ? "var(--nexus-cyan)" : "oklch(0.7 0 0 / 0.5)",
-        background: active ? "oklch(0.75 0.18 200 / 0.12)" : "transparent",
-        border: active ? "1px solid oklch(0.75 0.18 200 / 0.4)" : "1px solid transparent",
-        borderRadius: 6,
-      }}
+      className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors whitespace-nowrap flex-shrink-0 ${
+        active
+          ? "bg-card text-foreground shadow-sm"
+          : "text-muted-foreground hover:text-foreground"
+      }`}
     >
-      <Icon size={11} />
+      <Icon size={14} />
       {label}
     </button>
   )
@@ -122,21 +117,20 @@ function TodayTab() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <p className="font-mono text-[10px] tracking-[0.25em] uppercase" style={{ color: "var(--nexus-cyan)" }}>
-          What's moved since 24h ago
+        <p className="text-sm font-medium text-foreground">
+          What&apos;s moved since 24h ago
         </p>
         <button
           onClick={load}
           disabled={loading}
-          className="px-3 py-2 font-mono text-[9px] tracking-widest flex items-center gap-2 disabled:opacity-40"
+          className="px-3 py-1.5 text-xs font-medium rounded-md text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 transition-colors flex items-center gap-1.5"
           style={{
-            color: "var(--nexus-cyan)",
-            background: "oklch(0.75 0.18 200 / 0.1)",
-            border: "1px solid oklch(0.75 0.18 200 / 0.4)",
-            borderRadius: 5,
+            color: "inherit",
+            background: "transparent",
+            border: "none",
           }}
         >
-          {loading ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+          {loading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
           Refresh
         </button>
       </div>
@@ -293,35 +287,36 @@ function SessionsTab() {
       ) : (
         <div className="flex flex-col gap-2">
           {sessions.map((s) => (
-            <div key={s.id} className="flex items-center justify-between gap-3 px-3 py-2.5"
-              style={{
-                background: s.current ? "oklch(0.75 0.18 200 / 0.06)" : "transparent",
-                border: `1px solid ${s.current ? "oklch(0.75 0.18 200 / 0.4)" : "oklch(0.3 0 0 / 0.2)"}`,
-              }}
+            <div
+              key={s.id}
+              className={`flex items-center justify-between gap-3 px-4 py-3 rounded-lg border ${
+                s.current
+                  ? "bg-primary/5 border-primary/40"
+                  : "bg-transparent border-border"
+              }`}
             >
-              <div className="flex flex-col min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs uppercase tracking-widest" style={{ color: s.current ? "var(--nexus-cyan)" : "var(--foreground)" }}>
+              <div className="flex flex-col min-w-0 gap-0.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`text-sm font-medium ${s.current ? "text-primary" : "text-foreground"}`}>
                     {s.auth_method}
                   </span>
                   {s.current && (
-                    <span className="font-mono text-[9px] tracking-widest uppercase px-1.5 py-0.5"
-                      style={{ background: "oklch(0.75 0.18 200 / 0.15)", color: "var(--nexus-cyan)" }}
-                    >
+                    <span className="text-xs px-2 py-0.5 rounded-md bg-primary/15 text-primary">
                       This device
                     </span>
                   )}
                 </div>
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-xs text-muted-foreground">
                   Last active {relativeTime(s.last_verified_at)} · expires {new Date(s.expires_at).toLocaleDateString()}
                 </span>
               </div>
               <button
                 onClick={() => revoke(s.id)}
                 disabled={revoking === s.id}
-                className="px-2 py-1 font-mono text-[9px] tracking-widest text-white/55 hover:text-red-400 border border-border/40 hover:border-red-500/50 disabled:opacity-40"
+                className="px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-destructive border border-border hover:border-destructive/50 hover:bg-destructive/10 rounded-lg disabled:opacity-40 transition-colors flex items-center gap-1.5"
               >
-                {revoking === s.id ? <Loader2 size={10} className="animate-spin" /> : "REVOKE"}
+                {revoking === s.id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
+                Revoke
               </button>
             </div>
           ))}
@@ -331,10 +326,9 @@ function SessionsTab() {
       <button
         onClick={signOutOthers}
         disabled={revoking === "others" || sessions.filter((s) => !s.current).length === 0}
-        className="px-3 py-2 font-mono text-[10px] tracking-[0.2em] uppercase flex items-center gap-2 disabled:opacity-40"
-        style={{ background: "oklch(0.65 0.05 25 / 0.1)", border: "1px solid oklch(0.65 0.18 25 / 0.4)", color: "oklch(0.85 0.12 25)" }}
+        className="px-4 py-2 text-sm font-medium rounded-lg text-destructive border border-destructive/40 hover:bg-destructive/10 transition-colors flex items-center gap-2 disabled:opacity-40"
       >
-        <LogOut size={12} /> Sign out other devices
+        <LogOut size={14} /> Sign out other devices
       </button>
     </div>
   )
@@ -346,9 +340,7 @@ function SettingsTab({ initial }: { initial: Initial }) {
   const router = useRouter()
   return (
     <div className="space-y-5">
-      <p className="font-mono text-[10px] tracking-[0.25em] uppercase" style={{ color: "var(--nexus-cyan)" }}>
-        You
-      </p>
+      <p className="text-sm font-medium text-foreground">You</p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <Field label="Display name" value={initial.displayName} />
         <Field label="Email"        value={initial.email} />
@@ -359,14 +351,9 @@ function SettingsTab({ initial }: { initial: Initial }) {
 
       <button
         onClick={() => router.push("/dashboard/settings")}
-        className="self-start px-3 py-2 font-mono text-[10px] tracking-[0.2em] uppercase flex items-center gap-2"
-        style={{
-          color: "var(--nexus-cyan)",
-          background: "oklch(0.75 0.18 200 / 0.12)",
-          border: "1px solid oklch(0.75 0.18 200 / 0.5)",
-        }}
+        className="self-start px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity flex items-center gap-2"
       >
-        Edit profile, change PIN, manage avatar <ArrowRight size={12} />
+        Edit profile, change PIN, manage avatar <ArrowRight size={14} />
       </button>
     </div>
   )
@@ -377,7 +364,7 @@ function SettingsTab({ initial }: { initial: Initial }) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-2">
-      <p className="font-mono text-[9px] tracking-[0.25em] uppercase text-muted-foreground/60">{title}</p>
+      <p className="text-sm font-medium text-foreground">{title}</p>
       <div className="flex flex-col gap-1">{children}</div>
     </div>
   )
@@ -385,13 +372,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function SimpleRow({ primary, secondary, time }: { primary: string; secondary?: string; time?: string }) {
   return (
-    <div className="flex items-center gap-3 px-3 py-2.5 bg-white/[0.025]">
+    <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-muted/40">
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-white/85 truncate">{primary}</p>
-        {secondary && <p className="text-[10px] text-white/45 truncate font-mono uppercase tracking-wider">{secondary}</p>}
+        <p className="text-sm text-foreground truncate">{primary}</p>
+        {secondary && <p className="text-xs text-muted-foreground truncate">{secondary}</p>}
       </div>
       {time && (
-        <span className="font-mono text-[9px] tracking-widest text-white/40">{relativeTime(time)}</span>
+        <span className="text-xs text-muted-foreground">{relativeTime(time)}</span>
       )}
     </div>
   )
@@ -399,27 +386,27 @@ function SimpleRow({ primary, secondary, time }: { primary: string; secondary?: 
 
 function StatTile({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="p-3" style={{ background: `${color} / 0.06`, border: `1px solid ${color}33` }}>
-      <p className="font-mono text-2xl font-bold tabular-nums" style={{ color }}>{value}</p>
-      <p className="font-mono text-[9px] tracking-widest uppercase text-white/45 mt-1">{label}</p>
+    <div className="p-4 rounded-lg bg-card border border-border">
+      <p className="text-2xl font-semibold tabular-nums" style={{ color }}>{value}</p>
+      <p className="text-xs text-muted-foreground mt-1">{label}</p>
     </div>
   )
 }
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-col gap-1 px-3 py-2.5 bg-white/[0.025]">
-      <p className="font-mono text-[9px] tracking-widest uppercase text-white/40">{label}</p>
-      <p className="text-sm text-white/85 truncate">{value}</p>
+    <div className="flex flex-col gap-1 px-4 py-3 rounded-lg bg-muted/40">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-sm text-foreground truncate">{value}</p>
     </div>
   )
 }
 
 function ErrorBox({ text }: { text: string }) {
   return (
-    <div className="flex items-center gap-2 px-3 py-2.5" style={{ background: "oklch(0.65 0.22 25 / 0.06)", border: "1px solid oklch(0.65 0.22 25 / 0.4)" }}>
-      <AlertTriangle size={14} style={{ color: "oklch(0.65 0.22 25)" }} />
-      <p className="text-xs" style={{ color: "oklch(0.65 0.22 25)" }}>{text}</p>
+    <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-destructive/10 border border-destructive/30">
+      <AlertTriangle size={14} className="text-destructive" />
+      <p className="text-sm text-destructive">{text}</p>
     </div>
   )
 }

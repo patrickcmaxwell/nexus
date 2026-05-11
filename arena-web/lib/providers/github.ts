@@ -85,10 +85,10 @@ export const github: Provider = {
   },
 
   async createTask({ connection, title, description, priority }: CreateTaskInput): Promise<TaskResult> {
-    const token = connection.credentials.token
-    const repo = connection.config.repo
+    const token = connection.credentials.access_token || connection.credentials.token
+    const repo  = connection.config.default_repo || connection.config.repo
     if (!token || !repo) {
-      return { mocked: true, detail: "GitHub credentials missing — issue not created" }
+      return { mocked: true, detail: "GitHub not configured — connect via OAuth and pick a default repo" }
     }
 
     const body: Record<string, unknown> = { title }
@@ -117,8 +117,8 @@ export const github: Provider = {
   },
 
   async updateTask({ connection, externalId, status, comment }: UpdateTaskInput): Promise<TaskResult> {
-    const token = connection.credentials.token
-    const repo = connection.config.repo
+    const token = connection.credentials.access_token || connection.credentials.token
+    const repo  = connection.config.default_repo || connection.config.repo
     if (!token || !repo) {
       return { externalId, mocked: true, detail: "GitHub credentials missing — update skipped" }
     }

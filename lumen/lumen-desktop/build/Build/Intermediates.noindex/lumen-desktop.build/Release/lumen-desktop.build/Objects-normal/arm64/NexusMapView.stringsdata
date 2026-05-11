@@ -1,0 +1,192 @@
+{
+  "source": "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/NexusMapView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "LOADING UNIVERSE…",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 132
+        }
+      },
+      {
+        "comment": "",
+        "key": "NO DATA",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 140
+        }
+      },
+      {
+        "comment": "",
+        "key": "nexus-web didn't return any nodes. Tap SYNC to retry.",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 144
+        }
+      },
+      {
+        "comment": "",
+        "key": "RETRY SYNC",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 150
+        }
+      },
+      {
+        "comment": "",
+        "key": "NEXUS UNIVERSE",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 167
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld NODES · %lld EDGES",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 174
+        }
+      },
+      {
+        "comment": "",
+        "key": "SYNC",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 204
+        }
+      },
+      {
+        "comment": "",
+        "key": "Search the universe…",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 220
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 241
+        }
+      },
+      {
+        "comment": "",
+        "key": "ANCHOR",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 725
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld / %lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 757
+        }
+      },
+      {
+        "comment": "",
+        "key": "Previous in this neighborhood",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 755
+        }
+      },
+      {
+        "comment": "",
+        "key": "Next in this neighborhood",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 772
+        }
+      },
+      {
+        "comment": "",
+        "key": "Make this node the new focus anchor",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 790
+        }
+      },
+      {
+        "comment": "",
+        "key": "FOCUS HERE",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 780
+        }
+      },
+      {
+        "comment": "",
+        "key": "PREVIEW",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 829
+        }
+      },
+      {
+        "comment": "",
+        "key": "TAGS",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 842
+        }
+      },
+      {
+        "comment": "",
+        "key": "+ %lld more",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 894
+        }
+      },
+      {
+        "comment": "",
+        "key": "CONNECTIONS",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 861
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 864
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@ · %@",
+        "location": {
+          "startingColumn": 50,
+          "startingLine": 878
+        }
+      },
+      {
+        "comment": "",
+        "key": "OPEN IN DETAIL WINDOW",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 911
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reset view",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 1401
+        }
+      }
+    ]
+  },
+  "version": 1
+}

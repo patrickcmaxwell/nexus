@@ -2,6 +2,7 @@ import {
   Provider, CreateTaskInput, UpdateTaskInput, TaskResult,
   TestConnectionInput, TestConnectionResult,
 } from "./index"
+import { clickupAuthHeader } from "@/lib/oauth/clickup"
 
 // ClickUp provider.
 //
@@ -43,10 +44,12 @@ export const clickup: Provider = {
   ],
 
   async createTask({ connection, title, description, dueDate, priority }: CreateTaskInput): Promise<TaskResult> {
-    const apiKey = connection.credentials.api_key
+    // Token resolution: prefer OAuth access_token (new flow), fall back to
+    // the legacy api_key (manual paste) so old connections keep working.
+    const token = connection.credentials.access_token || connection.credentials.api_key
     const listId = connection.config.default_list_id
-    if (!apiKey || !listId) {
-      return { mocked: true, detail: "ClickUp credentials missing — task not created" }
+    if (!token || !listId) {
+      return { mocked: true, detail: "ClickUp not configured — connect via OAuth and pick a default list" }
     }
 
     const body: Record<string, unknown> = { name: title }
@@ -62,7 +65,7 @@ export const clickup: Provider = {
     const res = await fetch(`${API_BASE}/list/${listId}/task`, {
       method: "POST",
       headers: {
-        Authorization: apiKey,
+        Authorization: clickupAuthHeader(token),
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
@@ -83,18 +86,15 @@ export const clickup: Provider = {
     // GET /user is the canonical "is this token valid" probe — single
     // round-trip, returns 200 with user info or 401.
     try {
-      const userRes = await fetch(`${API_BASE}/user`, {
-        headers: { Authorization: apiKey },
-      })
+      const auth = clickupAuthHeader(apiKey)
+      const userRes = await fetch(`${API_BASE}/user`, { headers: { Authorization: auth } })
       if (userRes.status === 401) return { ok: false, detail: "Token rejected — double-check it" }
       if (!userRes.ok) return { ok: false, detail: `ClickUp returned HTTP ${userRes.status}` }
       const user = await userRes.json() as { user?: { username?: string } }
       const who = user.user?.username ?? "your account"
       // Verify the list ID too if provided — tasks fail later if it's wrong.
       if (listId) {
-        const listRes = await fetch(`${API_BASE}/list/${listId}`, {
-          headers: { Authorization: apiKey },
-        })
+        const listRes = await fetch(`${API_BASE}/list/${listId}`, { headers: { Authorization: auth } })
         if (!listRes.ok) {
           return { ok: false, detail: `Token works for ${who}, but list ${listId} isn't reachable` }
         }
@@ -106,15 +106,16 @@ export const clickup: Provider = {
   },
 
   async updateTask({ connection, externalId, status, comment }: UpdateTaskInput): Promise<TaskResult> {
-    const apiKey = connection.credentials.api_key
-    if (!apiKey) {
+    const token = connection.credentials.access_token || connection.credentials.api_key
+    if (!token) {
       return { externalId, mocked: true, detail: "ClickUp credentials missing — update skipped" }
     }
 
+    const auth = clickupAuthHeader(token)
     if (status) {
       const res = await fetch(`${API_BASE}/task/${externalId}`, {
         method: "PUT",
-        headers: { Authorization: apiKey, "Content-Type": "application/json" },
+        headers: { Authorization: auth, "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       })
       if (!res.ok) {
@@ -126,7 +127,7 @@ export const clickup: Provider = {
     if (comment) {
       const res = await fetch(`${API_BASE}/task/${externalId}/comment`, {
         method: "POST",
-        headers: { Authorization: apiKey, "Content-Type": "application/json" },
+        headers: { Authorization: auth, "Content-Type": "application/json" },
         body: JSON.stringify({ comment_text: comment }),
       })
       if (!res.ok) {

@@ -17,6 +17,7 @@ import AppKit
 struct LumenSettingsView: View {
     @EnvironmentObject var auth: AuthManager
     @EnvironmentObject var authRegistry: LumenAuthRegistry
+    @EnvironmentObject var presence: LumenPresenceMonitor
 
     // UserDefaults-backed prefs
     @AppStorage("lumen.host.mode")          private var hostMode: String   = "auto"  // auto | local | remote
@@ -24,6 +25,13 @@ struct LumenSettingsView: View {
     @AppStorage("lumen.cadence.conv")       private var cadenceConv: Double      = 45
     @AppStorage("lumen.cadence.mid")        private var cadenceMid: Double       = 90
     @AppStorage("lumen.cadence.localdb")    private var cadenceLocalDB: Double   = 300
+
+    // Presence — backed by the same @AppStorage keys the monitor uses, so
+    // edits here update the monitor's state directly via UserDefaults.
+    @AppStorage("lumen.presence.enabled")         private var presenceEnabled: Bool = true
+    @AppStorage("lumen.presence.intervalMinutes") private var presenceInterval: Int = 20
+    @AppStorage("lumen.presence.idleMinutes")     private var presenceIdle: Int     = 5
+    @AppStorage("lumen.presence.muteOnLock")      private var presenceMuteOnLock: Bool = true
 
     @State private var signingOut = false
 
@@ -35,6 +43,8 @@ struct LumenSettingsView: View {
                 hostSection
                 Divider().background(Color.white.opacity(0.06))
                 cadenceSection
+                Divider().background(Color.white.opacity(0.06))
+                presenceSection
                 Divider().background(Color.white.opacity(0.06))
                 actionsSection
             }
@@ -152,6 +162,82 @@ struct LumenSettingsView: View {
             }
             Slider(value: value, in: range, step: 5)
                 .accentColor(Color.cyanAccent)
+        }
+    }
+
+    // MARK: - Presence
+
+    private var presenceSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionHeader("PRESENCE & LOCK")
+            Text("Periodically re-verifies it's still you sitting in front of the Mac. Camera blinks for a moment with no UI; if no face is detected (or it's the wrong one), Lumen locks. App keeps running — sync, terminals, scheduled jobs continue underneath the lock screen.")
+                .font(.system(size: 11))
+                .foregroundColor(.white.opacity(0.55))
+
+            Toggle(isOn: $presenceEnabled) {
+                Text("Enable presence verification")
+                    .font(.system(size: 12))
+                    .foregroundColor(.white.opacity(0.85))
+            }
+            .toggleStyle(.switch)
+            .tint(Color.cyanAccent)
+            .onChange(of: presenceEnabled) { _, _ in presence.applySettings() }
+
+            stepperRow("Re-check interval", value: $presenceInterval, range: 5...120, unit: "min")
+                .disabled(!presenceEnabled)
+                .opacity(presenceEnabled ? 1 : 0.4)
+                .onChange(of: presenceInterval) { _, _ in presence.applySettings() }
+
+            stepperRow("Idle lock after", value: $presenceIdle, range: 1...60, unit: "min")
+                .disabled(!presenceEnabled)
+                .opacity(presenceEnabled ? 1 : 0.4)
+                .onChange(of: presenceIdle) { _, _ in presence.applySettings() }
+
+            Toggle(isOn: $presenceMuteOnLock) {
+                Text("Mute mic + Eve voice when locked")
+                    .font(.system(size: 12))
+                    .foregroundColor(.white.opacity(0.85))
+            }
+            .toggleStyle(.switch)
+            .tint(Color.cyanAccent)
+            .disabled(!presenceEnabled)
+            .opacity(presenceEnabled ? 1 : 0.4)
+
+            HStack(spacing: 8) {
+                Button(action: { NotificationCenter.default.post(name: .lumenLockNow, object: nil) }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "lock.fill").font(.system(size: 10, weight: .bold))
+                        Text("LOCK NOW")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .tracking(2)
+                    }
+                    .foregroundColor(.white.opacity(0.85))
+                    .padding(.horizontal, 12).padding(.vertical, 8)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.06)))
+                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.white.opacity(0.2), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .help("Lock immediately. Shortcut: ⌃⌘L")
+                Text("Shortcut: ⌃⌘L")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.4))
+            }
+        }
+    }
+
+    private func stepperRow(_ label: String, value: Binding<Int>, range: ClosedRange<Int>, unit: String) -> some View {
+        HStack {
+            Text(label)
+                .font(.system(size: 11))
+                .foregroundColor(.white.opacity(0.7))
+            Spacer()
+            Stepper(value: value, in: range) {
+                Text("\(value.wrappedValue) \(unit)")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundColor(Color.cyanAccent)
+                    .frame(minWidth: 56, alignment: .trailing)
+            }
+            .labelsHidden()
         }
     }
 

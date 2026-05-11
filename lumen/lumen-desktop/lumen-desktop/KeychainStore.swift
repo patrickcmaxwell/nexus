@@ -38,6 +38,15 @@ enum KeychainStore {
     }
 
     /// Read the string under `account`, or nil if absent.
+    ///
+    /// `kSecUseAuthenticationUI: kSecUseAuthenticationUISkip` keeps macOS
+    /// from popping a "enter your login keychain password" prompt when
+    /// Lumen's bundle signature has changed since the item was written
+    /// (every ad-hoc resign creates a new code identity → ACL mismatch).
+    /// We'd rather silently fall through to AuthGate and have the user
+    /// re-auth than nag them with a Keychain prompt at every launch.
+    /// The orphan item is wiped so the next successful auth recreates it
+    /// owned by the current signature.
     static func get(_ account: String) -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -45,11 +54,19 @@ enum KeychainStore {
             kSecAttrAccount as String: account,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne,
+            kSecUseAuthenticationUI as String: kSecUseAuthenticationUISkip,
         ]
         var item: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &item)
-        guard status == errSecSuccess, let data = item as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
+        if status == errSecSuccess, let data = item as? Data {
+            return String(data: data, encoding: .utf8)
+        }
+        // Orphan from a prior code-signing identity — drop it so the next
+        // login creates a fresh item owned by the current signature.
+        if status == errSecInteractionNotAllowed || status == errSecAuthFailed {
+            _ = delete(account)
+        }
+        return nil
     }
 
     /// Delete the entry under `account`. No-op if absent.
@@ -64,13 +81,14 @@ enum KeychainStore {
     }
 
     /// List every account under our service. Used to discover known users
-    /// on app launch.
+    /// on app launch. Skip-UI on the same reasoning as `get(_:)`.
     static func allAccounts() -> [String] {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecReturnAttributes as String: true,
             kSecMatchLimit as String: kSecMatchLimitAll,
+            kSecUseAuthenticationUI as String: kSecUseAuthenticationUISkip,
         ]
         var items: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &items)

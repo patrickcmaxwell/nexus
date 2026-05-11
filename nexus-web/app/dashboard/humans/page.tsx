@@ -6,6 +6,7 @@ import {
   Shield, ShieldCheck, ShieldAlert, Upload, X, RefreshCw,
   Scan, CheckCircle2, Link2, KeyRound, Lock, RotateCcw, ScrollText,
 } from "lucide-react"
+import { UserAvatar } from "@/components/ui/UserAvatar"
 
 type Member = {
   id: string
@@ -250,7 +251,7 @@ export default function TeamPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Name *</label>
+                      <label className="block text-sm font-medium text-foreground mb-1.5">Name *</label>
                       <input
                         type="text"
                         value={inviteName}
@@ -261,7 +262,7 @@ export default function TeamPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Email *</label>
+                      <label className="block text-sm font-medium text-foreground mb-1.5">Email *</label>
                       <input
                         type="email"
                         required
@@ -274,7 +275,7 @@ export default function TeamPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Access Level *</label>
+                    <label className="block text-sm font-medium text-foreground mb-1.5">Access Level *</label>
                     <select
                       value={inviteRole}
                       onChange={(e) => setInviteRole(e.target.value)}
@@ -289,7 +290,7 @@ export default function TeamPage() {
 
                   {/* Face Upload */}
                   <div>
-                    <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                    <label className="block text-sm font-medium text-foreground mb-1.5">
                       Seed Face Photo (enables instant face login)
                     </label>
 
@@ -464,13 +465,13 @@ export default function TeamPage() {
                 const style = STATUS_STYLES[member.status] ?? STATUS_STYLES.active
                 const StatusIcon = style.icon
                 return (
-                  <div
+                  <a
                     key={member.id}
-                    className={`flex items-center gap-4 p-4 rounded-xl border ${style.bg} group transition-all hover:shadow-md`}
+                    href={`/dashboard/humans/${member.id}`}
+                    className={`flex items-center gap-4 p-4 rounded-xl border ${style.bg} group transition-colors hover:bg-muted/40`}
                   >
-                    <div className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
-                      <span className="text-sm font-bold text-primary">{member.display_name.charAt(0).toUpperCase()}</span>
-                    </div>
+                    <UserAvatar name={member.display_name} src={member.avatar_url} size="md" />
+
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
@@ -516,7 +517,7 @@ export default function TeamPage() {
                         <Trash2 size={14} />
                       </button>
                     )}
-                  </div>
+                  </a>
                 )
               })}
             </div>
@@ -632,7 +633,7 @@ function ChangePinModal({ onClose }: { onClose: () => void }) {
         ) : (
           <>
             <div>
-              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Current PIN</label>
+              <label className="block text-sm font-medium text-foreground mb-1.5">Current PIN</label>
               <input
                 type="password"
                 inputMode="numeric"
@@ -645,7 +646,7 @@ function ChangePinModal({ onClose }: { onClose: () => void }) {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">New PIN (4+ digits)</label>
+              <label className="block text-sm font-medium text-foreground mb-1.5">New PIN (4+ digits)</label>
               <input
                 type="password"
                 inputMode="numeric"
@@ -657,7 +658,7 @@ function ChangePinModal({ onClose }: { onClose: () => void }) {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Confirm new PIN</label>
+              <label className="block text-sm font-medium text-foreground mb-1.5">Confirm new PIN</label>
               <input
                 type="password"
                 inputMode="numeric"

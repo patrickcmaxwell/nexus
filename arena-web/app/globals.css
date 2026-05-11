@@ -1,9 +1,47 @@
 @import "tailwindcss";
 
+/*
+ * Arena visual system — modern Apple / web-3.0 aesthetic.
+ *
+ * Replaces the prior Tron/HUD grid + cyan-on-near-black look. Goals:
+ *   - Dark mode optimized (light comes later when inline-style sweep is done)
+ *   - High legibility: 16-17px base text, generous line-height, tight tracking
+ *   - Restrained palette: charcoal surfaces + a single accent
+ *   - Soft borders (single thin line, low alpha) — no glow, no scanlines
+ *   - Card elevation via subtle shadow + slight surface lighten
+ *   - System fonts so text feels native on macOS / iOS
+ *
+ * Tailwind utilities reach the tokens via Tailwind v4's `@theme` block.
+ */
+
+@theme {
+  --color-bg:           oklch(0.13 0.005 250);   /* near-black, hint of cool */
+  --color-surface:      oklch(0.17 0.006 250);   /* card */
+  --color-surface-2:    oklch(0.21 0.006 250);   /* hover / nested */
+  --color-border:       oklch(1 0 0 / 0.08);     /* hairline */
+  --color-border-2:     oklch(1 0 0 / 0.14);     /* hover border */
+  --color-fg:           oklch(0.97 0.003 250);   /* primary text */
+  --color-fg-muted:     oklch(0.72 0.01 250);    /* secondary */
+  --color-fg-subtle:    oklch(0.55 0.01 250);    /* tertiary / labels */
+  --color-accent:       oklch(0.72 0.16 250);    /* deep blue, single accent */
+  --color-accent-soft:  oklch(0.72 0.16 250 / 0.15);
+  --color-success:      oklch(0.74 0.16 150);
+  --color-warning:      oklch(0.78 0.16 80);
+  --color-danger:       oklch(0.66 0.22 27);
+
+  --radius-card:        14px;
+  --radius-button:      10px;
+  --radius-input:       10px;
+
+  --shadow-card:        0 1px 2px oklch(0 0 0 / 0.5), 0 8px 24px -12px oklch(0 0 0 / 0.4);
+  --shadow-button:      0 1px 1px oklch(0 0 0 / 0.4);
+}
+
 :root {
-  --arena-accent: oklch(0.78 0.18 265);
-  --background: oklch(0.06 0.012 240);
-  --foreground: oklch(0.95 0.005 240);
+  /* Legacy shims — old code still references --arena-accent / --background / --foreground */
+  --arena-accent: var(--color-accent);
+  --background:   var(--color-bg);
+  --foreground:   var(--color-fg);
 }
 
 * {
@@ -13,19 +51,114 @@
 html, body {
   margin: 0;
   padding: 0;
-  background: var(--background);
-  color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
   font-feature-settings: "kern", "liga", "ss01";
-}
-
-body {
-  background-image:
-    linear-gradient(to right, color-mix(in oklch, var(--arena-accent) 6%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in oklch, var(--arena-accent) 6%, transparent) 1px, transparent 1px);
-  background-size: 56px 56px;
+  font-size: 16px;
+  line-height: 1.55;
+  letter-spacing: -0.011em;            /* Apple's signature optical tightening */
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 a { color: inherit; text-decoration: none; }
-
 button { font-family: inherit; }
+
+/* Reusable component primitives — kept tiny so tailwind utilities stay
+ * primary; these just give us a consistent baseline for cards, buttons,
+ * and inputs across the OAuth + settings flows. */
+
+.surface {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.surface-flush {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: var(--radius-button);
+  font-size: 14px;
+  font-weight: 540;
+  letter-spacing: -0.005em;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.05s ease;
+  cursor: pointer;
+  border: 1px solid transparent;
+  user-select: none;
+}
+.btn:active { transform: translateY(0.5px); }
+.btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.btn-primary {
+  background: var(--color-accent);
+  color: white;
+  box-shadow: var(--shadow-button);
+}
+.btn-primary:hover  { background: oklch(from var(--color-accent) calc(l + 0.04) c h); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-secondary {
+  background: var(--color-surface-2);
+  color: var(--color-fg);
+  border-color: var(--color-border);
+}
+.btn-secondary:hover { border-color: var(--color-border-2); background: oklch(from var(--color-surface-2) calc(l + 0.02) c h); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--color-fg-muted);
+}
+.btn-ghost:hover { color: var(--color-fg); background: var(--color-surface-2); }
+
+.btn-danger-ghost {
+  background: transparent;
+  color: var(--color-fg-muted);
+}
+.btn-danger-ghost:hover { color: var(--color-danger); background: oklch(from var(--color-danger) l c h / 0.1); }
+
+.input {
+  width: 100%;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-input);
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--color-fg);
+  font-family: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  background: var(--color-surface);
+}
+.input::placeholder { color: var(--color-fg-subtle); }
+
+.label {
+  display: block;
+  font-size: 12px;
+  color: var(--color-fg-muted);
+  margin-bottom: 6px;
+  letter-spacing: -0.005em;
+}
+
+.helper {
+  font-size: 12px;
+  color: var(--color-fg-subtle);
+  margin-top: 6px;
+  letter-spacing: -0.005em;
+}

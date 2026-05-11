@@ -1,0 +1,1068 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		BF8674612FADCEC9002D388D /* nexus-watch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = BF8674602FADCEC9002D388D /* nexus-watch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		BF8674352FADC37C002D388D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BF86741D2FADC37B002D388D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BF8674242FADC37B002D388D;
+			remoteInfo = "nexus-ios";
+		};
+		BF86743F2FADC37C002D388D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BF86741D2FADC37B002D388D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BF8674242FADC37B002D388D;
+			remoteInfo = "nexus-ios";
+		};
+		BF8674622FADCEC9002D388D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BF86741D2FADC37B002D388D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BF86745F2FADCEC9002D388D;
+			remoteInfo = "nexus-watch Watch App";
+		};
+		BF8674702FADCECA002D388D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BF86741D2FADC37B002D388D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BF86745F2FADCEC9002D388D;
+			remoteInfo = "nexus-watch Watch App";
+		};
+		BF86747A2FADCECA002D388D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BF86741D2FADC37B002D388D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BF86745F2FADCEC9002D388D;
+			remoteInfo = "nexus-watch Watch App";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		BF8674842FADCECA002D388D /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				BF8674612FADCEC9002D388D /* nexus-watch Watch App.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		BF8674252FADC37B002D388D /* nexus-ios.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "nexus-ios.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		BF8674342FADC37C002D388D /* nexus-iosTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "nexus-iosTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		BF86743E2FADC37C002D388D /* nexus-iosUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "nexus-iosUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		BF86745B2FADCEC9002D388D /* nexus-watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "nexus-watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		BF8674602FADCEC9002D388D /* nexus-watch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "nexus-watch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		BF86746F2FADCECA002D388D /* nexus-watch Watch AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "nexus-watch Watch AppTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		BF8674792FADCECA002D388D /* nexus-watch Watch AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "nexus-watch Watch AppUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		BF8674272FADC37B002D388D /* nexus-ios */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "nexus-ios";
+			sourceTree = "<group>";
+		};
+		BF8674372FADC37C002D388D /* nexus-iosTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "nexus-iosTests";
+			sourceTree = "<group>";
+		};
+		BF8674412FADC37C002D388D /* nexus-iosUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "nexus-iosUITests";
+			sourceTree = "<group>";
+		};
+		BF8674642FADCEC9002D388D /* nexus-watch Watch App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "nexus-watch Watch App";
+			sourceTree = "<group>";
+		};
+		BF8674722FADCECA002D388D /* nexus-watch Watch AppTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "nexus-watch Watch AppTests";
+			sourceTree = "<group>";
+		};
+		BF86747C2FADCECA002D388D /* nexus-watch Watch AppUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "nexus-watch Watch AppUITests";
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		BF8674222FADC37B002D388D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF8674312FADC37C002D388D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF86743B2FADC37C002D388D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF86745D2FADCEC9002D388D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF86746C2FADCECA002D388D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF8674762FADCECA002D388D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		BF86741C2FADC37B002D388D = {
+			isa = PBXGroup;
+			children = (
+				BF8674272FADC37B002D388D /* nexus-ios */,
+				BF8674372FADC37C002D388D /* nexus-iosTests */,
+				BF8674412FADC37C002D388D /* nexus-iosUITests */,
+				BF8674642FADCEC9002D388D /* nexus-watch Watch App */,
+				BF8674722FADCECA002D388D /* nexus-watch Watch AppTests */,
+				BF86747C2FADCECA002D388D /* nexus-watch Watch AppUITests */,
+				BF8674262FADC37B002D388D /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		BF8674262FADC37B002D388D /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				BF8674252FADC37B002D388D /* nexus-ios.app */,
+				BF8674342FADC37C002D388D /* nexus-iosTests.xctest */,
+				BF86743E2FADC37C002D388D /* nexus-iosUITests.xctest */,
+				BF86745B2FADCEC9002D388D /* nexus-watch.app */,
+				BF8674602FADCEC9002D388D /* nexus-watch Watch App.app */,
+				BF86746F2FADCECA002D388D /* nexus-watch Watch AppTests.xctest */,
+				BF8674792FADCECA002D388D /* nexus-watch Watch AppUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		BF8674242FADC37B002D388D /* nexus-ios */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BF8674482FADC37C002D388D /* Build configuration list for PBXNativeTarget "nexus-ios" */;
+			buildPhases = (
+				BF8674212FADC37B002D388D /* Sources */,
+				BF8674222FADC37B002D388D /* Frameworks */,
+				BF8674232FADC37B002D388D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				BF8674272FADC37B002D388D /* nexus-ios */,
+			);
+			name = "nexus-ios";
+			packageProductDependencies = (
+			);
+			productName = "nexus-ios";
+			productReference = BF8674252FADC37B002D388D /* nexus-ios.app */;
+			productType = "com.apple.product-type.application";
+		};
+		BF8674332FADC37C002D388D /* nexus-iosTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BF86744B2FADC37C002D388D /* Build configuration list for PBXNativeTarget "nexus-iosTests" */;
+			buildPhases = (
+				BF8674302FADC37C002D388D /* Sources */,
+				BF8674312FADC37C002D388D /* Frameworks */,
+				BF8674322FADC37C002D388D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BF8674362FADC37C002D388D /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				BF8674372FADC37C002D388D /* nexus-iosTests */,
+			);
+			name = "nexus-iosTests";
+			packageProductDependencies = (
+			);
+			productName = "nexus-iosTests";
+			productReference = BF8674342FADC37C002D388D /* nexus-iosTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		BF86743D2FADC37C002D388D /* nexus-iosUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BF86744E2FADC37C002D388D /* Build configuration list for PBXNativeTarget "nexus-iosUITests" */;
+			buildPhases = (
+				BF86743A2FADC37C002D388D /* Sources */,
+				BF86743B2FADC37C002D388D /* Frameworks */,
+				BF86743C2FADC37C002D388D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BF8674402FADC37C002D388D /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				BF8674412FADC37C002D388D /* nexus-iosUITests */,
+			);
+			name = "nexus-iosUITests";
+			packageProductDependencies = (
+			);
+			productName = "nexus-iosUITests";
+			productReference = BF86743E2FADC37C002D388D /* nexus-iosUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		BF86745A2FADCEC9002D388D /* nexus-watch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BF8674852FADCECA002D388D /* Build configuration list for PBXNativeTarget "nexus-watch" */;
+			buildPhases = (
+				BF8674592FADCEC9002D388D /* Resources */,
+				BF8674842FADCECA002D388D /* Embed Watch Content */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BF8674632FADCEC9002D388D /* PBXTargetDependency */,
+			);
+			name = "nexus-watch";
+			packageProductDependencies = (
+			);
+			productName = "nexus-watch";
+			productReference = BF86745B2FADCEC9002D388D /* nexus-watch.app */;
+			productType = "com.apple.product-type.application.watchapp2-container";
+		};
+		BF86745F2FADCEC9002D388D /* nexus-watch Watch App */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BF8674812FADCECA002D388D /* Build configuration list for PBXNativeTarget "nexus-watch Watch App" */;
+			buildPhases = (
+				BF86745C2FADCEC9002D388D /* Sources */,
+				BF86745D2FADCEC9002D388D /* Frameworks */,
+				BF86745E2FADCEC9002D388D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				BF8674642FADCEC9002D388D /* nexus-watch Watch App */,
+			);
+			name = "nexus-watch Watch App";
+			packageProductDependencies = (
+			);
+			productName = "nexus-watch Watch App";
+			productReference = BF8674602FADCEC9002D388D /* nexus-watch Watch App.app */;
+			productType = "com.apple.product-type.application";
+		};
+		BF86746E2FADCECA002D388D /* nexus-watch Watch AppTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BF8674882FADCECA002D388D /* Build configuration list for PBXNativeTarget "nexus-watch Watch AppTests" */;
+			buildPhases = (
+				BF86746B2FADCECA002D388D /* Sources */,
+				BF86746C2FADCECA002D388D /* Frameworks */,
+				BF86746D2FADCECA002D388D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BF8674712FADCECA002D388D /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				BF8674722FADCECA002D388D /* nexus-watch Watch AppTests */,
+			);
+			name = "nexus-watch Watch AppTests";
+			packageProductDependencies = (
+			);
+			productName = "nexus-watch Watch AppTests";
+			productReference = BF86746F2FADCECA002D388D /* nexus-watch Watch AppTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		BF8674782FADCECA002D388D /* nexus-watch Watch AppUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BF86748B2FADCECA002D388D /* Build configuration list for PBXNativeTarget "nexus-watch Watch AppUITests" */;
+			buildPhases = (
+				BF8674752FADCECA002D388D /* Sources */,
+				BF8674762FADCECA002D388D /* Frameworks */,
+				BF8674772FADCECA002D388D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BF86747B2FADCECA002D388D /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				BF86747C2FADCECA002D388D /* nexus-watch Watch AppUITests */,
+			);
+			name = "nexus-watch Watch AppUITests";
+			packageProductDependencies = (
+			);
+			productName = "nexus-watch Watch AppUITests";
+			productReference = BF8674792FADCECA002D388D /* nexus-watch Watch AppUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		BF86741D2FADC37B002D388D /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2640;
+				LastUpgradeCheck = 2640;
+				TargetAttributes = {
+					BF8674242FADC37B002D388D = {
+						CreatedOnToolsVersion = 26.4.1;
+					};
+					BF8674332FADC37C002D388D = {
+						CreatedOnToolsVersion = 26.4.1;
+						TestTargetID = BF8674242FADC37B002D388D;
+					};
+					BF86743D2FADC37C002D388D = {
+						CreatedOnToolsVersion = 26.4.1;
+						TestTargetID = BF8674242FADC37B002D388D;
+					};
+					BF86745A2FADCEC9002D388D = {
+						CreatedOnToolsVersion = 26.4.1;
+					};
+					BF86745F2FADCEC9002D388D = {
+						CreatedOnToolsVersion = 26.4.1;
+					};
+					BF86746E2FADCECA002D388D = {
+						CreatedOnToolsVersion = 26.4.1;
+						TestTargetID = BF86745F2FADCEC9002D388D;
+					};
+					BF8674782FADCECA002D388D = {
+						CreatedOnToolsVersion = 26.4.1;
+						TestTargetID = BF86745F2FADCEC9002D388D;
+					};
+				};
+			};
+			buildConfigurationList = BF8674202FADC37B002D388D /* Build configuration list for PBXProject "nexus-ios" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = BF86741C2FADC37B002D388D;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = BF8674262FADC37B002D388D /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				BF8674242FADC37B002D388D /* nexus-ios */,
+				BF8674332FADC37C002D388D /* nexus-iosTests */,
+				BF86743D2FADC37C002D388D /* nexus-iosUITests */,
+				BF86745A2FADCEC9002D388D /* nexus-watch */,
+				BF86745F2FADCEC9002D388D /* nexus-watch Watch App */,
+				BF86746E2FADCECA002D388D /* nexus-watch Watch AppTests */,
+				BF8674782FADCECA002D388D /* nexus-watch Watch AppUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		BF8674232FADC37B002D388D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF8674322FADC37C002D388D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF86743C2FADC37C002D388D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF8674592FADCEC9002D388D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF86745E2FADCEC9002D388D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF86746D2FADCECA002D388D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF8674772FADCECA002D388D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		BF8674212FADC37B002D388D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF8674302FADC37C002D388D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF86743A2FADC37C002D388D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF86745C2FADCEC9002D388D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF86746B2FADCECA002D388D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF8674752FADCECA002D388D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		BF8674362FADC37C002D388D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BF8674242FADC37B002D388D /* nexus-ios */;
+			targetProxy = BF8674352FADC37C002D388D /* PBXContainerItemProxy */;
+		};
+		BF8674402FADC37C002D388D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BF8674242FADC37B002D388D /* nexus-ios */;
+			targetProxy = BF86743F2FADC37C002D388D /* PBXContainerItemProxy */;
+		};
+		BF8674632FADCEC9002D388D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BF86745F2FADCEC9002D388D /* nexus-watch Watch App */;
+			targetProxy = BF8674622FADCEC9002D388D /* PBXContainerItemProxy */;
+		};
+		BF8674712FADCECA002D388D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BF86745F2FADCEC9002D388D /* nexus-watch Watch App */;
+			targetProxy = BF8674702FADCECA002D388D /* PBXContainerItemProxy */;
+		};
+		BF86747B2FADCECA002D388D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BF86745F2FADCEC9002D388D /* nexus-watch Watch App */;
+			targetProxy = BF86747A2FADCECA002D388D /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		BF8674462FADC37C002D388D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		BF8674472FADC37C002D388D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		BF8674492FADC37C002D388D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 773PKETJ85;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Nexus uses the camera for face authentication and to capture images for Eve.";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to unlock your Nexus session quickly.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Eve uses your rough location for weather and home/away awareness. Significant-change only — no continuous tracking.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Eve needs your microphone to listen to you.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "Eve disables typing and biases to voice when you're driving.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Attach photos so Eve can see them.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Eve uses speech recognition to understand what you say.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_NSUserActivityTypes = io.talkcircles.nexus.conversation;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.patrickmaxwell.nexus-ios";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		BF86744A2FADC37C002D388D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 773PKETJ85;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Nexus uses the camera for face authentication and to capture images for Eve.";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to unlock your Nexus session quickly.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Eve uses your rough location for weather and home/away awareness. Significant-change only — no continuous tracking.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Eve needs your microphone to listen to you.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "Eve disables typing and biases to voice when you're driving.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Attach photos so Eve can see them.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Eve uses speech recognition to understand what you say.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+				INFOPLIST_KEY_NSUserActivityTypes = io.talkcircles.nexus.conversation;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.patrickmaxwell.nexus-ios";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		BF86744C2FADC37C002D388D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "nexus.nexus-iosTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/nexus-ios.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/nexus-ios";
+			};
+			name = Debug;
+		};
+		BF86744D2FADC37C002D388D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "nexus.nexus-iosTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/nexus-ios.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/nexus-ios";
+			};
+			name = Release;
+		};
+		BF86744F2FADC37C002D388D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "nexus.nexus-iosUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "nexus-ios";
+			};
+			name = Debug;
+		};
+		BF8674502FADC37C002D388D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "nexus.nexus-iosUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "nexus-ios";
+			};
+			name = Release;
+		};
+		BF8674822FADCECA002D388D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "nexus-watch";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "nexus.nexus-ios";
+				INFOPLIST_KEY_WKWatchOnly = NO;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "nexus.nexus-ios.watchkitapp";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.4;
+			};
+			name = Debug;
+		};
+		BF8674832FADCECA002D388D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "nexus-watch";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "nexus.nexus-ios";
+				INFOPLIST_KEY_WKWatchOnly = NO;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "nexus.nexus-ios.watchkitapp";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.4;
+			};
+			name = Release;
+		};
+		BF8674862FADCECA002D388D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_KEY_CFBundleDisplayName = "nexus-watch";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "nexus.nexus-watch";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		BF8674872FADCECA002D388D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_KEY_CFBundleDisplayName = "nexus-watch";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "nexus.nexus-watch";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		BF8674892FADCECA002D388D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "nexus.nexus-watch-Watch-AppTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/nexus-watch Watch App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/nexus-watch Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 26.4;
+			};
+			name = Debug;
+		};
+		BF86748A2FADCECA002D388D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "nexus.nexus-watch-Watch-AppTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/nexus-watch Watch App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/nexus-watch Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 26.4;
+			};
+			name = Release;
+		};
+		BF86748C2FADCECA002D388D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "nexus.nexus-watch-Watch-AppUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = "nexus-watch Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 26.4;
+			};
+			name = Debug;
+		};
+		BF86748D2FADCECA002D388D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "nexus.nexus-watch-Watch-AppUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = "nexus-watch Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 26.4;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		BF8674202FADC37B002D388D /* Build configuration list for PBXProject "nexus-ios" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BF8674462FADC37C002D388D /* Debug */,
+				BF8674472FADC37C002D388D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BF8674482FADC37C002D388D /* Build configuration list for PBXNativeTarget "nexus-ios" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BF8674492FADC37C002D388D /* Debug */,
+				BF86744A2FADC37C002D388D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BF86744B2FADC37C002D388D /* Build configuration list for PBXNativeTarget "nexus-iosTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BF86744C2FADC37C002D388D /* Debug */,
+				BF86744D2FADC37C002D388D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BF86744E2FADC37C002D388D /* Build configuration list for PBXNativeTarget "nexus-iosUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BF86744F2FADC37C002D388D /* Debug */,
+				BF8674502FADC37C002D388D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BF8674812FADCECA002D388D /* Build configuration list for PBXNativeTarget "nexus-watch Watch App" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BF8674822FADCECA002D388D /* Debug */,
+				BF8674832FADCECA002D388D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BF8674852FADCECA002D388D /* Build configuration list for PBXNativeTarget "nexus-watch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BF8674862FADCECA002D388D /* Debug */,
+				BF8674872FADCECA002D388D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BF8674882FADCECA002D388D /* Build configuration list for PBXNativeTarget "nexus-watch Watch AppTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BF8674892FADCECA002D388D /* Debug */,
+				BF86748A2FADCECA002D388D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BF86748B2FADCECA002D388D /* Build configuration list for PBXNativeTarget "nexus-watch Watch AppUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BF86748C2FADCECA002D388D /* Debug */,
+				BF86748D2FADCECA002D388D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = BF86741D2FADC37B002D388D /* Project object */;
+}

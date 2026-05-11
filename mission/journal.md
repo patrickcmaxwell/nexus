@@ -106,3 +106,85 @@ Fix: imported `@vladmandic/face-api/dist/face-api.node-wasm.js` directly, added 
 Also wrapped both `loadFaceApi()` and inference in try/catch with detail in JSON response so future failures are diagnosable from Lumen's UI.
 
 **Test verified:** sample image returns `FACE_MISMATCH` (correct — it's not Patrick) instead of opaque 500.
+
+---
+
+## 2026-05-07 (evening) — Operation Calendar (native scheduling)
+
+Built a native scheduling system in nexus-web. Schema: `schedules` + `schedule_runs` tables (migration 024). Vercel Cron hits `/api/schedules/runner` every minute, locks due rows via optimistic update, dispatches by `target_type` (eve_chat / agent_run / operation_brief / arena_action), writes audit row.
+
+UI: `/dashboard/calendar` with cron preset chips, live next-3-firings preview in the modal, expandable history, **Run Now button** for skipping the cron tick during testing. Eve gets `schedule_create` + `schedule_list` tools.
+
+External calendar sync (Google / Apple) deferred to land later as Arena providers.
+
+---
+
+## 2026-05-07 (late evening) — Domains live + cross-subdomain cookie fix
+
+Patrick set up DNS for `maxnexus.io`, `portal.maxnexus.io`, `arena.maxnexus.io`. Hit a snag: signing in to portal didn't carry to arena. Root cause: `SESSION_COOKIE_DOMAIN` env var was never actually set on Vercel (despite mission docs claiming it was). Fixed via `vercel env add SESSION_COOKIE_DOMAIN=.maxnexus.io` on both projects + redeploy.
+
+Cookie chain verified end-to-end via curl with a real session row from Supabase. Both domains accept the same `nx_session` cookie.
+
+---
+
+## 2026-05-07 (evening) — Splash page (maxnexus-public)
+
+Standalone Next.js app at `/code/nexus/maxnexus-public/`. Public face for `maxnexus.io`. Ambient particle field + Dagaz rune doorway. Click rune → "What is light?" → answer "lumen" (with 1-character typo tolerance) → redirect to portal. Wrong answer → candle screen with "Find a candle and light it." Easter eggs for `vera`, `eve`, `noads`. Search engines blocked via `robots: { index: false, follow: false }`.
+
+Folder originally created as `splash-web`, renamed to `maxnexus-public` per Patrick's request — better identity-tied name, room to grow into real marketing surface later.
+
+---
+
+## 2026-05-07 (late evening) — ClickUp OAuth (1st multi-user provider)
+
+Patrick rejected the manual API key UX: "i want it to ping clickup, register the connection, then bring me back to arena to make settings and rules." Built OAuth flow:
+- `lib/oauth/clickup.ts` — helpers (state minting + verification, authorize URL builder, token exchange, fetch user/teams)
+- `/api/oauth/clickup/start` — sets signed state cookie, redirects to ClickUp consent
+- `/api/oauth/clickup/callback` — exchanges code → token → persists connection → redirects to settings page
+- `/api/oauth/clickup/lists` — live list picker data for settings page
+- `/connect/clickup` — Apple-styled landing with **inline 6-step admin setup guide** (no doc-hunting required)
+- `/connect/clickup/[id]/settings` — workspace picker + default list dropdown (live from ClickUp) + Eve permission toggles + webhook URL + disconnect
+- `/connect/clickup/manual` — legacy fallback for personal API tokens
+
+Critical bug fixes:
+1. ClickUp OAuth tokens require `Authorization: Bearer <token>` (not bare `<token>` like personal tokens). Added `clickupAuthHeader()` helper.
+2. Token exchange was using URL query params; switched to form-encoded body per docs.
+3. Eve handoff: Arena's `/api/task/create` now returns `{ needs_connection, connect_url, message }` when no connection exists, instead of silently mocking. Eve's system prompt has a directive to surface the connect URL naturally.
+
+---
+
+## 2026-05-08 (overnight 02:00-02:45) — Major design overhaul + 3 more OAuth providers + detail routes
+
+Patrick's mandate: "I wanna see your masterpiece without influence from me." This was the big push.
+
+### Theme lockdown
+- `useTheme.ts` locked to `colorMode: dark, uiMode: simple`. Theme toggle button hidden from sidebar. Light mode + futuristic-mode CSS blocks remain in globals.css but never trigger.
+
+### Design system primitives
+- New `components/ui/primitives.tsx` with `Card` (5 padding × 5 tone), `Button` (5 variants × 3 sizes + loading state), `Input`, `Pill` (6 tones × 2 sizes), `Section`, `EmptyState`, `StatTile`, `Skeleton`, `Tabs`.
+- New `components/ui/UserAvatar.tsx` with deterministic colored-initials fallback. Wired into sidebar / Maxwell chat / Settings / Humans list.
+- Globals refined: 3-tier dark surface hierarchy (oklch L 0.135 / 0.165 / 0.21), hairline borders (alpha 0.08), single deep-blue accent (oklch 0.70 0.16 248), Apple-style optical typography (-0.011em body tracking, -0.018em headings), tabular numerals.
+
+### Full HUD chrome scrub
+Zero remaining cyan/HUD/`tracking-widest` classes in: MaxwellClient, EveMessage, EveCommand, SettingsClient, ConsoleClient, CalendarClient, Operations page, Agents page, Humans page, ArenaPanel, EndpointsHealth, all 7 home widgets, Auth pages (PIN/face/error), Arena dashboard + ConnectionsList + RecentActions + FirstRunGuide.
+
+Map page + Suits page kept HUD by intent.
+
+### DashboardHome rebuild
+4-tile stats row (Active ops / Records / Agents / Memories), all 6 home widgets unified on `bg-card border-border rounded-xl` surface (dropped per-widget tinted backgrounds — violet, amber, emerald, primary).
+
+### Per-entity detail routes — direct response to "drill down deeper"
+- `/dashboard/humans/[id]` — Profile / Sessions / Activity tabs + admin actions panel (Lock / Reset PIN). Linked from humans list rows.
+- `/dashboard/agents/[id]` — Profile / Findings tabs + Run Now button. Linked from agents grid cards.
+- `/dashboard/operations/[id]` — Overview / Records / Briefs tabs. Linked from operations master-detail header ("Full view ↗").
+
+### 3 more OAuth providers (Notion, GitHub, Slack)
+Each with same shape as ClickUp: helper lib, start/callback/{data} routes, Apple-styled connect landing with inline admin setup guide, per-connection settings page with live data picker (databases / repos / channels), provider lib updated to read `access_token` first / fall back to legacy.
+
+**4 of 5 providers now have OAuth.** Stripe stays manual (intentional — payments are high-blast-radius and shouldn't be casually wired).
+
+### Eve handoff for missing connections
+Arena's `/api/task/create` now returns `{ success: false, needs_connection: true, provider, provider_name, connect_url, message }` when the user has no matching connection. Eve's system prompt has a new directive: "If an arena tool returns needs_connection: true, the user hasn't connected that service yet. Surface this naturally: tell them which service needs connecting and give them the connect_url from the response as a clickable link."
+
+### Mission docs cleanup
+talkcircles.io references swept to maxnexus.io across state.md / handoff.md / pending-changes.md / arena-platform.md.

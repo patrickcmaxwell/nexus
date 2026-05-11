@@ -1,34 +1,63 @@
 # Pending Changes
 
-Proposed code changes waiting on a condition. Each entry has a **trigger** that determines when it can be applied.
+Proposed code changes waiting on a condition. Each entry has a **trigger** that determines when it can be applied. Newest at top.
 
 ---
 
-## ✅ DONE 2026-05-07: Arena domain bring-up
+## ⭐ TOP PRIORITY (2026-05-08): Provider OAuth bring-up
 
-DNS, custom domain, env vars all set by Patrick. Arena is live at `https://arena.maxnexus.io` with cross-subdomain cookie auth from `portal.maxnexus.io`. Splash at `https://maxnexus.io` (passphrase doorway). All previously-listed bring-up steps complete.
+**Trigger:** Patrick wants Eve to act through any of the 4 OAuth providers (ClickUp / Notion / GitHub / Slack).
 
-Test flow remains in `mission/arena-platform.md` "Test plan once domain is live."
+**Context:** Each provider's `/connect/{provider}` page detects whether `{PROVIDER}_CLIENT_ID` is set. If not, it shows an inline 5-6 step admin guide with the exact steps to register an OAuth app + paste the redirect URL + add Vercel env vars. Once env vars are set, the page flips to a "Continue with {Provider}" button.
+
+### Sequence — same for every provider (~5 min each)
+
+| Provider | Where to register | Redirect URL | Vercel env vars |
+|---|---|---|---|
+| **ClickUp** | Avatar (upper-right) → Settings → **Apps** → OAuth Apps → Create new app | `https://arena.maxnexus.io/api/oauth/clickup/callback` | `CLICKUP_CLIENT_ID` + `CLICKUP_CLIENT_SECRET` |
+| **Notion** | https://www.notion.so/my-integrations → New integration → **Public** | `https://arena.maxnexus.io/api/oauth/notion/callback` | `NOTION_CLIENT_ID` + `NOTION_CLIENT_SECRET` |
+| **GitHub** | https://github.com/settings/developers → OAuth Apps → New OAuth App | `https://arena.maxnexus.io/api/oauth/github/callback` | `GITHUB_CLIENT_ID` + `GITHUB_CLIENT_SECRET` |
+| **Slack** | https://api.slack.com/apps → Create New App → From scratch | `https://arena.maxnexus.io/api/oauth/slack/callback` | `SLACK_CLIENT_ID` + `SLACK_CLIENT_SECRET` |
+
+**Slack also needs Bot Token Scopes:** `chat:write`, `chat:write.public`, `channels:read`, `groups:read` (added on the same OAuth & Permissions page where the redirect URL goes).
+
+### Test path (recommended order: ClickUp first since it's the simplest)
+
+1. **Test the missing-connection handoff FIRST** (before connecting anything):
+   - Open Eve at `portal.maxnexus.io/dashboard/maxwell`
+   - *"create a clickup task called 'first test'"*
+   - Eve should reply with the connect URL and ask you to sign in first — not silently fake success or error
+2. **Activate ClickUp**: register app + set Vercel env vars, then visit `arena.maxnexus.io/connect/clickup` → "Continue with ClickUp" → consent → land on settings page → pick default list → Save
+3. **Eve test for real**: same prompt as step 1 → real task lands in ClickUp
+4. Repeat with Notion / GitHub / Slack as desired
+
+### Stripe is intentionally NOT on OAuth
+
+Stripe is the 5th provider but stays on manual API key (`/connect/stripe`). Reason: payments are high-blast-radius and shouldn't be casually wired. Decision Q1 in `/code/echo/decisions.md` — flip to OAuth or keep manual?
 
 ---
 
-## NEW (2026-05-07): Push working tree to GitHub
+## ⭐ Push working tree to GitHub
 
 **Trigger:** Patrick has a free moment.
-**Context:** Extensive uncommitted work spans nexus-web (face-api fix, mobile fixes, Suits→agents rewrite), arena-web (webhook receiver + first-run + email + provider work), lumen (native face capture, Console window, sync engine), and mission docs.
+
+**Context:** Extensive uncommitted work spans nexus-web, arena-web, maxnexus-public, lumen, and mission docs. Suggested commit grouping (each is a meaningful chunk):
 
 ```bash
 cd /Users/shadow/code/nexus
-git status                    # see scope of uncommitted work
-git log --oneline -10         # see what's already committed
-# Then commit grouping per mission convention — likely 5-7 logical commits:
-#   - arena-web: standalone Next.js platform with 5 providers + webhooks
-#   - nexus-web: mobile polish + Maxwell chat width fixes
-#   - nexus-web: Suits page wired to real agents data
-#   - nexus-web: face-api wasm fix for Lumen native login
-#   - nexus-web: settings + console mobile layout
-#   - lumen: native face capture + Console window + sync engine
-#   - mission: arena-platform doc + nexus-web-polish doc + state refresh
+git status                    # see scope
+git log --oneline -10         # what's already committed
+
+# Commit grouping (rough):
+#   - arena-web: 4 OAuth providers (clickup, notion, github, slack) + per-connection settings pages
+#   - arena-web: Eve handoff for missing connection in /api/task/create
+#   - nexus-web: design system primitives + UserAvatar + theme lockdown
+#   - nexus-web: full HUD chrome scrub + DashboardHome rebuild + auth pages clean
+#   - nexus-web: per-entity detail routes (humans/[id], agents/[id], operations/[id])
+#   - nexus-web: Operation Calendar (schedules + runner + Eve tools + UI)
+#   - nexus-web: Lumen face-api wasm fix (server-side)
+#   - lumen: native face capture + Console window + sync engine (held until Xcode at checkpoint)
+#   - mission: state/handoff/journal/pending-changes/arena-platform refresh
 git push origin main
 ```
 
@@ -36,165 +65,72 @@ Vera can't push from this environment.
 
 ---
 
-## 0. Operation Multi-User — verify deploy + invite Londynn
+## ✅ DONE 2026-05-07: Arena domain bring-up
 
-**Trigger:** Director has time to test (asked to be reminded, 2026-05-05).
-**Context:** All 4 phases committed locally (web schema/auth/UI, Lumen multi-user, iOS multi-user, invite-by-email). Director needs to:
-1. Push to trigger Vercel: `cd ~/code/nexus && git push origin main`
-2. Set `RESEND_API_KEY` on Vercel (Resend creds Director said he'd share)
-3. Optionally set `RESEND_FROM` if a verified domain is configured (otherwise sender defaults to `Nexus <onboarding@resend.dev>`)
-
-### Test checklist after Vercel build completes
-1. `fetch('/api/auth/me')` in browser console → returns identity bundle (`humanId`, `email`, `isOwner: true`)
-2. `fetch('/api/auth/known-users')` → returns array with Patrick + Merlin
-3. `/auth/pin` with email + 4-digit PIN → redirects to `/auth/face`
-4. `/` face scan → lands in dashboard
-5. `/dashboard/humans` → invite Londynn (email + name + role) → confirm "Email sent" banner shows; she receives email at her inbox; she clicks link, sets PIN + face, lands in her dashboard
-6. **Lumen** (already installed at `/Applications/Lumen.app`): quit + relaunch → AuthGate → email + PIN → MainView shows your avatar in toolbar. Avatar menu → "Add Another User" → log in as Merlin → conversations should disappear, briefing reloads as Merlin.
-7. **iOS**: rebuild + install when ready. PIN screen has email field, top bar shows avatar pill.
-
-If all 7 pass, multi-user is shipped end-to-end.
+DNS, custom domain, env vars all set by Patrick. Arena live at `https://arena.maxnexus.io` with cross-subdomain cookie auth from `portal.maxnexus.io`. Splash at `https://maxnexus.io`. Test flow remains in `mission/arena-platform.md`.
 
 ---
 
-## 1. Lumen API key — read from environment, not hardcoded
+## ✅ DONE 2026-05-05/06: Operation Multi-User verify + invite Londynn
+
+End-to-end shipped. Multi-user PIN + face + email auth working in prod. Londynn's invite flow tested. Lumen multi-user committed; iOS code committed (rebuild pending).
+
+---
+
+## Lumen pending — pending Patrick at his Mac
+
+### 1. Lumen API key — read from env / Keychain, not hardcoded
 
 **Trigger:** Xcode is closed (or stopped debugging `lumen-desktop`).
 **File:** `lumen/lumen-desktop/lumen-desktop/LumenAPIManager.swift:72`
 **Current:** `private let anthropicApiKey = "PASTE_YOUR_KEY_HERE"`
-**Risk if left:** First time a real `sk-ant-…` key is pasted in, it will be one `git add` away from being committed to a public repo.
+**Risk:** First time a real `sk-ant-…` key is pasted in, it's one `git add` away from being committed to a public repo.
 
-### Proposed replacement
-
-Replace the line:
-```swift
-private let anthropicApiKey = "PASTE_YOUR_KEY_HERE"
-```
-
-With:
+Replacement pattern:
 ```swift
 private var anthropicApiKey: String {
-    // 1. Environment variable (Xcode scheme → Run → Environment Variables)
-    if let env = ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"], !env.isEmpty {
-        return env
-    }
-    // 2. Keychain (recommended for production builds)
-    if let kc = KeychainHelper.read(service: "com.nexus.lumen", account: "anthropic") {
-        return kc
-    }
-    // 3. Fallback for legacy bundles
+    if let env = ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"], !env.isEmpty { return env }
+    if let kc = KeychainHelper.read(service: "com.nexus.lumen", account: "anthropic") { return kc }
     return ""
 }
 ```
+Plus a small `KeychainHelper.swift` (Security framework wrapper).
 
-You'll also need a tiny `KeychainHelper.swift` (Security framework wrapper) — happy to write it when Xcode is free.
+### 2. Lumen `sessionCookie` not persisted — re-auth on every launch
 
-### How to set the env var in Xcode
-
-`Product → Scheme → Edit Scheme → Run → Arguments → Environment Variables → +`
-- Name: `ANTHROPIC_API_KEY`
-- Value: your key
-- ✅ Check "Encrypted in scheme" if available, otherwise add the scheme to `.gitignore`.
-
-### Verification
-
-After applying:
-```bash
-grep -r "PASTE_YOUR_KEY_HERE\|sk-ant-" lumen/lumen-desktop/
-# should return nothing
-```
-
----
-
-## 2. Lumen `sessionCookie` is not persisted — re-auth required on every launch
-
-**Trigger:** Xcode is closed (or stopped debugging `lumen-desktop`).
+**Trigger:** Xcode is closed.
 **File:** `lumen/lumen-desktop/lumen-desktop/LumenAPIManager.swift:10`
-**Current:**
-```swift
-var sessionCookie: String?  // kept for nexus-web dashboard calls only
-```
-**Issue:** Plain `var` in memory only. On every Lumen relaunch the cookie is `nil`, so the user has to PIN/face-auth again. The DB session is still valid (14-day expiry) — the bug is purely client-side persistence.
+**Current:** plain `var sessionCookie: String?` — lives only in memory, lost on quit.
 
-### Proposed replacement
-
-```swift
-private static let sessionCookieKey = "lumen.sessionCookie"
-
-var sessionCookie: String? {
-    didSet {
-        if let v = sessionCookie, !v.isEmpty {
-            UserDefaults.standard.set(v, forKey: LumenAPIManager.sessionCookieKey)
-        } else {
-            UserDefaults.standard.removeObject(forKey: LumenAPIManager.sessionCookieKey)
-        }
-    }
-}
-
-// In init() (or computed property pattern matching localModel/voiceId):
-//   self.sessionCookie = UserDefaults.standard.string(forKey: Self.sessionCookieKey)
-```
-
-**Companion fix in `AuthManager.swift`:** on launch, if `LumenAPIManager.shared.sessionCookie` is non-nil, set `isAuthenticated = true` immediately so the AuthGate is skipped.
-
-```swift
-init() {
-    if let cookie = LumenAPIManager.shared.sessionCookie, !cookie.isEmpty {
-        isAuthenticated = true
-    }
-}
-```
-
-Optional: validate the cookie against `/api/security/session-check` (or `/api/dashboard/overview` as a probe) before trusting it; if 401, drop the cookie and force re-auth.
-
-### Verification
-
-1. Build Lumen, PIN-auth.
-2. Quit + relaunch.
-3. Should land directly on the dashboard without seeing AuthGate.
-4. `defaults read com.maxwell.lumen-desktop lumen.sessionCookie` should print the same UUID.
+Replacement: persist via UserDefaults with `didSet` watcher; restore on init. Skip AuthGate when cookie is present + valid.
 
 ---
 
-## 3. nexus-web `/api/security/pin` queries deprecated `team_members` table
+## Future hardening items (no urgency, no blocker)
 
-**Trigger:** Anytime — non-Swift, no Xcode constraint. Apply during a non-test window for nexus-web.
-**File:** `nexus-web/app/api/security/pin/route.ts:38-44`
-**Issue:** PIN auth path looks up `team_members` while the rest of the security stack (`/api/security/face`) was migrated to `humans`. Today both tables exist (`team_members` HTTP 200 with rows; `humans` exists too) so the bug is latent — but the moment `team_members` is dropped, all team-member PIN logins break instantly. Owner login via `MAXWELL_PIN` env var would still work.
+### Per-provider webhook HMAC verification
 
-### Proposed replacement
+**Trigger:** Anyone wants to wire a real provider webhook to Arena.
+**File:** `arena-web/app/api/webhooks/[connectionId]/[secret]/route.ts`
+**Current:** Path-token authentication only — anyone with the URL can post events.
+**Why deferred:** Each provider has its own signature scheme (GitHub `X-Hub-Signature-256`, Stripe `stripe-signature` with timestamp, Slack `X-Slack-Signature`, ClickUp `X-Signature`). Foundation works; verification is per-provider code.
 
-Add a fallback to `humans` after the `team_members` lookup (with `pin_hash` column, if it exists in humans schema):
+### Connection-test cron
 
-```ts
-// 1. Try team_members (legacy, still authoritative until migration completes)
-let { data: member } = await supabase
-  .from("team_members")
-  .select("id, name, role")
-  .eq("pin_hash", pinHash)
-  .eq("status", "active")
-  .single()
+**Trigger:** Eve discovers connection breakage too late ("hey ClickUp 401'd, you should rotate"). 
+**Approach:** Vercel Cron hits `/api/connections/health-check` hourly → calls `provider.testConnection()` for every active connection → flips status to errored on auth failures (using existing `recordConnectionResult` helper). Email throttle already in place.
 
-// 2. Fallback to humans (post-migration target)
-if (!member) {
-  const { data: human } = await supabase
-    .from("humans")
-    .select("id, role")           // confirm column names — `name` may not exist in humans
-    .eq("pin_hash", pinHash)
-    .eq("status", "active")       // or .eq("active", true) — check schema
-    .single()
-  if (human) member = { id: human.id, name: "", role: human.role }
-}
-```
+### External calendar sync (Google / Apple Calendar)
 
-**Pre-flight:** confirm `humans` schema has `pin_hash` and an active flag before deploying. Quick check:
-```bash
-curl -s "$SUPA_URL/rest/v1/humans?select=id,pin_hash&limit=1" \
-  -H "apikey: $SUPA_KEY" -H "Authorization: Bearer $SUPA_KEY"
-```
+**Trigger:** Patrick wants Operation Calendar schedules to mirror to / from his external calendar.
+**Approach:** Two new Arena providers (`google-calendar`, `apple-calendar`) that write `external_event` rows back into `schedules` table. Same OAuth pattern as the 4 existing providers.
 
-### Verification
+### Operation Mirror — cross-surface chat parity
 
-1. Apply migration mapping a known team_member's `pin_hash` to a `humans` row.
-2. POST to `/api/security/pin` with that PIN, expect `{ success: true }`.
-3. Drop the team_members row, repeat — should still succeed via `humans` fallback.
+**Trigger:** iOS rebuild + install completes (so we have all 3 surfaces functioning to test parity).
+**Approach:** Supabase Realtime channels per conversation; iOS + Lumen + web all subscribe; optimistic local writes with retry; conflict resolution for rare cross-device edits.
+
+### Operation Documents — PDF RAG
+
+**Trigger:** Patrick has appetite to start.
+**Approach:** File upload in Eve chat → Supabase Storage → background chunk + embed → pgvector table → retrieval injection into Eve's system prompt → Eve `search_documents` tool.

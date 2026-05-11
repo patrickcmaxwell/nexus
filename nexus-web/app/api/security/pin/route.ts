@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import crypto from "crypto"
 import { sessionCookieOptions } from "@/lib/auth/cookie"
+import { fingerprintFromRequest } from "@/lib/auth/device"
 
 function getServiceClient() {
   return createClient(
@@ -72,6 +73,7 @@ export async function POST(req: NextRequest) {
   // Successful authentication — create the session row.
   const now = new Date().toISOString()
   const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+  const fp = fingerprintFromRequest(req)
   const { data: session } = await supabase
     .from("security_sessions")
     .insert({
@@ -82,6 +84,9 @@ export async function POST(req: NextRequest) {
       expires_at: expiresAt,
       auth_method: "pin",
       invalidated: false,
+      user_agent: fp.userAgent,
+      ip_address: fp.ipAddress,
+      device_label: fp.deviceLabel,
     })
     .select("id")
     .single()

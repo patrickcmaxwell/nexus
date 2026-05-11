@@ -1,0 +1,48 @@
+{
+  "source": "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/EveOrbWindow.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "EVE · STATUS WINDOW",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 48
+        }
+      },
+      {
+        "comment": "",
+        "key": "Larger",
+        "location": {
+          "startingColumn": 29,
+          "startingLine": 58
+        }
+      },
+      {
+        "comment": "",
+        "key": "Compact",
+        "location": {
+          "startingColumn": 40,
+          "startingLine": 58
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unpin (no longer always-on-top)",
+        "location": {
+          "startingColumn": 33,
+          "startingLine": 65
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pin always-on-top",
+        "location": {
+          "startingColumn": 69,
+          "startingLine": 65
+        }
+      }
+    ]
+  },
+  "version": 1
+}

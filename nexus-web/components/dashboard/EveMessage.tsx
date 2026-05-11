@@ -57,7 +57,7 @@ function summarizeToolCall(tc: ToolCallTrace): {
       return {
         humanLabel: "Created task", primary: title,
         detail: success ? detail : (err ?? "failed"), success,
-        Icon: CheckCircle2, color: "text-cyan-400 border-cyan-400/40 bg-cyan-400/10",
+        Icon: CheckCircle2, color: "text-primary border-primary/40 bg-primary/10",
       }
     }
     case "arena_task_update": {
@@ -66,7 +66,7 @@ function summarizeToolCall(tc: ToolCallTrace): {
       return {
         humanLabel: "Updated task", primary: id,
         detail: success ? status : (err ?? "failed"), success,
-        Icon: Pencil, color: "text-cyan-400 border-cyan-400/40 bg-cyan-400/10",
+        Icon: Pencil, color: "text-primary border-primary/40 bg-primary/10",
       }
     }
     case "arena_payment_route": {
@@ -109,9 +109,9 @@ function summarizeToolCall(tc: ToolCallTrace): {
 
 const BRAIN_STYLE: Record<string, { label: string; cls: string }> = {
   grok:    { label: "GROK",    cls: "text-violet-400 bg-violet-400/15 border-violet-400/35" },
-  local:   { label: "LOCAL",   cls: "text-cyan-400  bg-cyan-400/15  border-cyan-400/35"  },
+  local:   { label: "LOCAL",   cls: "text-primary bg-primary/15 border-primary/35"  },
   claude:  { label: "CLAUDE",  cls: "text-amber-400 bg-amber-400/15 border-amber-400/35" },
-  vision:  { label: "VISION",  cls: "text-cyan-400  bg-cyan-400/15  border-cyan-400/35"  },
+  vision:  { label: "VISION",  cls: "text-primary bg-primary/15 border-primary/35"  },
   offline: { label: "OFFLINE", cls: "text-muted-foreground bg-muted/30 border-muted-foreground/30" },
 }
 
@@ -225,17 +225,17 @@ export default function EveMessage({ content, citations = [], toolCalls = [], br
       {/* Brain badge + action count strip — plus per-message Copy / TTS */}
       <div className="flex items-center gap-2 -mb-1">
         {brain && BRAIN_STYLE[brain] && (
-          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-[8px] font-mono font-bold tracking-widest ${BRAIN_STYLE[brain].cls}`}>
+          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-[10px] font-medium ${BRAIN_STYLE[brain].cls}`}>
             {BRAIN_STYLE[brain].label}
           </span>
         )}
         {brain && !BRAIN_STYLE[brain] && (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full border text-[8px] font-mono font-bold tracking-widest text-muted-foreground bg-muted/30 border-muted-foreground/30">
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full border text-[10px] font-medium text-muted-foreground bg-muted/30 border-muted-foreground/30">
             {brain.toUpperCase()}
           </span>
         )}
         {toolCalls.length > 0 && (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full border text-[8px] font-mono font-bold tracking-widest text-cyan-400 bg-cyan-400/15 border-cyan-400/35">
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full border text-[10px] font-medium text-primary bg-primary/15 border-primary/35">
             {toolCalls.length} ACTION{toolCalls.length === 1 ? "" : "S"}
           </span>
         )}
@@ -276,11 +276,11 @@ export default function EveMessage({ content, citations = [], toolCalls = [], br
                 )}
                 <div className="flex flex-col leading-tight min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-[8px] font-mono font-bold tracking-widest uppercase opacity-90">
+                    <span className="text-[10px] font-medium uppercase opacity-80">
                       {s.humanLabel}
                     </span>
                     {!s.success && (
-                      <span className="text-[8px] font-mono font-bold tracking-widest text-rose-400 bg-rose-400/15 border border-rose-400/35 rounded-full px-1.5">
+                      <span className="text-[10px] font-medium text-rose-400 bg-rose-400/15 border border-rose-400/35 rounded-full px-1.5">
                         FAILED
                       </span>
                     )}
@@ -351,7 +351,7 @@ export default function EveMessage({ content, citations = [], toolCalls = [], br
       {/* Citation / source cards */}
       {allCitations.length > 0 && (
         <div className="flex flex-col gap-2">
-          <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Sources</p>
+          <p className="text-xs font-medium text-muted-foreground">Sources</p>
           <div className="grid grid-cols-1 gap-2">
             {allCitations.map((c, i) => {
               let hostname = c.url

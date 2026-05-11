@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { sessionCookieOptions } from "@/lib/auth/cookie"
+import { fingerprintFromRequest } from "@/lib/auth/device"
 
 function getServiceClient() {
   return createClient(
@@ -111,7 +112,7 @@ export async function POST(req: NextRequest) {
 
     return await createHumanSession(
       NextResponse.json({ success: true, action: "enrolled", framesStored: incomingArray.length }),
-      targetId, "face", supabase
+      targetId, "face", supabase, req
     )
   }
 
@@ -174,16 +175,17 @@ export async function POST(req: NextRequest) {
         name: bestMatch.name,
         redirect: "/dashboard",
       }),
-      bestMatch.id, "face", supabase
+      bestMatch.id, "face", supabase, req
     )
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 })
 }
 
-async function createHumanSession(response: NextResponse, humanId: string, method: string, supabase: any): Promise<NextResponse> {
+async function createHumanSession(response: NextResponse, humanId: string, method: string, supabase: any, req: NextRequest): Promise<NextResponse> {
   const now = new Date().toISOString()
   const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+  const fp = fingerprintFromRequest(req)
 
   const { data, error } = await supabase
     .from("security_sessions")
@@ -195,6 +197,9 @@ async function createHumanSession(response: NextResponse, humanId: string, metho
       expires_at: expiresAt,
       auth_method: method,
       invalidated: false,
+      user_agent: fp.userAgent,
+      ip_address: fp.ipAddress,
+      device_label: fp.deviceLabel,
     })
     .select("id")
     .single()

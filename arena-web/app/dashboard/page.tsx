@@ -9,7 +9,8 @@ import FirstRunGuide from "@/components/FirstRunGuide"
 
 export const dynamic = "force-dynamic"
 
-// User dashboard: connections + recent actions.
+// Arena dashboard — connections + recent action log.
+// Clean baseline: Apple/Linear-style. No HUD chrome.
 export default async function DashboardPage() {
   const me = await getActiveHuman()
   if (!me) redirect("/")
@@ -33,23 +34,23 @@ export default async function DashboardPage() {
   const isFirstRun = connections.length === 0 && actions.length === 0
 
   return (
-    <main className="min-h-screen px-6 md:px-10 py-10 max-w-5xl mx-auto">
-      <header className="mb-10 flex items-start justify-between">
-        <div>
-          <p className="font-mono text-[10px] tracking-[0.3em] uppercase text-[var(--arena-accent)] mb-1">
-            Arena · Dashboard
-          </p>
-          <h1 className="text-2xl font-bold">
-            {isFirstRun ? `Hello, ${firstName(me.displayName)}` : `Welcome back, ${firstName(me.displayName)}`}
+    <main className="min-h-screen px-4 sm:px-6 md:px-10 py-10 max-w-5xl mx-auto">
+      <header className="mb-10 flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-3xl font-semibold tracking-tight text-[color:var(--color-fg)]">
+            {isFirstRun ? `Welcome, ${firstName(me.displayName)}` : `Hi, ${firstName(me.displayName)}`}
           </h1>
-          <p className="text-sm text-white/55 mt-1">
+          <p className="text-base text-[color:var(--color-fg-muted)] mt-2 max-w-lg">
             {isFirstRun
-              ? "Let's get Eve hands. Three steps below."
-              : "Your connections, the actions Eve has taken, and what's still wireable."}
+              ? "Three steps below to get Eve doing real work."
+              : "Connections, recent actions, and what's still wireable."}
           </p>
         </div>
-        <Link href="/" className="font-mono text-[10px] tracking-[0.2em] uppercase text-white/55 hover:text-white">
-          ← Home
+        <Link
+          href="https://portal.maxnexus.io"
+          className="text-sm text-[color:var(--color-fg-muted)] hover:text-[color:var(--color-fg)] transition-colors flex-shrink-0"
+        >
+          ← Portal
         </Link>
       </header>
 
@@ -61,10 +62,13 @@ export default async function DashboardPage() {
         />
       )}
 
-      <section className="mb-10">
-        <h2 className="font-mono text-[10px] tracking-[0.25em] uppercase text-[var(--arena-accent)] mb-3">
-          Your Connections
-        </h2>
+      <section className="mb-12">
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-[color:var(--color-fg)]">Connections</h2>
+          <p className="text-sm text-[color:var(--color-fg-muted)] mt-0.5">
+            Services Eve can act through on your behalf.
+          </p>
+        </div>
         <ConnectionsList
           initial={connections}
           providers={ALL_PROVIDERS.map((p) => ({
@@ -74,9 +78,12 @@ export default async function DashboardPage() {
       </section>
 
       <section>
-        <h2 className="font-mono text-[10px] tracking-[0.25em] uppercase text-[var(--arena-accent)] mb-3">
-          Recent Actions
-        </h2>
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-[color:var(--color-fg)]">Recent activity</h2>
+          <p className="text-sm text-[color:var(--color-fg-muted)] mt-0.5">
+            Every action Eve and other callers fired through Arena.
+          </p>
+        </div>
         <RecentActions actions={actions} />
       </section>
     </main>

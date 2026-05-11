@@ -1568,6 +1568,16 @@ class LumenStore: ObservableObject {
         loadedHistoryTitle = nil
     }
 
+    /// Register a conversation as the currently-active thread without
+    /// loading its messages into the main panel. Detached ConversationWindows
+    /// call this on appear so the dashboard's "Current Focus" pill reflects
+    /// the thread the Director is actually looking at, even when that thread
+    /// lives in a pop-out window.
+    func registerActiveConversation(id: String, title: String) {
+        currentConversationId = id
+        currentConversationTitle = title
+    }
+
     func newConversation() {
         currentConversationId = nil
         currentConversationTitle = nil

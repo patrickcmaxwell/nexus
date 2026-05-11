@@ -49,25 +49,49 @@ export async function POST(req: NextRequest) {
   // Find the user's connection for this provider, if any.
   const connection = await firstConnection(userId, providerId)
 
+  // No connection? Don't silent-mock — return a structured handoff so Eve
+  // can tell the user "click here to connect" instead of pretending it worked.
+  if (!connection) {
+    const arenaBase = arenaBaseUrl()
+    const connectUrl = `${arenaBase}/connect/${providerId}`
+    const handoff = {
+      success: false,
+      needs_connection: true,
+      provider: providerId,
+      provider_name: provider.name,
+      connect_url: connectUrl,
+      message: `You haven't connected ${provider.name} yet. Open ${connectUrl} to connect, then ask me again.`,
+    }
+    await writeAudit({
+      action: "task/create",
+      caller: (req.headers.get("X-Arena-Caller") as never) ?? "eve",
+      payload: { user_id: userId, provider: providerId, title },
+      status: "error",
+      errorMsg: `No ${providerId} connection`,
+      result: handoff,
+    })
+    // 200 with structured body — Eve treats this as a tool result, not a
+    // network error. The `needs_connection` flag is the contract Eve reads.
+    return NextResponse.json(handoff)
+  }
+
   try {
-    const result = connection
-      ? await provider.createTask({
-          connection,
-          title,
-          description: body.description as string | undefined,
-          dueDate: body.due_date as string | undefined,
-          priority: body.priority as any,
-        })
-      : { mocked: true, detail: `No ${provider.name} connection — task not created` }
+    const result = await provider.createTask({
+      connection,
+      title,
+      description: body.description as string | undefined,
+      dueDate: body.due_date as string | undefined,
+      priority: body.priority as never,
+    })
 
     // Mark connection healthy + bump last_used_at on real (non-mocked) calls.
-    if (connection && !result.mocked) {
+    if (!result.mocked) {
       await recordConnectionResult(connection.id, { ok: true })
     }
 
     await writeAudit({
       action: "task/create",
-      caller: (req.headers.get("X-Arena-Caller") as any) ?? "eve",
+      caller: (req.headers.get("X-Arena-Caller") as never) ?? "eve",
       payload: { user_id: userId, provider: providerId, title },
       result,
       status: "success",
@@ -88,6 +112,11 @@ export async function POST(req: NextRequest) {
     })
     return NextResponse.json({ error: detail }, { status: 500 })
   }
+}
+
+function arenaBaseUrl(): string {
+  // Honor explicit override; fall back to the prod custom domain.
+  return process.env.NEXT_PUBLIC_ARENA_URL || "https://arena.maxnexus.io"
 }
 
 async function firstConnection(userId: string, providerId: string): Promise<ConnectionRecord | null> {

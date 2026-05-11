@@ -51,12 +51,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const member = await getSessionMember()
   if (!member || member.role !== "admin") {
-    // Fallback: check if nx_session exists with any valid session
-    const cookieStore = await cookies()
-    const sessionId = cookieStore.get("nx_session")?.value
-    if (!sessionId) {
-      return NextResponse.json({ error: "Unauthorized — admin only" }, { status: 403 })
-    }
+    return NextResponse.json({ error: "Unauthorized — admin only" }, { status: 403 })
   }
 
   const { name, email, seedFaceDescriptor, role = "observer" } = await req.json()

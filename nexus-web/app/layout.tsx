@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter, JetBrains_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
@@ -17,6 +17,27 @@ export const metadata: Metadata = {
     ],
     apple: '/apple-icon.png',
   },
+}
+
+// Viewport is the single biggest mobile fix. Without it, mobile Safari
+// uses its default ~980px viewport and scales the whole page down to
+// fit — which is why nexus-web looked like a narrow column on iPhone
+// (chat bubbles word-per-line). Setting width=device-width lines the
+// rendered viewport up with actual screen pixels and Tailwind's `md:`
+// breakpoints start firing correctly on real device widths.
+// `viewportFit: cover` extends content under the notch so the existing
+// `env(safe-area-inset-*)` rules in DashboardSidebar's mobile nav can
+// take effect.
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  minimumScale: 1,
+  maximumScale: 5,
+  viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)',  color: '#0a0a0a' },
+  ],
 }
 
 // Theme init runs before paint to prevent FOUC. React 19 / Next 16 stopped

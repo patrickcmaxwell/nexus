@@ -1,0 +1,128 @@
+{
+  "source": "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/DatasetsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Local cache mirrors of nexus-web tables. Reads paint instantly; sync fills in the background.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 67
+        }
+      },
+      {
+        "comment": "",
+        "key": "DATASETS",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 62
+        }
+      },
+      {
+        "comment": "",
+        "key": "NEVER SYNCED",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 107
+        }
+      },
+      {
+        "comment": "",
+        "key": "LAST FULL SYNC %@",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 102
+        }
+      },
+      {
+        "comment": "",
+        "key": "SYNCING…",
+        "location": {
+          "startingColumn": 49,
+          "startingLine": 83
+        }
+      },
+      {
+        "comment": "",
+        "key": "SYNC NOW",
+        "location": {
+          "startingColumn": 64,
+          "startingLine": 83
+        }
+      },
+      {
+        "comment": "",
+        "key": "CACHED TABLES",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 136
+        }
+      },
+      {
+        "comment": "",
+        "key": "ROWS · LAST SYNC",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 141
+        }
+      },
+      {
+        "comment": "",
+        "key": "Loading…",
+        "location": {
+          "startingColumn": 45,
+          "startingLine": 151
+        }
+      },
+      {
+        "comment": "",
+        "key": "No tables cached yet — Sync now to populate",
+        "location": {
+          "startingColumn": 60,
+          "startingLine": 151
+        }
+      },
+      {
+        "comment": "",
+        "key": "ON-DISK CACHE",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 163
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cache is single-user (Patrick only). When Lumen goes multi-user this view will scope per active human.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 206
+        }
+      },
+      {
+        "comment": "",
+        "key": "REVEAL IN FINDER",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 178
+        }
+      },
+      {
+        "comment": "",
+        "key": "RESET CACHE",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 190
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 288
+        }
+      }
+    ]
+  },
+  "version": 1
+}

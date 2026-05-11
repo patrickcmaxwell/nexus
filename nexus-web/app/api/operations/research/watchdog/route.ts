@@ -3,7 +3,7 @@ export const maxDuration = 300
 import { NextResponse } from "next/server"
 import { after } from "next/server"
 import { createServiceClient } from "@/lib/supabase/service"
-import { isAuthed, USER_ID } from "@/lib/operations/auth"
+import { getActiveAuthId } from "@/lib/auth/session"
 import { runResearchJob } from "@/lib/operations/research-runner"
 
 // Minutes before a "running" job is considered stuck.
@@ -19,7 +19,8 @@ const ABANDONED_MINUTES = 2
  * page load so research jobs survive preview cold-starts and deploys.
  */
 export async function POST() {
-  if (!(await isAuthed())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const authId = await getActiveAuthId()
+  if (!authId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const supabase = createServiceClient()
 
   const stuckCutoff = new Date(Date.now() - STUCK_MINUTES * 60_000).toISOString()
@@ -29,7 +30,7 @@ export async function POST() {
   const { data: stuck } = await supabase
     .from("research_jobs")
     .select("id")
-    .eq("user_id", USER_ID)
+    .eq("user_id", authId)
     .eq("status", "running")
     .lt("started_at", stuckCutoff)
 
@@ -44,7 +45,7 @@ export async function POST() {
   const { data: abandoned } = await supabase
     .from("research_jobs")
     .select("id")
-    .eq("user_id", USER_ID)
+    .eq("user_id", authId)
     .eq("status", "queued")
     .lt("created_at", abandonedCutoff)
 

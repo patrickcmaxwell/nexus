@@ -67,7 +67,7 @@ export const slack: Provider = {
   },
 
   async createTask({ connection, title, description, priority }: CreateTaskInput): Promise<TaskResult> {
-    const token = connection.credentials.bot_token
+    const token = connection.credentials.access_token || connection.credentials.bot_token
     const channel = connection.config.default_channel
     if (!token || !channel) {
       return { mocked: true, detail: "Slack credentials missing — message not sent" }
@@ -118,7 +118,7 @@ export const slack: Provider = {
   },
 
   async updateTask({ connection, externalId, status, comment }: UpdateTaskInput): Promise<TaskResult> {
-    const token = connection.credentials.bot_token
+    const token = connection.credentials.access_token || connection.credentials.bot_token
     if (!token) {
       return { externalId, mocked: true, detail: "Slack credentials missing — update skipped" }
     }

@@ -1,0 +1,160 @@
+{
+  "source": "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/ConversationWindow.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "THREADS",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 79
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 84
+        }
+      },
+      {
+        "comment": "",
+        "key": "· %lld messages",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 167
+        }
+      },
+      {
+        "comment": "",
+        "key": "Hide thread list",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 158
+        }
+      },
+      {
+        "comment": "",
+        "key": "Show thread list",
+        "location": {
+          "startingColumn": 57,
+          "startingLine": 158
+        }
+      },
+      {
+        "comment": "",
+        "key": "Refresh thread",
+        "location": {
+          "startingColumn": 19,
+          "startingLine": 182
+        }
+      },
+      {
+        "comment": "",
+        "key": "No messages in this thread yet.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 218
+        }
+      },
+      {
+        "comment": "",
+        "key": "Voice mode active in THIS window — tap to stop",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 250
+        }
+      },
+      {
+        "comment": "",
+        "key": "Voice mode is active in another window",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 251
+        }
+      },
+      {
+        "comment": "",
+        "key": "Start voice mode for this conversation",
+        "location": {
+          "startingColumn": 19,
+          "startingLine": 252
+        }
+      },
+      {
+        "comment": "",
+        "key": "Muted — tap to unmute",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 269
+        }
+      },
+      {
+        "comment": "",
+        "key": "Mute (let Eve finish without interrupt)",
+        "location": {
+          "startingColumn": 69,
+          "startingLine": 269
+        }
+      },
+      {
+        "comment": "",
+        "key": "Minimize composer",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 300
+        }
+      },
+      {
+        "comment": "",
+        "key": "Expand composer for longer messages",
+        "location": {
+          "startingColumn": 64,
+          "startingLine": 300
+        }
+      },
+      {
+        "comment": "",
+        "key": "EVE",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 443
+        }
+      },
+      {
+        "comment": "",
+        "key": "YOU",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 510
+        }
+      },
+      {
+        "comment": "",
+        "key": "Read Aloud",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 492
+        }
+      },
+      {
+        "comment": "",
+        "key": "Stop Speaking",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 497
+        }
+      },
+      {
+        "comment": "",
+        "key": "Copy Message",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 505
+        }
+      }
+    ]
+  },
+  "version": 1
+}

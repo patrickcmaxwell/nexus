@@ -1,0 +1,56 @@
+{
+  "source": "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/SearchPalette.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "No matches in cache. Try Sync now if results feel stale.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 137
+        }
+      },
+      {
+        "comment": "",
+        "key": "ESC",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 104
+        }
+      },
+      {
+        "comment": "",
+        "key": "Search across operations, records, agents, memories…",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 90
+        }
+      },
+      {
+        "comment": "",
+        "key": "Type to search across all cached datasets",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 127
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld RESULT%@",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 173
+        }
+      },
+      {
+        "comment": "",
+        "key": "LOCAL CACHE",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 179
+        }
+      }
+    ]
+  },
+  "version": 1
+}

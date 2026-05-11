@@ -5,6 +5,7 @@ extension Notification.Name {
     static let lumenCommandPaletteToggle = Notification.Name("lumen.commandPalette.toggle")
     static let lumenMentionTap           = Notification.Name("lumen.mention.tap")
     static let lumenComposerFocus        = Notification.Name("lumen.composer.focus")
+    static let lumenLockNow              = Notification.Name("lumen.presence.lockNow")
 }
 
 @main
@@ -15,12 +16,20 @@ struct LumenApp: App {
     @StateObject private var sync: LumenSync
     @StateObject private var apps: LumenAppRegistry
     @StateObject private var authRegistry: LumenAuthRegistry
+    @StateObject private var presence: LumenPresenceMonitor
 
     init() {
         let store = LumenStore()
         let registry = LumenAppRegistry()
         let authReg = LumenAuthRegistry()
         let auth = AuthManager()
+        let presence = LumenPresenceMonitor()
+        // When the presence curtain drops, kill any live mic/voice so a
+        // bystander can't speak commands to Eve through a locked screen.
+        presence.onLockEngaged = { [weak store] in
+            store?.stopListening()
+            store?.voice.stopSpeaking()
+        }
         // Wire the registry into AuthManager so any cookie that lands via
         // face/PIN/passphrase paths becomes a known multi-user session.
         auth.onCookieAdopted = { [weak authReg] cookie in
@@ -48,6 +57,7 @@ struct LumenApp: App {
         self._sync  = StateObject(wrappedValue: LumenSync(store: store))
         self._apps  = StateObject(wrappedValue: registry)
         self._authRegistry = StateObject(wrappedValue: authReg)
+        self._presence = StateObject(wrappedValue: presence)
         AppDelegate.appRegistry = registry
     }
 
@@ -61,6 +71,19 @@ struct LumenApp: App {
                         .environmentObject(sync)
                         .environmentObject(apps)
                         .environmentObject(authRegistry)
+                        .environmentObject(presence)
+                        // Presence curtain — sits on top of MainView while
+                        // locked. App keeps running underneath; only the
+                        // UI is sealed off. See PresenceLockView for the
+                        // unlock paths (face, then passcode fallback).
+                        .overlay {
+                            if presence.isLocked {
+                                PresenceLockView()
+                                    .environmentObject(presence)
+                                    .environmentObject(auth)
+                                    .transition(.opacity)
+                            }
+                        }
                 } else {
                     AuthGate()
                         .environmentObject(auth)
@@ -75,11 +98,12 @@ struct LumenApp: App {
                 // running.
                 _ = await LumenAPIManager.shared.resolveBaseURL()
 
-                // Restore active session from Keychain BEFORE startup runs —
-                // startup uses the cookie for its initial fetches.
-                if await authRegistry.restoreActiveSession() {
-                    auth.isAuthenticated = true
-                }
+                // Restore active session from Keychain so we know WHO the user
+                // is and AuthGate can pre-bind to their identity for a fast
+                // face capture — but DO NOT flip isAuthenticated. Even with a
+                // valid cached cookie, every launch must clear the face gate
+                // before MainView is visible. A cookie is identity, not entry.
+                _ = await authRegistry.restoreActiveSession()
                 await store.startup()
             }
             .onChange(of: auth.isAuthenticated) { _, authenticated in
@@ -89,14 +113,29 @@ struct LumenApp: App {
                         await store.fetchOperations()
                     }
                     sync.start()
+                    // Publish local terminal sessions to nexus-web so the
+                    // iOS Nexus app can see + control them. Idempotent —
+                    // safe to call repeatedly (timers are re-created).
+                    LumenTerminalBridge.shared.start(registry: apps)
+                    // Begin presence monitoring (periodic re-verify + idle
+                    // lock). User-disabled in settings → no-op.
+                    presence.start()
                 } else {
                     sync.stop()
+                    LumenTerminalBridge.shared.stop()
+                    presence.stop()
                 }
             }
         }
         .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(replacing: .newItem) {}
+            CommandGroup(after: .appInfo) {
+                Button("Lock Now") {
+                    NotificationCenter.default.post(name: .lumenLockNow, object: nil)
+                }
+                .keyboardShortcut("l", modifiers: [.command, .control])
+            }
             PanelCommands()
         }
 
@@ -136,14 +175,17 @@ struct LumenApp: App {
 
         // Per-conversation windows — Director can run several threads side
         // by side. Each window has its own send loop pinned to its conversationId.
+        // Default size accommodates the thread switcher sidebar (200px) +
+        // a comfortable message column. Sidebar is collapsible so the user
+        // can still shrink to a focused single-thread view.
         WindowGroup("Conversation", id: "conversation-detail", for: String.self) { $convId in
             ConversationWindow(conversationId: convId ?? "")
                 .environmentObject(store)
                 .environmentObject(sync)
-                .frame(minWidth: 600, minHeight: 540)
+                .frame(minWidth: 520, minHeight: 320)
         }
         .windowStyle(.hiddenTitleBar)
-        .defaultSize(width: 760, height: 680)
+        .defaultSize(width: 720, height: 460)
 
         // Quick Capture — floating mini-window for drop-a-thought interactions.
         // Sends to Eve with full tool access, fades out after a brief reply.
@@ -176,6 +218,8 @@ struct LumenApp: App {
                 .environmentObject(store)
                 .environmentObject(sync)
                 .environmentObject(auth)
+                .environmentObject(authRegistry)
+                .environmentObject(presence)
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 760, height: 600)

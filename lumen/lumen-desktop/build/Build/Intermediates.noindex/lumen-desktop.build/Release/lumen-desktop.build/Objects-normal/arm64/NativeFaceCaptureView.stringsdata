@@ -1,0 +1,64 @@
+{
+  "source": "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/NativeFaceCaptureView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "STARTING CAMERA…",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 100
+        }
+      },
+      {
+        "comment": "",
+        "key": "WAITING FOR FACE",
+        "location": {
+          "startingColumn": 66,
+          "startingLine": 100
+        }
+      },
+      {
+        "comment": "",
+        "key": "FACE LOCK",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 115
+        }
+      },
+      {
+        "comment": "",
+        "key": "CAPTURING…",
+        "location": {
+          "startingColumn": 48,
+          "startingLine": 133
+        }
+      },
+      {
+        "comment": "",
+        "key": "VERIFYING…",
+        "location": {
+          "startingColumn": 65,
+          "startingLine": 133
+        }
+      },
+      {
+        "comment": "",
+        "key": "ACCESS GRANTED",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 152
+        }
+      },
+      {
+        "comment": "",
+        "key": "TRY AGAIN",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 172
+        }
+      }
+    ]
+  },
+  "version": 1
+}

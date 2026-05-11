@@ -44,6 +44,12 @@ struct NativeFaceCaptureView: View {
                 .overlay(faceLockBadge, alignment: .topTrailing)
                 .overlay(scanOverlay)
                 .overlay(resultOverlay)
+                // Status overlay so a "started successfully but no live
+                // frames are arriving" state — which is what TCC silently
+                // denying camera access looks like — doesn't render as a
+                // mysteriously empty box. We always show *something* until
+                // a face is locked or a stage takes over.
+                .overlay(statusOverlay)
 
             if stage == .no_camera {
                 noCameraView
@@ -62,9 +68,40 @@ struct NativeFaceCaptureView: View {
                 stage = started ? .ready : .no_camera
                 statusMsg = started ? "Look at the camera" : "Camera unavailable"
             }
+            // Watchdog — if the session claims to have started but no
+            // frames arrive within 6s (no face EVER detected, no error
+            // surfaced), call it: macOS is silently denying camera access
+            // and we should tell the user instead of staring at a blank
+            // box. Common after an ad-hoc resign: TCC has a stale
+            // signature entry and `startRunning` succeeds without ever
+            // delivering buffers.
+            Task {
+                try? await Task.sleep(nanoseconds: 6_000_000_000)
+                if stage == .ready && !session.faceDetected && !session.didDeliverFrame {
+                    stage = .no_camera
+                    failMsg = "Camera silently denied — check Privacy & Security → Camera"
+                }
+            }
         }
         .onDisappear {
             session.stop()
+        }
+    }
+
+    /// Always-visible "what is the camera doing right now" hint. Hidden
+    /// once a face is locked / capture stage takes over.
+    @ViewBuilder
+    private var statusOverlay: some View {
+        if (stage == .starting || stage == .ready) && !session.faceDetected {
+            VStack(spacing: 6) {
+                Image(systemName: stage == .starting ? "video.circle" : "viewfinder")
+                    .font(.system(size: 22, weight: .light))
+                    .foregroundColor(.cyanAccent.opacity(0.55))
+                Text(stage == .starting ? "STARTING CAMERA…" : "WAITING FOR FACE")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .tracking(2.5)
+                    .foregroundColor(.white.opacity(0.55))
+            }
         }
     }
 
@@ -261,6 +298,18 @@ final class FaceCaptureSession: NSObject, ObservableObject {
     let captureSession = AVCaptureSession()
     @Published var faceDetected = false
 
+    /// True once we've actually received at least one video frame from
+    /// the capture pipeline. Lets the view tell apart "session started
+    /// fine but no frames are flowing" (TCC silently denied) from "still
+    /// initializing." Without this signal, an empty preview is ambiguous.
+    @Published var didDeliverFrame = false
+
+    /// Total frames the pipeline has delivered. Watchdog uses this plus
+    /// faceDetected to tell "no permission" apart from "frames coming but
+    /// face never found" (camera covered / TCC soft-deny / user out of
+    /// frame). At 30fps a couple seconds gives us a confident sample.
+    @Published var deliveredFrameCount = 0
+
     var onFrameCaptured: (() -> Void)?
     var onLockHeld: (() -> Void)?
     var onError: ((String) -> Void)?
@@ -274,6 +323,23 @@ final class FaceCaptureSession: NSObject, ObservableObject {
     private var photoDelegate: PhotoCaptureDelegate?
 
     func start() async -> Bool {
+        // Reset so the view's watchdog only fires on truly-no-frame state.
+        didDeliverFrame = false
+        faceDetected = false
+
+        // Hook AV runtime errors — without this, things like TCC-driven
+        // mid-stream denial or USB unplug fail silently. Single observer;
+        // we don't bother removing because the FaceCaptureSession is short-
+        // lived (created per view appearance).
+        NotificationCenter.default.addObserver(
+            forName: AVCaptureSession.runtimeErrorNotification,
+            object: captureSession,
+            queue: .main
+        ) { [weak self] note in
+            let err = note.userInfo?[AVCaptureSessionErrorKey] as? Error
+            self?.onError?("Camera runtime error: \(err?.localizedDescription ?? "unknown")")
+        }
+
         let auth = AVCaptureDevice.authorizationStatus(for: .video)
         if auth == .notDetermined {
             let granted = await AVCaptureDevice.requestAccess(for: .video)
@@ -344,6 +410,13 @@ extension FaceCaptureSession: @preconcurrency AVCaptureVideoDataOutputSampleBuff
                                    didOutput sampleBuffer: CMSampleBuffer,
                                    from connection: AVCaptureConnection) {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+
+        // First-frame flag — flips the view's watchdog out of "is the
+        // camera silently dead?" mode.
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            if !self.didDeliverFrame { self.didDeliverFrame = true }
+        }
 
         // Lightweight face-rectangle detection — no descriptor compute, just
         // a "did we find a face in this frame" signal to drive the lock timer.

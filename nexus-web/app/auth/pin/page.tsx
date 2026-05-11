@@ -105,22 +105,22 @@ export default function PinPage() {
   }, [pin, status, email]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center scan-line">
+    <div className="min-h-screen bg-background flex items-center justify-center ">
       <div className="w-full max-w-sm px-6">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 hud-border hud-glow-red mx-auto mb-6 flex items-center justify-center">
-            <span className="text-hud-red font-bold text-2xl animate-pulse-glow" style={{ fontFamily: "var(--font-orbitron)" }}>MN</span>
+          <div className="w-16 h-16 border border-destructive/40 mx-auto mb-6 flex items-center justify-center">
+            <span className="text-destructive font-bold text-2xl animate-pulse-glow">MN</span>
           </div>
-          <p className="font-mono text-[10px] text-muted-foreground tracking-widest mb-1">NEXUS // ACCESS</p>
-          <h1 className="text-hud-gold text-xl font-bold tracking-widest" style={{ fontFamily: "var(--font-orbitron)" }}>
+          <p className="text-xs text-muted-foreground mb-1">NEXUS // ACCESS</p>
+          <h1 className="text-primary text-xl font-bold ">
             SIGN IN
           </h1>
-          <p className="font-mono text-[10px] text-muted-foreground mt-2 tracking-widest">EMAIL + 4-DIGIT PIN</p>
+          <p className="text-xs text-muted-foreground mt-2">EMAIL + 4-DIGIT PIN</p>
         </div>
 
         {/* Email field */}
         <div className="mb-5">
-          <label className="block font-mono text-[9px] text-muted-foreground tracking-widest mb-2">EMAIL</label>
+          <label className="block text-xs text-muted-foreground mb-2">EMAIL</label>
           <input
             type="email"
             inputMode="email"
@@ -130,7 +130,7 @@ export default function PinPage() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
             disabled={status === "loading" || status === "blocked"}
-            className="w-full px-3 py-2.5 font-mono text-sm hud-border bg-transparent text-hud-gold placeholder:text-muted-foreground/40 focus:outline-none focus:hud-glow-gold"
+            className="w-full px-3 py-2.5 text-sm font-medium border border-border bg-transparent text-primary placeholder:text-muted-foreground/40 focus:outline-none focus:"
           />
         </div>
 
@@ -142,8 +142,8 @@ export default function PinPage() {
               className={`w-4 h-4 rounded-full border-2 transition-all duration-150 ${
                 i < pin.length
                   ? status === "error"
-                    ? "bg-hud-red border-hud-red hud-glow-red"
-                    : "bg-hud-gold border-hud-gold hud-glow-gold"
+                    ? "bg-destructive border-destructive "
+                    : "bg-primary border-primary "
                   : "border-border bg-transparent"
               }`}
             />
@@ -152,10 +152,10 @@ export default function PinPage() {
 
         <div className="h-7 mb-5 flex items-center justify-center">
           {status === "loading" && (
-            <p className="font-mono text-[10px] text-hud-gold tracking-widest animate-pulse-glow">VERIFYING...</p>
+            <p className="text-xs font-medium text-primary animate-pulse-glow">VERIFYING...</p>
           )}
           {(status === "error" || status === "blocked") && (
-            <p className="font-mono text-[10px] text-hud-red tracking-widest">{errorMsg}</p>
+            <p className="text-xs font-medium text-destructive">{errorMsg}</p>
           )}
         </div>
 
@@ -166,14 +166,14 @@ export default function PinPage() {
               onClick={() => handleDigit(d)}
               disabled={d === "" || status === "loading" || status === "blocked"}
               className={`
-                h-14 font-mono text-lg font-bold tracking-widest transition-all duration-100
+                h-14 text-lg font-semibold transition-all duration-100
                 ${d === "" ? "invisible" : ""}
                 ${d !== "" && status !== "loading" && status !== "blocked"
-                  ? "hud-border text-hud-gold hover:bg-[oklch(0.75_0.18_75/0.1)] hover:hud-glow-gold active:scale-95"
+                  ? "border border-border text-primary hover:bg-[oklch(0.75_0.18_75/0.1)] hover: active:scale-95"
                   : "opacity-30 cursor-not-allowed border border-border text-muted-foreground"
                 }
               `}
-              style={{ fontFamily: "var(--font-orbitron)" }}
+             
             >
               {d}
             </button>
@@ -185,10 +185,10 @@ export default function PinPage() {
           className="mt-6 w-full flex items-center justify-center gap-3 py-2"
           type="button"
         >
-          <div className={`w-4 h-4 border-2 flex items-center justify-center transition-colors ${remember ? "border-hud-gold bg-hud-gold/20" : "border-border"}`}>
-            {remember && <span className="text-hud-gold text-[10px] font-bold">✓</span>}
+          <div className={`w-4 h-4 border-2 flex items-center justify-center transition-colors ${remember ? "border-primary bg-primary/20" : "border-border"}`}>
+            {remember && <span className="text-primary text-[10px] font-bold">✓</span>}
           </div>
-          <span className="font-mono text-[10px] text-muted-foreground tracking-widest">
+          <span className="text-xs text-muted-foreground">
             REMEMBER THIS DEVICE (30 DAYS)
           </span>
         </button>
@@ -196,7 +196,7 @@ export default function PinPage() {
         <div className="mt-6 text-center">
           <a
             href="/auth/face"
-            className="font-mono text-[10px] text-muted-foreground/60 tracking-widest hover:text-hud-gold/80 transition-colors"
+            className="text-xs text-muted-foreground/70 hover:text-primary/80 transition-colors"
           >
             USE FACE INSTEAD →
           </a>

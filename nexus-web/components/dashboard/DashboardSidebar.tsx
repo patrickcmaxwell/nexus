@@ -6,10 +6,11 @@ import { useState, useEffect } from "react"
 import {
   LayoutDashboard, MessageSquare, Workflow, Bot,
   Map, Users, Brain, LogOut, Palette, X,
-  ChevronRight, Activity, Shield, Globe, Settings, Terminal, Zap,
+  ChevronRight, Activity, Shield, Globe, Settings, Terminal, Zap, CalendarClock,
 } from "lucide-react"
 import ThemePicker from "@/components/dashboard/ThemePicker"
 import { useTheme } from "@/hooks/useTheme"
+import { UserAvatar } from "@/components/ui/UserAvatar"
 
 const NAV = [
   { label: "Overview",   href: "/dashboard",            icon: LayoutDashboard, shortLabel: "Home" },
@@ -21,10 +22,15 @@ const NAV = [
   { label: "Humans",     href: "/dashboard/humans",     icon: Users,           shortLabel: "Humans" },
   { label: "Groups",     href: "/dashboard/groups",     icon: Globe,           shortLabel: "Groups" },
   { label: "Directives", href: "/dashboard/directives", icon: Brain,           shortLabel: "Rules" },
+  { label: "Calendar",   href: "/dashboard/calendar",   icon: CalendarClock,   shortLabel: "Cal" },
   { label: "Console",    href: "/dashboard/console",    icon: Terminal,        shortLabel: "Console" },
 ]
 
-const MOBILE_NAV = NAV.slice(0, 5)
+// On mobile, we surface every desktop nav item via a horizontally
+// scrollable bottom strip rather than truncating to the first five.
+// Cutting Map / Humans / Groups / Directives / Calendar / Console off
+// from mobile cuts users off from data they expect to reach.
+const MOBILE_NAV = NAV
 
 export default function DashboardSidebar({ userEmail, userName, userRole, userAvatarUrl }: { userEmail: string; userName?: string; userRole?: string; userAvatarUrl?: string | null }) {
   const pathname = usePathname()
@@ -109,13 +115,8 @@ export default function DashboardSidebar({ userEmail, userName, userRole, userAv
             <Link href="/dashboard/settings"
               className="px-4 py-3 rounded-xl bg-secondary mb-3 flex items-center gap-3 hover:bg-muted transition-colors"
             >
-              {userAvatarUrl ? (
-                <img src={userAvatarUrl} alt="" className="w-9 h-9 rounded-xl object-cover flex-shrink-0" />
-              ) : (
-                <div className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
-                  <span className="text-xs font-semibold text-primary">{(userName || userEmail).charAt(0).toUpperCase()}</span>
-                </div>
-              )}
+              <UserAvatar name={userName || userEmail} src={userAvatarUrl} size="md" ring="none" />
+
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-sidebar-foreground truncate">{userName || userEmail}</p>
                 <p className="text-xs text-muted-foreground">{userRole === 'director' ? 'Director Access' : userRole === 'admin' ? 'Admin Access' : 'Member Access'}</p>
@@ -137,20 +138,22 @@ export default function DashboardSidebar({ userEmail, userName, userRole, userAv
         <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-sidebar/95 backdrop-blur-xl border-t border-sidebar-border"
           style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
         >
-          <div className="flex items-center justify-around px-2 pt-2">
-            {MOBILE_NAV.map(({ href, icon: Icon, shortLabel }) => {
-              const active = isActive(href)
-              return (
-                <Link key={href} href={href}
-                  className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-200 min-w-[60px] ${
-                    active ? "text-primary" : "text-muted-foreground"
-                  }`}
-                >
-                  <Icon size={22} />
-                  <span className="text-[10px] font-medium">{shortLabel}</span>
-                </Link>
-              )
-            })}
+          <div className="overflow-x-auto scrollbar-thin">
+            <div className="flex items-center gap-1 px-2 pt-2 w-max">
+              {MOBILE_NAV.map(({ href, icon: Icon, shortLabel }) => {
+                const active = isActive(href)
+                return (
+                  <Link key={href} href={href}
+                    className={`flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-200 min-w-[64px] ${
+                      active ? "text-primary bg-primary/8" : "text-muted-foreground"
+                    }`}
+                  >
+                    <Icon size={22} />
+                    <span className="text-[10px] font-medium">{shortLabel}</span>
+                  </Link>
+                )
+              })}
+            </div>
           </div>
         </nav>
       </>
@@ -251,13 +254,8 @@ export default function DashboardSidebar({ userEmail, userName, userRole, userAv
           <Link href="/dashboard/settings"
             className="px-4 py-3 rounded-xl mb-3 flex items-center gap-3 bg-gradient-to-r from-primary/5 to-purple-500/5 border border-primary/10 hover:border-primary/30 hover:from-primary/10 hover:to-purple-500/10 transition-all"
           >
-            {userAvatarUrl ? (
-              <img src={userAvatarUrl} alt="" className="w-9 h-9 rounded-lg object-cover flex-shrink-0 border border-primary/30" />
-            ) : (
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-primary/25 to-purple-500/25 border border-primary/30 nexus-glow-cyan">
-                <span className="text-xs font-bold text-sidebar-foreground">{(userName || userEmail).charAt(0).toUpperCase()}</span>
-              </div>
-            )}
+            <UserAvatar name={userName || userEmail} src={userAvatarUrl} size="md" ring="none" />
+
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-sidebar-foreground truncate">{userName || userEmail}</p>
               <p className="text-[10px] font-medium text-primary/60">{userRole === 'director' ? 'Director Access' : userRole === 'admin' ? 'Admin Access' : 'Member Access'}</p>
@@ -282,33 +280,35 @@ export default function DashboardSidebar({ userEmail, userName, userRole, userAv
         {/* Top glow line */}
         <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
 
-        <div className="flex items-center justify-around px-2 pt-2">
-          {MOBILE_NAV.map(({ href, icon: Icon, shortLabel }) => {
-            const active = isActive(href)
-            return (
-              <Link key={href} href={href}
-                className={`flex flex-col items-center gap-1.5 px-4 py-2 rounded-xl transition-all duration-300 min-w-[60px] ${
-                  active ? "bg-primary/10" : ""
-                }`}
-              >
-                <div className="relative">
-                  <Icon size={24}
-                    className={`transition-all duration-300 ${
-                      active ? "text-primary drop-shadow-[0_0_10px_var(--nexus-cyan)]" : "text-muted-foreground"
-                    }`}
-                  />
-                  {active && (
-                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary animate-pulse" />
-                  )}
-                </div>
-                <span className={`text-[10px] font-semibold tracking-wide ${
-                  active ? "text-primary" : "text-muted-foreground"
-                }`}>
-                  {shortLabel}
-                </span>
-              </Link>
-            )
-          })}
+        <div className="overflow-x-auto scrollbar-thin">
+          <div className="flex items-center gap-1 px-2 pt-2 w-max">
+            {MOBILE_NAV.map(({ href, icon: Icon, shortLabel }) => {
+              const active = isActive(href)
+              return (
+                <Link key={href} href={href}
+                  className={`flex flex-col items-center gap-1.5 px-4 py-2 rounded-xl transition-all duration-300 min-w-[64px] ${
+                    active ? "bg-primary/10" : ""
+                  }`}
+                >
+                  <div className="relative">
+                    <Icon size={24}
+                      className={`transition-all duration-300 ${
+                        active ? "text-primary drop-shadow-[0_0_10px_var(--nexus-cyan)]" : "text-muted-foreground"
+                      }`}
+                    />
+                    {active && (
+                      <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary animate-pulse" />
+                    )}
+                  </div>
+                  <span className={`text-[10px] font-semibold tracking-wide ${
+                    active ? "text-primary" : "text-muted-foreground"
+                  }`}>
+                    {shortLabel}
+                  </span>
+                </Link>
+              )
+            })}
+          </div>
         </div>
       </nav>
     </>

@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, forwardRef } from "react"
+import { Maximize2, Minimize2 } from "lucide-react"
 import MentionPicker, { type MentionPickerHandle } from "./MentionPicker"
 import { MENTION_TYPE_COLORS } from "@/lib/mentions/types"
 import type { MentionResult, MentionType } from "@/lib/mentions/types"
@@ -32,8 +33,8 @@ type Props = {
   placeholder?: string
   disabled?: boolean
   className?: string
-  minHeightClass?: string  // e.g. "min-h-[42px]"
-  maxHeightClass?: string  // e.g. "max-h-[120px]"
+  minHeightClass?: string  // compact mode floor, e.g. "min-h-[42px]"
+  maxHeightClass?: string  // compact mode ceiling, e.g. "max-h-[120px]"
   // When true: no built-in padding, border, background, or rounding — use
   // when the parent provides its own styled container (e.g. the Maxwell
   // chat input which has its own bordered frame around the editor + buttons).
@@ -43,6 +44,12 @@ type Props = {
   // Optional right-side adornment rendered inside the editor's right padding
   // area (e.g. a Send button). Positioned absolute by the caller.
   rightAdornment?: React.ReactNode
+  // Show an expand/minimize toggle in the editor's top-right corner. When
+  // expanded, the editor swaps maxHeightClass for `expandedMaxHeightClass`
+  // so a long draft can occupy more of the viewport without permanently
+  // eating screen real estate.
+  expandable?: boolean
+  expandedMaxHeightClass?: string  // default "max-h-[60vh]"
 }
 
 // Convert the editor's DOM back to our token syntax.
@@ -166,7 +173,14 @@ function findActiveMentionQuery(): { query: string; range: Range } | null {
 }
 
 const MentionInput = forwardRef<MentionInputHandle, Props>(function MentionInput(
-  { value, onChange, onSubmit, placeholder, disabled, className, minHeightClass = "min-h-[42px]", maxHeightClass = "max-h-[200px]", unstyled, boundsRef, rightAdornment },
+  {
+    value, onChange, onSubmit, placeholder, disabled, className,
+    minHeightClass = "min-h-[42px]",
+    maxHeightClass = "max-h-[120px]",
+    unstyled, boundsRef, rightAdornment,
+    expandable = false,
+    expandedMaxHeightClass = "max-h-[60vh]",
+  },
   ref,
 ) {
   const editorRef = useRef<HTMLDivElement>(null)
@@ -174,6 +188,8 @@ const MentionInput = forwardRef<MentionInputHandle, Props>(function MentionInput
   const lastSerializedRef = useRef<string>("")  // Tracks last value serialized FROM our own DOM, for reconciliation
   const [picker, setPicker] = useState<{ query: string; anchor: { top: number; left: number } | null; range: Range } | null>(null)
   const [isFocused, setIsFocused] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  const activeMaxHeightClass = expanded ? expandedMaxHeightClass : maxHeightClass
 
   // Initialize / reconcile the editor DOM when `value` changes externally.
   useEffect(() => {
@@ -318,7 +334,7 @@ const MentionInput = forwardRef<MentionInputHandle, Props>(function MentionInput
               : `px-3.5 py-2.5 pr-10 rounded-lg bg-secondary border text-[14px] leading-snug ${
                   isFocused ? "border-accent/50" : "border-border"
                 }`,
-            minHeightClass, maxHeightClass,
+            minHeightClass, activeMaxHeightClass,
             disabled ? "opacity-50 pointer-events-none" : "",
             className ?? "",
           ].join(" ")}
@@ -336,6 +352,23 @@ const MentionInput = forwardRef<MentionInputHandle, Props>(function MentionInput
           >
             {placeholder}
           </div>
+        )}
+        {expandable && (
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setExpanded((e) => !e)}
+            className={[
+              "absolute top-1.5 right-1.5 z-10 w-6 h-6 rounded-md flex items-center justify-center",
+              "text-muted-foreground/70 hover:text-foreground hover:bg-muted/60 transition-colors",
+              disabled ? "opacity-30 pointer-events-none" : "",
+            ].join(" ")}
+            title={expanded ? "Minimize input" : "Expand input"}
+            aria-label={expanded ? "Minimize input" : "Expand input"}
+            aria-pressed={expanded}
+          >
+            {expanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+          </button>
         )}
         {rightAdornment}
       </div>

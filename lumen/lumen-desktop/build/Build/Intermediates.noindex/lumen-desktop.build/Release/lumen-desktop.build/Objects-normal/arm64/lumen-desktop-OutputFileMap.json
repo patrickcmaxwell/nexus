@@ -1,0 +1,206 @@
+{
+  "" : {
+    "const-values" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/lumen-desktop-primary.swiftconstvalues",
+    "dependencies" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/lumen-desktop-primary.d",
+    "diagnostics" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/lumen-desktop-primary.dia",
+    "emit-module-dependencies" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/lumen-desktop-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/lumen-desktop-primary-emit-module.dia",
+    "pch" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/lumen-desktop-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/lumen-desktop-primary.swiftdeps"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/GeneratedAssetSymbols.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/AgentWindow.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/AgentWindow.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/AgentWindow.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/AgentWindow.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/AuthManager.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/AuthManager.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/AuthManager.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/AuthManager.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/AuthWebView.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/AuthWebView.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/AuthWebView.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/AuthWebView.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/ChatComposerField.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/ChatComposerField.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/ChatComposerField.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/ChatComposerField.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/CodePanel.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/CodePanel.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/CodePanel.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/CodePanel.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/ConversationWindow.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/ConversationWindow.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/ConversationWindow.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/ConversationWindow.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/DashboardView.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/DashboardView.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/DashboardView.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/DashboardView.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/DatasetsView.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/DatasetsView.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/DatasetsView.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/DatasetsView.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/EndpointsView.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/EndpointsView.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/EndpointsView.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/EndpointsView.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/EveOrb.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/EveOrb.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/EveOrb.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/EveOrb.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/EveOrbWindow.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/EveOrbWindow.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/EveOrbWindow.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/EveOrbWindow.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/EveVoiceManager.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/EveVoiceManager.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/EveVoiceManager.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/EveVoiceManager.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/KeychainHelper.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/KeychainHelper.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/KeychainHelper.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/KeychainHelper.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/KeychainStore.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/KeychainStore.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/KeychainStore.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/KeychainStore.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/LumenAPIManager.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenAPIManager.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenAPIManager.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenAPIManager.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/LumenAppRegistry.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenAppRegistry.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenAppRegistry.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenAppRegistry.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/LumenArenaHealth.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenArenaHealth.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenArenaHealth.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenArenaHealth.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/LumenArenaView.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenArenaView.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenArenaView.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenArenaView.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/LumenAuthRegistry.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenAuthRegistry.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenAuthRegistry.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenAuthRegistry.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/LumenBriefingView.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenBriefingView.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenBriefingView.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenBriefingView.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/LumenConsoleWindow.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenConsoleWindow.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenConsoleWindow.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenConsoleWindow.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/LumenLocalDB.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenLocalDB.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenLocalDB.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenLocalDB.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/LumenPresenceMonitor.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenPresenceMonitor.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenPresenceMonitor.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenPresenceMonitor.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/LumenSettingsView.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenSettingsView.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenSettingsView.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenSettingsView.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/LumenStore.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenStore.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenStore.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenStore.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/LumenSync.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenSync.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenSync.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenSync.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/LumenSyncEngine.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenSyncEngine.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenSyncEngine.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenSyncEngine.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/LumenTerminalBridge.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenTerminalBridge.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenTerminalBridge.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/LumenTerminalBridge.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/MainView.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/MainView.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/MainView.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/MainView.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/NativeFaceCaptureView.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/NativeFaceCaptureView.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/NativeFaceCaptureView.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/NativeFaceCaptureView.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/NexusMapView.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/NexusMapView.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/NexusMapView.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/NexusMapView.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/PresenceLockView.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/PresenceLockView.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/PresenceLockView.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/PresenceLockView.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/QuickCaptureWindow.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/QuickCaptureWindow.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/QuickCaptureWindow.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/QuickCaptureWindow.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/SearchPalette.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/SearchPalette.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/SearchPalette.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/SearchPalette.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/SearchWindow.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/SearchWindow.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/SearchWindow.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/SearchWindow.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/SupabaseClient.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/SupabaseClient.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/SupabaseClient.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/SupabaseClient.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/SyncStatusBadge.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/SyncStatusBadge.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/SyncStatusBadge.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/SyncStatusBadge.o"
+  },
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/lumen_desktopApp.swift" : {
+    "index-unit-output-path" : "/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/lumen_desktopApp.o",
+    "llvm-bc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/lumen_desktopApp.bc",
+    "object" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/lumen_desktopApp.o"
+  }
+}

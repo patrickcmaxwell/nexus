@@ -32,7 +32,7 @@ export default async function AuthErrorPage({
 
         <div className="text-center">
           <p
-            className="font-mono text-[10px] tracking-[0.3em] uppercase mb-2"
+            className="text-xs font-medium mb-2"
             style={{ color: advice.color }}
           >
             {advice.headline}
@@ -47,8 +47,8 @@ export default async function AuthErrorPage({
               {advice.steps.map((step, i) => (
                 <li key={i} className="flex gap-2">
                   <span
-                    className="font-mono text-[10px] font-bold mt-0.5"
-                    style={{ color: "var(--nexus-cyan)" }}
+                    className="text-xs font-semibold mt-0.5"
+                    style={{ color: "var(--primary)" }}
                   >
                     {String(i + 1).padStart(2, "0")}.
                   </span>
@@ -62,9 +62,9 @@ export default async function AuthErrorPage({
         <div className="flex flex-col w-full gap-2">
           <Link
             href="/"
-            className="px-6 py-3 font-mono text-[10px] tracking-[0.25em] uppercase text-center"
+            className="px-6 py-3 text-xs font-medium text-center"
             style={{
-              color: "var(--nexus-cyan)",
+              color: "var(--primary)",
               background: "oklch(0.75 0.18 200 / 0.1)",
               border: "1px solid oklch(0.75 0.18 200 / 0.5)",
             }}
@@ -73,7 +73,7 @@ export default async function AuthErrorPage({
           </Link>
           <a
             href="mailto:patrick@maxnexus.io?subject=Nexus%20access%20help"
-            className="px-6 py-3 font-mono text-[10px] tracking-[0.25em] uppercase text-center text-muted-foreground/55 hover:text-muted-foreground"
+            className="px-6 py-3 text-xs font-medium text-center text-muted-foreground/55 hover:text-muted-foreground"
           >
             Get access help →
           </a>

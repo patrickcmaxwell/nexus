@@ -17,7 +17,7 @@ type Record = {
 
 const TYPE_COLORS: Record<string, string> = {
   finding: "text-amber-400",
-  intel: "text-cyan-400",
+  intel: "text-primary",
   note: "text-muted-foreground",
   alert: "text-red-400",
   action: "text-emerald-400",
@@ -35,7 +35,7 @@ export default function PinnedRecordsWidget({ records }: { records: Record[] }) 
   if (!records.length) return null
 
   return (
-    <section className="rounded-xl border border-amber-500/15 bg-amber-500/[0.02] overflow-hidden">
+    <section className="rounded-xl border border-border bg-card overflow-hidden">
       <header className="flex items-center justify-between px-4 py-3 border-b border-amber-500/10">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-amber-500/10 border border-amber-500/20">
@@ -50,7 +50,7 @@ export default function PinnedRecordsWidget({ records }: { records: Record[] }) 
         </div>
         <Link
           href="/dashboard/operations"
-          className="font-mono text-[9px] uppercase tracking-widest text-amber-400/70 hover:text-amber-400 transition-colors"
+          className="text-xs font-medium text-amber-400/70 hover:text-amber-400 transition-colors"
         >
           All records
         </Link>
@@ -75,7 +75,7 @@ export default function PinnedRecordsWidget({ records }: { records: Record[] }) 
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline gap-2">
                   <span className="text-[13px] font-medium truncate text-foreground">{r.title}</span>
-                  <span className={`font-mono text-[9px] uppercase tracking-widest flex-none ${TYPE_COLORS[r.type] ?? "text-muted-foreground"}`}>
+                  <span className={`text-xs font-medium flex-none ${TYPE_COLORS[r.type] ?? "text-muted-foreground"}`}>
                     {r.type}
                   </span>
                 </div>

@@ -25,7 +25,7 @@ export default function ActionItemsWidget({ items }: { items: Item[] }) {
   }
 
   return (
-    <section className="rounded-xl border border-emerald-500/15 bg-emerald-500/[0.02] overflow-hidden">
+    <section className="rounded-xl border border-border bg-card overflow-hidden">
       <header className="flex items-center justify-between px-4 py-3 border-b border-emerald-500/10">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-emerald-500/10 border border-emerald-500/20">
@@ -45,7 +45,7 @@ export default function ActionItemsWidget({ items }: { items: Item[] }) {
           <div key={group.operation_id} className="px-4 py-3">
             <Link
               href="/dashboard/operations"
-              className="flex items-center gap-1 font-mono text-[9px] uppercase tracking-widest text-emerald-400/70 hover:text-emerald-400 transition-colors mb-2"
+              className="flex items-center gap-1 text-xs font-medium text-emerald-400/70 hover:text-emerald-400 transition-colors mb-2"
             >
               {group.operation_name} <ArrowRight size={9} />
             </Link>

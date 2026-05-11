@@ -1,0 +1,184 @@
+{
+  "source": "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/LumenSettingsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Not signed in",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 83
+        }
+      },
+      {
+        "comment": "",
+        "key": "OWNER",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 66
+        }
+      },
+      {
+        "comment": "",
+        "key": "Which Nexus backend Lumen talks to. \"Auto\" probes localhost first, falls back to production. Override when you want to pin behavior during testing.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 95
+        }
+      },
+      {
+        "comment": "",
+        "key": "CURRENTLY: %@",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 107
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 98
+        }
+      },
+      {
+        "comment": "",
+        "key": "AUTO",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 99
+        }
+      },
+      {
+        "comment": "",
+        "key": "FORCE LOCAL",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 100
+        }
+      },
+      {
+        "comment": "",
+        "key": "FORCE REMOTE",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 101
+        }
+      },
+      {
+        "comment": "",
+        "key": "How often Lumen polls each surface. Lower = fresher data + more battery. Manual \"Sync now\" always works regardless of cadence.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 126
+        }
+      },
+      {
+        "comment": "",
+        "key": "RESET TO DEFAULTS",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 135
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld%@",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 159
+        }
+      },
+      {
+        "comment": "",
+        "key": "Periodically re-verifies it's still you sitting in front of the Mac. Camera blinks for a moment with no UI; if no face is detected (or it's the wrong one), Lumen locks. App keeps running — sync, terminals, scheduled jobs continue underneath the lock screen.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 173
+        }
+      },
+      {
+        "comment": "",
+        "key": "Enable presence verification",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 178
+        }
+      },
+      {
+        "comment": "",
+        "key": "Mute mic + Eve voice when locked",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 197
+        }
+      },
+      {
+        "comment": "",
+        "key": "Shortcut: ⌃⌘L",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 221
+        }
+      },
+      {
+        "comment": "",
+        "key": "Lock immediately. Shortcut: ⌃⌘L",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 220
+        }
+      },
+      {
+        "comment": "",
+        "key": "LOCK NOW",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 210
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld %@",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 235
+        }
+      },
+      {
+        "comment": "",
+        "key": "Opens System Settings → Lumen for camera, mic, notification permissions.",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 267
+        }
+      },
+      {
+        "comment": "",
+        "key": "MACOS SETTINGS",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 253
+        }
+      },
+      {
+        "comment": "",
+        "key": "SIGNING OUT",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 277
+        }
+      },
+      {
+        "comment": "",
+        "key": "SIGN OUT",
+        "location": {
+          "startingColumn": 59,
+          "startingLine": 277
+        }
+      }
+    ]
+  },
+  "version": 1
+}

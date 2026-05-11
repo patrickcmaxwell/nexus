@@ -62,7 +62,7 @@ export const notion: Provider = {
   ],
 
   async createTask({ connection, title, description, dueDate, priority }: CreateTaskInput): Promise<TaskResult> {
-    const token = connection.credentials.integration_token
+    const token = connection.credentials.access_token || connection.credentials.integration_token
     const databaseId = connection.config.database_id
     if (!token || !databaseId) {
       return { mocked: true, detail: "Notion credentials missing — task not created" }
@@ -118,7 +118,7 @@ export const notion: Provider = {
   },
 
   async testConnection({ values }: TestConnectionInput): Promise<TestConnectionResult> {
-    const token = values.integration_token
+    const token = values.access_token || values.integration_token
     const databaseId = values.database_id
     if (!token) return { ok: false, detail: "Missing integration secret" }
     if (!databaseId) return { ok: false, detail: "Missing database ID" }
@@ -149,7 +149,7 @@ export const notion: Provider = {
   },
 
   async updateTask({ connection, externalId, status, comment }: UpdateTaskInput): Promise<TaskResult> {
-    const token = connection.credentials.integration_token
+    const token = connection.credentials.access_token || connection.credentials.integration_token
     if (!token) {
       return { externalId, mocked: true, detail: "Notion credentials missing — update skipped" }
     }

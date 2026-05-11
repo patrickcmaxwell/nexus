@@ -119,8 +119,8 @@ export default function EndpointsHealth({ endpoints, baseUrl = "", title }: Prop
     <div className="flex flex-col gap-5">
       {title && (
         <div className="flex items-center gap-2">
-          <Radio size={14} style={{ color: "var(--nexus-cyan)" }} />
-          <h3 className="font-mono text-[11px] tracking-[0.25em] uppercase" style={{ color: "var(--nexus-cyan)" }}>
+          <Radio size={14} style={{ color: "var(--primary)" }} />
+          <h3 className="font-mono text-[11px] tracking-[0.25em] uppercase" style={{ color: "var(--primary)" }}>
             {title}
           </h3>
         </div>
@@ -134,7 +134,7 @@ export default function EndpointsHealth({ endpoints, baseUrl = "", title }: Prop
           style={{
             background: "oklch(0.75 0.18 200 / 0.12)",
             border: "1px solid oklch(0.75 0.18 200 / 0.5)",
-            color: "var(--nexus-cyan)",
+            color: "var(--primary)",
           }}
         >
           <Activity size={12} />
@@ -142,7 +142,7 @@ export default function EndpointsHealth({ endpoints, baseUrl = "", title }: Prop
         </button>
         {summary && (
           <span
-            className="font-mono text-[9px] tracking-widest px-2 py-1 uppercase"
+            className="text-xs font-medium px-2 py-1"
             style={{
               background: `${summary.color} / 0.1`,
               color: summary.color,
@@ -188,7 +188,7 @@ function EndpointRow({
   return (
     <div className="flex items-center gap-3 px-3 py-2.5 bg-white/[0.025]">
       <span
-        className="font-mono text-[9px] font-bold tracking-widest px-1.5 py-0.5 text-center"
+        className="text-xs font-semibold px-1.5 py-0.5 text-center"
         style={{
           color: methodColor,
           background: `${methodColor} / 0.12`,
@@ -220,14 +220,14 @@ function EndpointRow({
           </span>
         </div>
       ) : (
-        <span className="font-mono text-[9px] tracking-widest text-white/30 min-w-[80px] text-right">UNTESTED</span>
+        <span className="text-xs text-muted-foreground/60 min-w-[80px] text-right">UNTESTED</span>
       )}
       <button
         onClick={onPing}
         disabled={isPinging}
-        className="font-mono text-[9px] tracking-widest px-2 py-1 disabled:opacity-40"
+        className="text-xs font-medium px-2 py-1 disabled:opacity-40"
         style={{
-          color: "var(--nexus-cyan)",
+          color: "var(--primary)",
           background: "oklch(0.75 0.18 200 / 0.1)",
           border: "1px solid oklch(0.75 0.18 200 / 0.4)",
           width: 50,

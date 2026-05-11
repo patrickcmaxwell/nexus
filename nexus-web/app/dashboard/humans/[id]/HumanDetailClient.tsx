@@ -1,0 +1,260 @@
+"use client"
+
+// Per-member detail. Apple/Linear-style sectioning. Tabs for Profile /
+// Sessions / Activity, plus an admin actions panel when the viewer can
+// manage this member.
+
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import {
+  Mail, Shield, Calendar, Lock, RotateCcw, Trash2, AlertTriangle,
+  CheckCircle2, Loader2, MessageSquare, Workflow,
+} from "lucide-react"
+import { UserAvatar } from "@/components/ui/UserAvatar"
+import { Card, Button, Pill, Section, Tabs, EmptyState } from "@/components/ui/primitives"
+
+type Member = {
+  id: string
+  display_name: string
+  handle: string | null
+  email: string | null
+  role: string
+  is_owner: boolean
+  status: string
+  avatar_url: string | null
+  created_at: string
+}
+
+type Session = {
+  id: string
+  auth_method: string
+  last_verified_at: string
+  expires_at: string
+  invalidated: boolean
+  created_at: string
+}
+
+type Conv = { id: string; title: string; updated_at: string }
+type Op = { id: string; name: string; status: string; priority: string; updated_at: string }
+
+export default function HumanDetailClient({
+  member, sessions, recentConversations, recentOperations, canManage, isSelf,
+}: {
+  member: Member
+  sessions: Session[]
+  recentConversations: Conv[]
+  recentOperations: Op[]
+  canManage: boolean
+  isSelf: boolean
+}) {
+  const router = useRouter()
+  const [tab, setTab] = useState("profile")
+  const [actionMsg, setActionMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [acting, setActing] = useState(false)
+
+  async function lockMember() {
+    if (!confirm(`Lock ${member.display_name}? They'll be signed out and unable to sign back in until you unlock them.`)) return
+    setActing(true)
+    setActionMsg(null)
+    try {
+      const res = await fetch("/api/admin/lock-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ humanId: member.id }),
+      })
+      const data = await res.json().catch(() => ({}))
+      setActionMsg(res.ok
+        ? { ok: true, text: "Locked" }
+        : { ok: false, text: data.error ?? `HTTP ${res.status}` })
+      if (res.ok) router.refresh()
+    } finally {
+      setActing(false)
+    }
+  }
+
+  async function resetCredentials() {
+    if (!confirm(`Reset ${member.display_name}'s PIN + face? They'll get a setup link to choose new ones.`)) return
+    setActing(true)
+    setActionMsg(null)
+    try {
+      const res = await fetch("/api/admin/reset-credentials", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ humanId: member.id }),
+      })
+      const data = await res.json().catch(() => ({}))
+      setActionMsg(res.ok
+        ? { ok: true, text: "Reset link generated" }
+        : { ok: false, text: data.error ?? `HTTP ${res.status}` })
+    } finally {
+      setActing(false)
+    }
+  }
+
+  return (
+    <>
+      {/* Header */}
+      <header className="flex items-start gap-5 mb-8">
+        <UserAvatar name={member.display_name} src={member.avatar_url} size="xl" />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{member.display_name}</h1>
+            {member.is_owner && <Pill tone="accent">Owner</Pill>}
+            <Pill tone={member.status === "active" ? "success" : "warning"}>{member.status}</Pill>
+            {isSelf && <Pill tone="muted">You</Pill>}
+          </div>
+          <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground flex-wrap">
+            {member.email && (
+              <span className="flex items-center gap-1.5"><Mail size={13} /> {member.email}</span>
+            )}
+            {member.handle && <span>@{member.handle}</span>}
+            <span className="flex items-center gap-1.5"><Shield size={13} /> {member.role}</span>
+            <span className="flex items-center gap-1.5"><Calendar size={13} /> Joined {formatDate(member.created_at)}</span>
+          </div>
+        </div>
+      </header>
+
+      <Tabs
+        active={tab}
+        onChange={setTab}
+        tabs={[
+          { id: "profile", label: "Profile" },
+          { id: "sessions", label: `Sessions (${sessions.length})` },
+          { id: "activity", label: "Activity" },
+        ]}
+        className="mb-6"
+      />
+
+      {tab === "profile" && (
+        <div className="space-y-4">
+          <Card>
+            <Section title="Identity" description="The fields they show up as around Nexus.">
+              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 mt-4">
+                <Field label="Display name">{member.display_name}</Field>
+                <Field label="Email">{member.email ?? "—"}</Field>
+                <Field label="Handle">{member.handle ? "@" + member.handle : "—"}</Field>
+                <Field label="Role">{member.role}{member.is_owner ? " (owner)" : ""}</Field>
+                <Field label="Status">{member.status}</Field>
+                <Field label="Avatar">{member.avatar_url ? "Uploaded" : "Initials fallback"}</Field>
+              </dl>
+            </Section>
+          </Card>
+
+          {canManage && !member.is_owner && !isSelf && (
+            <Card tone="danger">
+              <Section title="Admin actions" description="Reversible. The member can rejoin after a reset; locking simply blocks sign-in.">
+                <div className="flex flex-wrap gap-2 mt-4">
+                  <Button variant="secondary" size="sm" iconLeft={<RotateCcw size={13} />} onClick={resetCredentials} loading={acting}>
+                    Reset PIN + face
+                  </Button>
+                  <Button variant="danger" size="sm" iconLeft={<Lock size={13} />} onClick={lockMember} loading={acting}>
+                    Lock account
+                  </Button>
+                </div>
+                {actionMsg && (
+                  <p className={`mt-3 text-sm ${actionMsg.ok ? "text-nexus-success" : "text-destructive"}`}>
+                    {actionMsg.ok ? <CheckCircle2 size={14} className="inline mr-1.5" /> : <AlertTriangle size={14} className="inline mr-1.5" />}
+                    {actionMsg.text}
+                  </p>
+                )}
+              </Section>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {tab === "sessions" && (
+        <Card padding="none">
+          {sessions.length === 0 ? (
+            <EmptyState icon={<Calendar size={28} />} title="No sessions" description="This member hasn't signed in yet, or all sessions have expired." />
+          ) : (
+            <ul className="divide-y divide-border">
+              {sessions.map(s => (
+                <li key={s.id} className="flex items-center gap-4 px-5 py-3.5">
+                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${s.invalidated ? "bg-muted-foreground/40" : new Date(s.expires_at) < new Date() ? "bg-amber-400" : "bg-nexus-success"}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-foreground">{s.auth_method}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Last verified {formatTime(s.last_verified_at)} · expires {formatDate(s.expires_at)}
+                      {s.invalidated && " · invalidated"}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      )}
+
+      {tab === "activity" && (
+        <div className="space-y-4">
+          <Card padding="none">
+            <Section title="Recent conversations" className="px-5 pt-5">
+              {recentConversations.length === 0 ? (
+                <EmptyState icon={<MessageSquare size={24} />} title="No conversations yet" />
+              ) : (
+                <ul className="divide-y divide-border">
+                  {recentConversations.map(c => (
+                    <li key={c.id} className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-muted/40 transition-colors">
+                      <span className="text-sm text-foreground truncate">{c.title || "Untitled"}</span>
+                      <span className="text-xs text-muted-foreground flex-shrink-0">{timeAgo(c.updated_at)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Section>
+          </Card>
+
+          <Card padding="none">
+            <Section title="Active operations" className="px-5 pt-5">
+              {recentOperations.length === 0 ? (
+                <EmptyState icon={<Workflow size={24} />} title="No operations yet" />
+              ) : (
+                <ul className="divide-y divide-border">
+                  {recentOperations.map(o => (
+                    <li key={o.id} className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-muted/40 transition-colors">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-sm text-foreground truncate">{o.name}</span>
+                        <Pill tone="muted" size="xs">{o.status}</Pill>
+                        <Pill tone="muted" size="xs">{o.priority}</Pill>
+                      </div>
+                      <span className="text-xs text-muted-foreground flex-shrink-0">{timeAgo(o.updated_at)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Section>
+          </Card>
+        </div>
+      )}
+    </>
+  )
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="text-sm text-foreground">{children}</dd>
+    </div>
+  )
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+}
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+}
+
+function timeAgo(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime()
+  const m = Math.round(ms / 60000)
+  if (m < 1) return "just now"
+  if (m < 60) return `${m}m ago`
+  const h = Math.round(m / 60)
+  if (h < 24) return `${h}h ago`
+  const d = Math.round(h / 24)
+  return `${d}d ago`
+}

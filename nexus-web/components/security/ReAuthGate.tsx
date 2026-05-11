@@ -210,10 +210,10 @@ function AuthOverlay({ onVerified }: { onVerified: () => void }) {
     e.preventDefault()
     if (!passcode.trim()) return
     setPassStatus("checking")
-    const res = await fetch("/api/passphrase", {
+    const res = await fetch("/api/security/reverify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ passphrase: passcode }),
+      body: JSON.stringify({ pin: passcode }),
     })
     if (res.ok) {
       setStage("success")

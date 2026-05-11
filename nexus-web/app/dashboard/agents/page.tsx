@@ -73,7 +73,7 @@ function AgentStatusDropdown({ status, onChange }: { status: string, onChange: (
     <div className="relative" onClick={(e) => e.stopPropagation()}>
       <button
         onClick={() => setOpen(!open)}
-        className={`text-[10px] font-mono font-medium border px-2 py-1 rounded uppercase tracking-wider flex items-center gap-1.5 hover:brightness-110 transition-all ${STATUS_COLORS[status] || STATUS_COLORS.offline}`}
+        className={`text-[10px] font-medium border px-2 py-1 rounded uppercase tracking-wider flex items-center gap-1.5 hover:brightness-110 transition-all ${STATUS_COLORS[status] || STATUS_COLORS.offline}`}
       >
         <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || STATUS_DOT.offline}`} />
         {status === "deployed" ? "ACTIVE" : status}
@@ -90,7 +90,7 @@ function AgentStatusDropdown({ status, onChange }: { status: string, onChange: (
             >
               <div className="flex items-center gap-1.5">
                 <span className={`w-1.5 h-1.5 rounded-full shadow-sm ${opt.dot}`} />
-                <span className="text-[11px] font-mono uppercase font-semibold text-foreground tracking-wide">{opt.title}</span>
+                <span className="text-[11px] font-medium font-semibold text-foreground tracking-wide">{opt.title}</span>
               </div>
               <span className="text-[10px] text-muted-foreground mt-0.5 opacity-80">{opt.desc}</span>
             </button>
@@ -272,14 +272,14 @@ export default function AgentsPage() {
           <div className="relative flex flex-col h-full z-10 p-4 md:p-8">
             
             {/* Header Row */}
-            <div className="flex items-center justify-between pb-6 border-b border-cyan-900/30">
+            <div className="flex items-center justify-between pb-6 border-b border-border">
               <div className="flex items-center gap-6">
-                <button onClick={() => setSelected(null)} className="text-cyan-600 hover:text-cyan-400 font-mono text-sm tracking-widest uppercase flex items-center gap-2 transition-colors">
+                <button onClick={() => setSelected(null)} className="text-muted-foreground hover:text-foreground text-sm font-medium flex items-center gap-2 transition-colors">
                   <ChevronLeft size={16} /> MAP
                 </button>
-                <div className="h-8 w-px bg-cyan-900/50 hidden md:block" />
-                <h2 className="font-mono font-bold text-xl md:text-3xl text-cyan-50 tracking-widest uppercase flex items-center gap-3">
-                  <div className="w-3 h-3 bg-cyan-400 rounded-sm animate-pulse" />
+                <div className="h-8 w-px bg-border hidden md:block" />
+                <h2 className="font-semibold text-xl md:text-3xl text-foreground font-medium flex items-center gap-3">
+                  <div className="w-3 h-3 bg-primary rounded-sm animate-pulse" />
                   {selected.name}
                 </h2>
                 <div className="hidden md:block">
@@ -288,13 +288,13 @@ export default function AgentsPage() {
               </div>
               
               <div className="flex gap-3">
-                 <button onClick={() => runAgent(selected)} disabled={runningAgentId === selected.id || selected.status !== "active"} className="px-4 md:px-6 py-2 rounded-sm bg-cyan-950 border border-cyan-500/50 text-cyan-400 font-mono tracking-widest uppercase text-[10px] md:text-xs hover:bg-cyan-900 shadow-[0_0_15px_rgba(34,211,238,0.2)] disabled:opacity-50 flex items-center transition-all">
+                 <button onClick={() => runAgent(selected)} disabled={runningAgentId === selected.id || selected.status !== "active"} className="px-4 md:px-6 py-2 rounded-sm bg-muted border border-primary/40 text-foreground font-medium text-[10px] md:text-xs hover:bg-primary/20  disabled:opacity-50 flex items-center transition-all">
                    {runningAgentId === selected.id ? <><Loader2 size={14} className="animate-spin md:mr-2"/> <span className="hidden md:inline">SCANNING...</span></> : <><Play size={14} className="md:mr-2"/> <span className="hidden md:inline">INITIATE SCAN</span></>}
                  </button>
-                 <button onClick={() => runAgent(selected, true)} disabled={runningAgentId === selected.id || selected.status !== "active"} className="hidden md:flex px-6 py-2 rounded-sm bg-black border border-amber-900/50 text-amber-500 font-mono tracking-widest uppercase text-xs hover:bg-amber-950/30 transition-colors disabled:opacity-40">
+                 <button onClick={() => runAgent(selected, true)} disabled={runningAgentId === selected.id || selected.status !== "active"} className="hidden md:flex px-6 py-2 rounded-sm bg-black border border-amber-900/50 text-amber-500 font-medium text-xs hover:bg-amber-950/30 transition-colors disabled:opacity-40">
                    FULL SCAN
                  </button>
-                 <button onClick={() => openEdit(selected)} className="px-3 md:px-4 py-2 rounded-sm bg-black border border-zinc-800 text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200 font-mono transition-colors">
+                 <button onClick={() => openEdit(selected)} className="px-3 md:px-4 py-2 rounded-sm bg-black border border-border text-muted-foreground hover:bg-muted hover:text-zinc-200 font-mono transition-colors">
                    <Edit2 size={14} />
                  </button>
                  <button onClick={() => deleteAgent(selected.id)} className="px-3 py-2 rounded-sm border border-red-900/50 text-red-500 hover:bg-red-900/20 transition-colors">
@@ -307,80 +307,80 @@ export default function AgentsPage() {
             <div className="flex-1 flex flex-col md:flex-row overflow-hidden mt-6 gap-6">
               
               {/* Left: Core Visuals & Profile */}
-              <div className="w-full md:w-1/2 flex flex-col justify-center items-center relative border border-cyan-900/20 bg-cyan-950/5 rounded-xl p-8 overflow-y-auto custom-scrollbar shadow-[inset_0_0_50px_rgba(0,0,0,0.8)]">
+              <div className="w-full md:w-1/2 flex flex-col justify-center items-center relative border border-border bg-muted/5 rounded-xl p-8 overflow-y-auto custom-scrollbar shadow-[inset_0_0_50px_rgba(0,0,0,0.8)]">
                 
                 {/* Massive Holographic Core */}
                 <div className="relative w-44 h-44 sm:w-56 sm:h-56 md:w-80 md:h-80 flex items-center justify-center mb-6 md:mb-10 flex-shrink-0 mix-blend-screen">
-                   <svg className="absolute inset-0 w-full h-full text-cyan-500/30 animate-slow-spin" viewBox="0 0 100 100">
+                   <svg className="absolute inset-0 w-full h-full text-foreground/30 animate-slow-spin" viewBox="0 0 100 100">
                       <circle cx="50" cy="50" r="48" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="4 8" />
                       <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeWidth="0.5" strokeDasharray="30 10" />
                       <path d="M 50 2 L 50 8 M 50 92 L 50 98 M 2 50 L 8 50 M 92 50 L 98 50" stroke="currentColor" strokeWidth="1.5" />
                    </svg>
-                   <svg className="absolute inset-0 w-full h-full text-cyan-400/40 animate-reverse-spin" viewBox="0 0 100 100">
+                   <svg className="absolute inset-0 w-full h-full text-foreground/40 animate-reverse-spin" viewBox="0 0 100 100">
                       <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="15 45" />
                    </svg>
                    
-                   <div className="absolute inset-[15%] rounded-full overflow-hidden border-2 border-cyan-500/40 p-1 bg-black shadow-[0_0_40px_rgba(34,211,238,0.2)] animate-pulse-ring aspect-square">
+                   <div className="absolute inset-[15%] rounded-full overflow-hidden border-2 border-primary/40 p-1 bg-black  animate-pulse-ring aspect-square">
                       <img src={getAgentAvatar(selected.name)} className="w-full h-full object-cover rounded-full mix-blend-screen" />
                    </div>
                 </div>
 
                 {/* Data modules below the core */}
-                <div className="w-full max-w-lg space-y-6 bg-black/40 p-6 rounded-lg border border-cyan-900/10">
+                <div className="w-full max-w-lg space-y-6 bg-black/40 p-6 rounded-lg border border-border">
                   <div>
-                    <h4 className="text-[10px] font-mono tracking-widest uppercase text-cyan-600 mb-2 font-semibold flex justify-between">
-                      Personality Core <span className="text-cyan-800">{selected.role}</span>
+                    <h4 className="text-[10px] font-medium text-muted-foreground mb-2 font-semibold flex justify-between">
+                      Personality Core <span className="text-muted-foreground">{selected.role}</span>
                     </h4>
-                    <p className="text-sm font-light text-zinc-300 leading-relaxed pl-4 border-l-[3px] border-cyan-900/50">{selected.personality}</p>
+                    <p className="text-sm font-light text-foreground leading-relaxed pl-4 border-l-[3px] border-border">{selected.personality}</p>
                   </div>
                   <div>
-                    <h4 className="text-[10px] font-mono tracking-widest uppercase text-cyan-600 mb-2 font-semibold">Capabilities Configuration</h4>
+                    <h4 className="text-[10px] font-medium text-muted-foreground mb-2 font-semibold">Capabilities Configuration</h4>
                     <div className="flex flex-wrap gap-2">
                       {selected.capabilities.map(cap => (
-                         <span key={cap} className="text-[10px] bg-cyan-950/40 border border-cyan-800/50 text-cyan-300 tracking-wider font-mono px-3 py-1.5 rounded-sm uppercase">{cap}</span>
+                         <span key={cap} className="text-[10px] bg-muted/40 border border-border text-foreground font-medium px-3 py-1.5 rounded-md">{cap}</span>
                       ))}
                     </div>
                   </div>
                   {selected.directives && (
                     <div>
-                      <h4 className="text-[10px] font-mono tracking-widest uppercase text-cyan-600 mb-2 font-semibold">Primary Directives</h4>
-                      <p className="text-xs text-zinc-400 leading-relaxed font-mono whitespace-pre-wrap pl-4 border-l-[3px] border-cyan-900/50">{selected.directives}</p>
+                      <h4 className="text-[10px] font-medium text-muted-foreground mb-2 font-semibold">Primary Directives</h4>
+                      <p className="text-xs text-muted-foreground leading-relaxed font-mono whitespace-pre-wrap pl-4 border-l-[3px] border-border">{selected.directives}</p>
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Right: Massive Terminal Text Log */}
-              <div className="w-full md:w-1/2 bg-[#050505] border border-zinc-800 flex flex-col relative rounded-xl overflow-hidden shadow-2xl">
-                 <div className="bg-black border-b border-zinc-800 px-6 py-5 flex justify-between items-center z-20">
-                   <h3 className="font-mono text-cyan-500 tracking-widest uppercase text-xs flex items-center gap-3 font-bold">
-                     <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+              <div className="w-full md:w-1/2 bg-[#050505] border border-border flex flex-col relative rounded-xl overflow-hidden shadow-2xl">
+                 <div className="bg-black border-b border-border px-6 py-5 flex justify-between items-center z-20">
+                   <h3 className="font-mono text-foreground font-medium text-xs flex items-center gap-3 font-bold">
+                     <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
                      LIVE TELEMETRY STREAM
                    </h3>
                    <div className="flex gap-4">
-                     <span className="font-mono text-[10px] text-zinc-500 hidden xl:inline">LAST SCAN: <span className="text-cyan-400">{selected.last_scanned_at ? new Date(selected.last_scanned_at).toLocaleDateString() : "NEVER"}</span></span>
-                     <span className="font-mono text-[10px] text-zinc-500 hidden sm:inline">FINDINGS: <span className="text-amber-400 font-bold">{selected.total_findings ?? 0}</span></span>
+                     <span className="font-mono text-[10px] text-muted-foreground hidden xl:inline">LAST SCAN: <span className="text-foreground">{selected.last_scanned_at ? new Date(selected.last_scanned_at).toLocaleDateString() : "NEVER"}</span></span>
+                     <span className="font-mono text-[10px] text-muted-foreground hidden sm:inline">FINDINGS: <span className="text-amber-400 font-bold">{selected.total_findings ?? 0}</span></span>
                    </div>
                  </div>
 
                  <div className="flex-1 overflow-y-auto custom-scrollbar font-mono flex flex-col gap-1.5 p-6 z-10 break-words">
                    {activityLoading ? (
-                     <div className="text-cyan-800 p-4 font-bold text-xs animate-pulse">ESTABLISHING SECURE CONNECTION...</div>
+                     <div className="text-muted-foreground p-4 font-bold text-xs animate-pulse">ESTABLISHING SECURE CONNECTION...</div>
                    ) : agentActivity.length === 0 ? (
                      <p className="text-xs text-zinc-600 italic mt-4">{'>>'} NO DATA STREAM AVAILABLE. AWAITING PROCESS INITIALIZATION...</p>
                    ) : (
                      agentActivity.map((a) => (
-                       <div key={a.id} className="text-[11px] tracking-wider mb-2 leading-relaxed flex items-start flex-col sm:flex-row hover:bg-zinc-900/30 p-2 rounded transition-colors group">
-                         <span className="text-zinc-600 w-28 flex-shrink-0 group-hover:text-zinc-500">[{new Date(a.created_at).toLocaleTimeString("en-US", { hour12: false })}]</span>
+                       <div key={a.id} className="text-[11px] tracking-wider mb-2 leading-relaxed flex items-start flex-col sm:flex-row hover:bg-muted/30 p-2 rounded transition-colors group">
+                         <span className="text-zinc-600 w-28 flex-shrink-0 group-hover:text-muted-foreground">[{new Date(a.created_at).toLocaleTimeString("en-US", { hour12: false })}]</span>
                          
                          <div className="break-words min-w-0 flex-1">
-                           {a.action === "scan_started" && <span className="text-cyan-400 font-bold">{'>>'} SCAN_INITIALIZED</span>}
+                           {a.action === "scan_started" && <span className="text-foreground font-bold">{'>>'} SCAN_INITIALIZED</span>}
                            {a.action === "scan_completed" && <span className="text-emerald-400 font-bold">{'>>'} SCAN_COMPLETED: <span className="text-emerald-400/80 font-normal">PROCESSED {a.details?.conversations_scanned ?? "ALL"}. NEW INTEL: {a.details?.findings_created ?? 0}</span></span>}
                            {a.action === "finding_created" && <span className="text-amber-400 font-bold">{'>>'} INTEL_EXTRACTED: <span className="text-amber-400/90 font-normal">"{a.details?.title}"</span></span>}
-                           {a.action === "batch_completed" && <span className="text-zinc-400 border-l-[2px] border-zinc-800 pl-3 ml-2">-- BATCH_{a.details?.batch_index}_COMPLETE</span>}
+                           {a.action === "batch_completed" && <span className="text-muted-foreground border-l-[2px] border-border pl-3 ml-2">-- BATCH_{a.details?.batch_index}_COMPLETE</span>}
                            {a.action === "error" && <span className="text-red-500 font-bold">{'>>'} SYS_ERROR: <span className="text-red-400 font-normal">{a.details?.error}</span></span>}
                            {/* Default fallback */}
-                           {!["scan_started", "scan_completed", "finding_created", "batch_completed", "error"].includes(a.action) && <span className="text-zinc-400">{'>>'} {a.action.toUpperCase()}</span>}
+                           {!["scan_started", "scan_completed", "finding_created", "batch_completed", "error"].includes(a.action) && <span className="text-muted-foreground">{'>>'} {a.action.toUpperCase()}</span>}
                          </div>
                        </div>
                      ))
@@ -399,14 +399,14 @@ export default function AgentsPage() {
         <div className="flex flex-col flex-1 p-4 md:p-8 max-w-5xl mx-auto w-full">
           <div className="flex items-start md:items-center justify-between gap-3 mb-6 md:mb-8">
             <div className="min-w-0">
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground font-mono tracking-tight uppercase">Agents</h1>
-              <p className="text-xs md:text-sm text-cyan-400/70 font-mono tracking-widest mt-1 uppercase">
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">Agents</h1>
+              <p className="text-xs md:text-sm text-foreground/70 mt-1">
                 AI personalities tasked with specific operations.
               </p>
             </div>
             <button
               onClick={openCreate}
-              className="flex items-center gap-2 bg-cyan-950 text-cyan-400 border border-cyan-500/50 px-4 md:px-5 py-2.5 rounded shadow-[0_0_10px_rgba(34,211,238,0.15)] text-xs font-mono uppercase tracking-widest hover:bg-cyan-900 transition-colors flex-shrink-0"
+              className="flex items-center gap-2 bg-muted text-foreground border border-primary/40 px-4 md:px-5 py-2.5 rounded  text-xs font-medium hover:bg-primary/20 transition-colors flex-shrink-0"
             >
               <Plus size={15} />
               <span className="hidden sm:inline">Deploy Agent</span>
@@ -421,15 +421,15 @@ export default function AgentsPage() {
               ))}
             </div>
           ) : agents.length === 0 ? (
-            <div className="bg-black/50 border border-cyan-900/30 p-16 flex flex-col items-center justify-center text-center rounded-xl">
-              <div className="w-12 h-12 rounded-xl bg-cyan-950/40 flex items-center justify-center mb-4 border border-cyan-900/50">
-                <Bot size={22} className="text-cyan-600" />
+            <div className="bg-black/50 border border-border p-16 flex flex-col items-center justify-center text-center rounded-xl">
+              <div className="w-12 h-12 rounded-xl bg-muted/40 flex items-center justify-center mb-4 border border-border">
+                <Bot size={22} className="text-muted-foreground" />
               </div>
-              <h3 className="text-base font-semibold text-cyan-100 font-mono tracking-widest uppercase mb-2">No agents deployed</h3>
-              <p className="text-sm text-cyan-400/50 max-w-xs font-mono">
+              <h3 className="text-base font-semibold text-foreground font-medium mb-2">No agents deployed</h3>
+              <p className="text-sm text-foreground/50 max-w-xs font-mono">
                 Agents are AI personalities tasked with data collection, analysis, monitoring, or automation. Deploy one to get started.
               </p>
-              <button onClick={openCreate} className="mt-8 text-xs font-mono tracking-widest uppercase text-cyan-500 hover:text-cyan-300 transition-colors">Deploy first agent &rarr;</button>
+              <button onClick={openCreate} className="mt-8 text-xs font-medium text-foreground hover:text-foreground transition-colors">Deploy first agent &rarr;</button>
             </div>
           ) : (
             <>
@@ -449,18 +449,18 @@ export default function AgentsPage() {
             `}</style>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 auto-rows-max">
               {agents.map(agent => (
-                <div
+                <a
                   key={agent.id}
-                  onClick={() => setSelected(agent)}
-                  className={`relative tech-clip border-l-[3px] bg-black/80 backdrop-blur-md p-[1px] cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(255,255,255,0.05)] group ${
-                    agent.status === "active" ? "border-l-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.15)] hover:shadow-[0_0_25px_rgba(34,211,238,0.25)]" :
-                    agent.status === "standby" ? "border-l-accent shadow-[0_0_15px_rgba(251,146,60,0.15)] hover:shadow-[0_0_25px_rgba(251,146,60,0.25)]" :
-                    "border-l-muted-foreground hover:shadow-[0_0_15px_rgba(255,255,255,0.05)]"
+                  href={`/dashboard/agents/${agent.id}`}
+                  className={`relative tech-clip border-l-[3px] bg-black/80 backdrop-blur-md p-[1px] cursor-pointer transition-colors duration-200 hover:bg-black/90 group ${
+                    agent.status === "active" ? "border-l-primary" :
+                    agent.status === "standby" ? "border-l-accent" :
+                    "border-l-muted-foreground"
                   }`}
                 >
                   {/* Scanline Animation */}
                   {agent.status === "active" && (
-                    <div className="absolute left-0 right-0 h-[2px] bg-cyan-400/50 shadow-[0_0_10px_rgba(34,211,238,0.8)] animate-scanline pointer-events-none z-10" />
+                    <div className="absolute left-0 right-0 h-[2px] bg-primary/50  animate-scanline pointer-events-none z-10" />
                   )}
                   
                   {/* Tech Grid Background */}
@@ -470,37 +470,37 @@ export default function AgentsPage() {
                     <div className="flex justify-between items-start mb-6 gap-3">
                       <div className="flex gap-5 min-w-0 flex-1">
                         {/* Generative AI Core Avatar */}
-                        <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-cyan-500/30 p-0.5 flex items-center justify-center bg-black shadow-[0_0_15px_rgba(34,211,238,0.2)] aspect-square flex-shrink-0 group-hover:shadow-[0_0_20px_rgba(34,211,238,0.4)] transition-shadow duration-300 relative group-hover:rotate-12">
+                        <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-primary/30 p-0.5 flex items-center justify-center bg-black  aspect-square flex-shrink-0 group-hover: transition-shadow duration-300 relative group-hover:rotate-12">
                           <img src={getAgentAvatar(agent.name)} alt={agent.name} className="w-full h-full object-cover rounded-full mix-blend-screen" />
                         </div>
                         <div className="flex flex-col pt-1 min-w-0 flex-1">
-                          <h3 className="font-bold text-xl text-cyan-50 tracking-wider font-mono uppercase group-hover:text-cyan-300 transition-colors truncate">{agent.name}</h3>
-                          <p className="text-xs text-cyan-400/80 font-mono tracking-widest uppercase mt-1 truncate">{agent.role}</p>
+                          <h3 className="font-bold text-xl text-foreground font-medium group-hover:text-foreground transition-colors truncate">{agent.name}</h3>
+                          <p className="text-xs text-foreground/80 font-medium mt-1 truncate">{agent.role}</p>
                         </div>
                       </div>
                       <AgentStatusDropdown status={agent.status} onChange={(s) => setStatus(agent, s)} />
                     </div>
 
                     {agent.personality && (
-                      <p className="text-sm text-zinc-400 mb-8 font-light leading-relaxed border-l-[3px] border-zinc-800 pl-4 mt-2 group-hover:text-zinc-300 group-hover:border-cyan-900/50 transition-colors">
+                      <p className="text-sm text-muted-foreground mb-8 font-light leading-relaxed border-l-[3px] border-border pl-4 mt-2 group-hover:text-foreground group-hover:border-border transition-colors">
                         {agent.personality}
                       </p>
                     )}
 
                     <div className="flex flex-wrap gap-2 mt-auto">
                       {agent.capabilities.slice(0, 4).map((cap, i) => (
-                        <span key={i} className="text-[10px] font-mono tracking-wider bg-zinc-900 border border-zinc-800 text-zinc-300 px-3 py-1.5 rounded-sm uppercase group-hover:bg-cyan-950/20 group-hover:border-cyan-900/30 transition-colors">
+                        <span key={i} className="text-[10px] bg-muted border border-border text-foreground px-3 py-1.5 rounded-sm uppercase group-hover:bg-muted/20 group-hover:border-border transition-colors">
                           {cap}
                         </span>
                       ))}
                       {agent.capabilities.length > 4 && (
-                        <span className="text-[10px] font-mono tracking-wider bg-zinc-900 border border-zinc-800 text-zinc-500 px-3 py-1.5 rounded-sm uppercase">
+                        <span className="text-[10px] bg-muted border border-border text-muted-foreground px-3 py-1.5 rounded-sm uppercase">
                           +{agent.capabilities.length - 4} MORE
                         </span>
                       )}
                     </div>
                   </div>
-                </div>
+                </a>
               ))}
             </div>
             </>
@@ -520,7 +520,7 @@ export default function AgentsPage() {
             <div className="p-6 flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Agent Name *</label>
+                  <label className="text-sm font-medium text-foreground">Agent Name *</label>
                   <input
                     value={form.name}
                     onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
@@ -529,7 +529,7 @@ export default function AgentsPage() {
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Role *</label>
+                  <label className="text-sm font-medium text-foreground">Role *</label>
                   <input
                     value={form.role}
                     onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
@@ -540,7 +540,7 @@ export default function AgentsPage() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Personality</label>
+                <label className="text-sm font-medium text-foreground">Personality</label>
                 <textarea
                   value={form.personality}
                   onChange={e => setForm(f => ({ ...f, personality: e.target.value }))}
@@ -551,7 +551,7 @@ export default function AgentsPage() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Capabilities <span className="normal-case">(comma separated)</span></label>
+                <label className="text-sm font-medium text-foreground">Capabilities <span className="normal-case">(comma separated)</span></label>
                 <input
                   value={form.capabilities}
                   onChange={e => setForm(f => ({ ...f, capabilities: e.target.value }))}
@@ -561,7 +561,7 @@ export default function AgentsPage() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Directives</label>
+                <label className="text-sm font-medium text-foreground">Directives</label>
                 <textarea
                   value={form.directives}
                   onChange={e => setForm(f => ({ ...f, directives: e.target.value }))}
@@ -573,7 +573,7 @@ export default function AgentsPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Status</label>
+                  <label className="text-sm font-medium text-foreground">Status</label>
                   <select
                     value={form.status}
                     onChange={e => setForm(f => ({ ...f, status: e.target.value as AgentStatus }))}
@@ -585,7 +585,7 @@ export default function AgentsPage() {
                   </select>
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Visibility</label>
+                  <label className="text-sm font-medium text-foreground">Visibility</label>
                   <select
                     value={form.visibility}
                     onChange={e => setForm(f => ({ ...f, visibility: e.target.value as any }))}

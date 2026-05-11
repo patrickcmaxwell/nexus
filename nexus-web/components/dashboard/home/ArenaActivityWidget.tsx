@@ -59,7 +59,7 @@ export default function ArenaActivityWidget({ entries }: { entries: Entry[] }) {
   const visible = entries.slice(0, 5)
 
   return (
-    <section className="rounded-xl border border-border bg-card/30 overflow-hidden">
+    <section className="rounded-xl border border-border bg-card overflow-hidden">
       <header className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-secondary border border-border">
@@ -71,7 +71,7 @@ export default function ArenaActivityWidget({ entries }: { entries: Entry[] }) {
           </div>
         </div>
         <span
-          className="px-2 py-0.5 rounded font-mono text-[9px] uppercase tracking-widest"
+          className="px-2 py-0.5 rounded text-xs font-medium"
           style={{ background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.4)" }}
         >
           {entries.length}

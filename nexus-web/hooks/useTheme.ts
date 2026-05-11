@@ -18,62 +18,46 @@ export type ResolvedTheme = {
 
 const STORAGE_KEY = "nexus_theme"
 
-// Color mode is locked to "dark" globally as of 2026-05-08. The light theme
-// has hardcoded dark-only inline styles in too many components — until those
-// are migrated to theme tokens, light mode produces broken contrast (cyan on
-// near-black inside white containers). Re-enable when the inline-style sweep
-// is done. uiMode (simple vs futuristic) is still user-controllable.
+// 2026-05-08: BOTH colorMode and uiMode are locked.
+//   - colorMode = "dark" — light mode has too many hardcoded dark-only inline
+//     styles to be usable; revisit after inline-style sweep
+//   - uiMode    = "simple" — the futuristic Tron/HUD aesthetic was rejected
+//     in favor of an Apple/Linear-style clean baseline. Simple is now the
+//     ONE consistent design across all pages.
 
 function loadPrefs(): ThemePreference {
-  if (typeof window === "undefined") return { colorMode: "dark", uiMode: "futuristic" }
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) {
-      const stored = JSON.parse(raw) as Partial<ThemePreference>
-      return { colorMode: "dark", uiMode: stored.uiMode ?? "futuristic" }
-    }
-  } catch { /* ignore */ }
-  return { colorMode: "dark", uiMode: "futuristic" }
+  // Locked. Stored prefs ignored.
+  return { colorMode: "dark", uiMode: "simple" }
 }
 
-function resolveTheme(prefs: ThemePreference): ResolvedTheme {
-  // Always dark for now — see note above.
+function resolveTheme(_prefs: ThemePreference): ResolvedTheme {
   return {
     isDark: true,
-    isSimple: prefs.uiMode === "simple",
-    isFuturistic: prefs.uiMode === "futuristic",
+    isSimple: true,
+    isFuturistic: false,
   }
 }
 
-function applyTheme(prefs: ThemePreference) {
+function applyTheme(_prefs: ThemePreference) {
   const html = document.documentElement
-  // Always dark.
   html.classList.remove("light")
   html.classList.add("dark")
-  html.setAttribute("data-ui", prefs.uiMode)
+  html.setAttribute("data-ui", "simple")
 }
 
 export function useTheme() {
-  const [prefs, setPrefs] = useState<ThemePreference>({ colorMode: "dark", uiMode: "futuristic" })
-  const [resolved, setResolved] = useState<ResolvedTheme>({ isDark: true, isSimple: false, isFuturistic: true })
+  // Locked theme — both color and UI modes are fixed for now. All
+  // consumers get the same resolved values. `update` is a no-op so any
+  // legacy theme-toggle calls don't crash.
+  const [prefs] = useState<ThemePreference>({ colorMode: "dark", uiMode: "simple" })
+  const [resolved] = useState<ResolvedTheme>({ isDark: true, isSimple: true, isFuturistic: false })
 
-  // Load on mount
   useEffect(() => {
-    const loaded = loadPrefs()
-    setPrefs(loaded)
-    setResolved(resolveTheme(loaded))
-    applyTheme(loaded)
-  }, [])
+    applyTheme(prefs)
+  }, [prefs])
 
-  const update = useCallback((next: Partial<ThemePreference>) => {
-    setPrefs(prev => {
-      // colorMode is locked to dark — silently drop any colorMode change.
-      const merged = { ...prev, ...next, colorMode: "dark" as const }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged))
-      applyTheme(merged)
-      setResolved(resolveTheme(merged))
-      return merged
-    })
+  const update = useCallback((_next: Partial<ThemePreference>) => {
+    // No-op. Theme is locked.
   }, [])
 
   return { prefs, update, resolved }

@@ -28,6 +28,7 @@ export const dynamic = "force-dynamic"
 
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { fingerprintFromRequest } from "@/lib/auth/device"
 import path from "node:path"
 import { sessionCookieOptions } from "@/lib/auth/cookie"
 
@@ -214,6 +215,7 @@ export async function POST(req: NextRequest) {
   // endpoints — env-aware cookie so localhost dev works too.
   const now = new Date().toISOString()
   const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+  const fp = fingerprintFromRequest(req)
   const { data: session } = await supabase
     .from("security_sessions")
     .insert({
@@ -224,6 +226,9 @@ export async function POST(req: NextRequest) {
       expires_at: expiresAt,
       auth_method: "face",
       invalidated: false,
+      user_agent: fp.userAgent,
+      ip_address: fp.ipAddress,
+      device_label: fp.deviceLabel,
     })
     .select("id")
     .single()

@@ -1,0 +1,96 @@
+{
+  "source": "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/DashboardView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "⌘N — opens Live with a fresh thread",
+        "location": {
+          "startingColumn": 15,
+          "startingLine": 276
+        }
+      },
+      {
+        "comment": "",
+        "key": "MISSION REPORT",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 80
+        }
+      },
+      {
+        "comment": "",
+        "key": "Refresh briefing",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 104
+        }
+      },
+      {
+        "comment": "",
+        "key": "No briefing yet — pull when ready.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 112
+        }
+      },
+      {
+        "comment": "",
+        "key": "Compiling briefing…",
+        "location": {
+          "startingColumn": 67,
+          "startingLine": 107
+        }
+      },
+      {
+        "comment": "",
+        "key": "Nothing new since last visit.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 154
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 164
+        }
+      },
+      {
+        "comment": "",
+        "key": "No conversations yet — kick one off below.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 186
+        }
+      },
+      {
+        "comment": "",
+        "key": "· %lld MSG%@",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 228
+        }
+      },
+      {
+        "comment": "",
+        "key": "Start a Fresh Session",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 259
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open a new live conversation with Eve",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 262
+        }
+      }
+    ]
+  },
+  "version": 1
+}

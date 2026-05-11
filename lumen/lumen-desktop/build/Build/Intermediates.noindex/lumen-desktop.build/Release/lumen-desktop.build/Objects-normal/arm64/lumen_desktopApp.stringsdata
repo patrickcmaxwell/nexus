@@ -1,0 +1,200 @@
+{
+  "source": "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/lumen_desktopApp.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Operation",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 157
+        }
+      },
+      {
+        "comment": "",
+        "key": "Agent",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 167
+        }
+      },
+      {
+        "comment": "",
+        "key": "Conversation",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 181
+        }
+      },
+      {
+        "comment": "",
+        "key": "Quick Capture",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 192
+        }
+      },
+      {
+        "comment": "",
+        "key": "Eve",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 204
+        }
+      },
+      {
+        "comment": "",
+        "key": "Lumen Console",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 216
+        }
+      },
+      {
+        "comment": "",
+        "key": "Lumen Search",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 230
+        }
+      },
+      {
+        "comment": "",
+        "key": "Eve",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 243
+        }
+      },
+      {
+        "comment": "",
+        "key": "Lock Now",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 134
+        }
+      },
+      {
+        "comment": "",
+        "key": "Panels",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 259
+        }
+      },
+      {
+        "comment": "",
+        "key": "Quick Capture…",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 260
+        }
+      },
+      {
+        "comment": "",
+        "key": "Eve Orb Window",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 264
+        }
+      },
+      {
+        "comment": "",
+        "key": "Lumen Console…",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 268
+        }
+      },
+      {
+        "comment": "",
+        "key": "Search Everything…",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 272
+        }
+      },
+      {
+        "comment": "",
+        "key": "Command Palette…",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 276
+        }
+      },
+      {
+        "comment": "",
+        "key": "Agents",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 281
+        }
+      },
+      {
+        "comment": "",
+        "key": "Operations",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 283
+        }
+      },
+      {
+        "comment": "",
+        "key": "Directives",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 285
+        }
+      },
+      {
+        "comment": "",
+        "key": "Memory Bank",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 287
+        }
+      },
+      {
+        "comment": "",
+        "key": "Conversations",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 289
+        }
+      },
+      {
+        "comment": "",
+        "key": "Nexus Map",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 291
+        }
+      },
+      {
+        "comment": "",
+        "key": "Files",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 294
+        }
+      },
+      {
+        "comment": "",
+        "key": "System",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 296
+        }
+      },
+      {
+        "comment": "",
+        "key": "Settings",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 298
+        }
+      }
+    ]
+  },
+  "version": 1
+}

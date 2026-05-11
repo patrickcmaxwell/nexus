@@ -167,9 +167,9 @@ function FacePageInner() {
 
   const statusColor =
     stage === "success" ? "text-green-400"
-    : stage === "failed" ? "text-hud-red"
-    : stage === "enrolling" ? "text-hud-gold"
-    : "text-hud-gold"
+    : stage === "failed" ? "text-destructive"
+    : stage === "enrolling" ? "text-primary"
+    : "text-primary"
 
   const scanning = stage === "scanning" || stage === "verifying" || stage === "enrolling"
 
@@ -177,21 +177,21 @@ function FacePageInner() {
     <div className={
       embedded
         ? "min-h-full bg-transparent flex items-center justify-center"
-        : "min-h-screen bg-background flex items-center justify-center scan-line"
+        : "min-h-screen bg-background flex items-center justify-center "
     }>
       <div className={embedded ? "w-full px-4 py-3" : "w-full max-w-md px-6"}>
 
         {/* Header — hidden in embedded mode (host card supplies the branding) */}
         {!embedded && (
           <div className="text-center mb-8">
-            <div className="w-12 h-12 hud-border hud-glow-red mx-auto mb-4 flex items-center justify-center">
-              <span className="text-hud-red font-bold text-sm animate-pulse-glow" style={{ fontFamily: "var(--font-orbitron)" }}>MN</span>
+            <div className="w-12 h-12 border border-destructive/40 mx-auto mb-4 flex items-center justify-center">
+              <span className="text-destructive font-bold text-sm animate-pulse-glow">MN</span>
             </div>
-            <p className="font-mono text-[10px] text-muted-foreground tracking-widest mb-1">MAXWELL NEXUS SECURITY</p>
-            <h1 className="text-hud-gold text-xl font-bold tracking-widest" style={{ fontFamily: "var(--font-orbitron)" }}>
+            <p className="text-xs text-muted-foreground mb-1">MAXWELL NEXUS SECURITY</p>
+            <h1 className="text-primary text-xl font-bold ">
               BIOMETRIC VERIFICATION
             </h1>
-            <p className="font-mono text-[10px] text-muted-foreground mt-2 tracking-widest">LAYER 2 OF 2 — REQUIRED ON EVERY ENTRY</p>
+            <p className="text-xs text-muted-foreground mt-2">LAYER 2 OF 2 — REQUIRED ON EVERY ENTRY</p>
           </div>
         )}
 
@@ -200,21 +200,21 @@ function FacePageInner() {
           <div className="mb-6">
             <div className="h-1 bg-border mb-2">
               <div
-                className="h-full bg-hud-red transition-all duration-700"
+                className="h-full bg-destructive transition-all duration-700"
                 style={{ width: `${loadProgress}%` }}
               />
             </div>
-            <p className="font-mono text-[9px] text-center text-muted-foreground tracking-widest">{loadProgress}% — MODELS LOADING</p>
+            <p className="text-xs text-center text-muted-foreground">{loadProgress}% — MODELS LOADING</p>
           </div>
         )}
 
         {/* Camera frame */}
         <div className="relative mx-auto mb-6" style={{ width: 280, height: 280 }}>
           {/* HUD corners */}
-          <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-hud-red z-10" />
-          <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-hud-red z-10" />
-          <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-hud-red z-10" />
-          <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-hud-red z-10" />
+          <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-destructive z-10" />
+          <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-destructive z-10" />
+          <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-destructive z-10" />
+          <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-destructive z-10" />
 
           <video
             ref={videoRef}
@@ -227,7 +227,7 @@ function FacePageInner() {
           {/* Scan line while scanning */}
           {scanning && (
             <div className="absolute inset-0 overflow-hidden pointer-events-none z-10">
-              <div className="absolute w-full h-0.5 bg-hud-red/80" style={{ animation: "hud-scan 2s linear infinite" }} />
+              <div className="absolute w-full h-0.5 bg-primary/60 animate-pulse" />
             </div>
           )}
 
@@ -240,8 +240,8 @@ function FacePageInner() {
 
           {/* Failed overlay */}
           {stage === "failed" && (
-            <div className="absolute inset-0 bg-hud-red/10 border-2 border-hud-red flex items-center justify-center z-10">
-              <span className="text-hud-red text-5xl font-bold">✗</span>
+            <div className="absolute inset-0 bg-destructive/10 border-2 border-destructive flex items-center justify-center z-10">
+              <span className="text-destructive text-5xl font-bold">✗</span>
             </div>
           )}
 
@@ -249,16 +249,16 @@ function FacePageInner() {
           {stage === "loading_models" && (
             <div className="absolute inset-0 bg-card flex items-center justify-center z-10">
               <div className="text-center">
-                <div className="w-8 h-8 border-2 border-hud-red border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                <span className="font-mono text-[9px] text-muted-foreground tracking-widest">LOADING...</span>
+                <div className="w-8 h-8 border-2 border-destructive border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                <span className="text-xs text-muted-foreground">LOADING...</span>
               </div>
             </div>
           )}
 
           {/* No camera */}
           {stage === "no_camera" && (
-            <div className="absolute inset-0 bg-card border border-hud-red flex items-center justify-center z-10">
-              <span className="font-mono text-[10px] text-hud-red text-center px-4 tracking-widest">CAMERA UNAVAILABLE</span>
+            <div className="absolute inset-0 bg-card border border-destructive flex items-center justify-center z-10">
+              <span className="text-xs text-destructive text-center px-4">CAMERA UNAVAILABLE</span>
             </div>
           )}
         </div>
@@ -267,18 +267,18 @@ function FacePageInner() {
         {confidence > 0 && (
           <div className="mb-4">
             <div className="flex justify-between mb-1">
-              <span className="font-mono text-[10px] text-muted-foreground">SCAN CONFIDENCE</span>
-              <span className="font-mono text-[10px] text-hud-gold">{confidence}%</span>
+              <span className="text-xs text-muted-foreground">SCAN CONFIDENCE</span>
+              <span className="text-xs text-primary">{confidence}%</span>
             </div>
             <div className="h-1 bg-border">
-              <div className="h-full bg-hud-gold transition-all duration-500" style={{ width: `${confidence}%` }} />
+              <div className="h-full bg-primary transition-all duration-500" style={{ width: `${confidence}%` }} />
             </div>
           </div>
         )}
 
         {/* Status line */}
         <div className="text-center mb-6">
-          <p className={`font-mono text-xs tracking-widest ${scanning ? "animate-pulse-glow" : ""} ${statusColor}`}>
+          <p className={`text-sm font-medium ${scanning ? "animate-pulse-glow" : ""} ${statusColor}`}>
             {statusMsg}
           </p>
         </div>
@@ -288,15 +288,15 @@ function FacePageInner() {
           {stage === "ready" && (
             <button
               onClick={runScan}
-              className="w-full hud-border hud-glow-gold text-hud-gold font-mono text-sm py-4 hover:bg-[oklch(0.75_0.18_75/0.1)] transition-colors tracking-widest active:scale-95"
-              style={{ fontFamily: "var(--font-orbitron)" }}
+              className="w-full border border-primary/40 text-primary text-sm font-medium py-4 hover:bg-[oklch(0.75_0.18_75/0.1)] transition-colors  active:scale-95"
+             
             >
               INITIATE FACE SCAN
             </button>
           )}
 
           {scanning && (
-            <div className="w-full hud-border text-muted-foreground font-mono text-sm py-4 text-center tracking-widest opacity-50">
+            <div className="w-full border border-border text-muted-foreground text-sm font-medium py-4 text-center  opacity-50">
               SCANNING...
             </div>
           )}
@@ -304,8 +304,8 @@ function FacePageInner() {
           {stage === "failed" && (
             <button
               onClick={handleRetry}
-              className="w-full hud-border text-hud-gold font-mono text-sm py-4 hover:bg-[oklch(0.75_0.18_75/0.1)] transition-colors tracking-widest active:scale-95"
-              style={{ fontFamily: "var(--font-orbitron)" }}
+              className="w-full border border-border text-primary text-sm font-medium py-4 hover:bg-[oklch(0.75_0.18_75/0.1)] transition-colors  active:scale-95"
+             
             >
               RETRY SCAN
             </button>
@@ -315,7 +315,7 @@ function FacePageInner() {
         {/* Footer — hidden in embedded mode for the same reason as the header */}
         {!embedded && (
           <div className="mt-6 text-center">
-            <p className="font-mono text-[9px] text-muted-foreground/50 tracking-widest">
+            <p className="text-xs text-muted-foreground/60">
               FACE SCAN ENABLED · STRONGLY RECOMMENDED FOR INSTANT LOGIN
             </p>
           </div>

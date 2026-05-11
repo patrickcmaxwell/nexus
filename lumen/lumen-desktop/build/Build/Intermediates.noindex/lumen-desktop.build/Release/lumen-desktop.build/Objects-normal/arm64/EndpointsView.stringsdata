@@ -1,0 +1,88 @@
+{
+  "source": "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/EndpointsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "nexus-web API surface Lumen calls. Ping checks reachability + latency without authentication semantics.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 45
+        }
+      },
+      {
+        "comment": "",
+        "key": "ENDPOINTS",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 40
+        }
+      },
+      {
+        "comment": "",
+        "key": "HOST: %@",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 75
+        }
+      },
+      {
+        "comment": "",
+        "key": "PING ALL",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 57
+        }
+      },
+      {
+        "comment": "",
+        "key": "UNTESTED",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 382
+        }
+      },
+      {
+        "comment": "",
+        "key": "PING",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 310
+        }
+      },
+      {
+        "comment": "",
+        "key": "—",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 372
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 368
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lldMS",
+        "location": {
+          "startingColumn": 40,
+          "startingLine": 376
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 61,
+          "startingLine": 376
+        }
+      }
+    ]
+  },
+  "version": 1
+}

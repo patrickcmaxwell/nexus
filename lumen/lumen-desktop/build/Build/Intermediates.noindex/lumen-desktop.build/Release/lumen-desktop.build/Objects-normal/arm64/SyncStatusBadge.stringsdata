@@ -1,0 +1,24 @@
+{
+  "source": "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/SyncStatusBadge.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Sync now",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 46
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open Lumen Console…",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 49
+        }
+      }
+    ]
+  },
+  "version": 1
+}

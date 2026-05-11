@@ -1,0 +1,1856 @@
+{
+  "source": "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/MainView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Open Chat",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 373
+        }
+      },
+      {
+        "comment": "",
+        "key": "NEXUS",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 565
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unpin command rail",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 563
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pin command rail open",
+        "location": {
+          "startingColumn": 55,
+          "startingLine": 563
+        }
+      },
+      {
+        "comment": "",
+        "key": "Toggle adaptive canvas",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 592
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open in New Window",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 625
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 655
+        }
+      },
+      {
+        "comment": "",
+        "key": "ASSISTANT",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 768
+        }
+      },
+      {
+        "comment": "",
+        "key": "EVE",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 816
+        }
+      },
+      {
+        "comment": "",
+        "key": "Expanded quick chat",
+        "location": {
+          "startingColumn": 37,
+          "startingLine": 820
+        }
+      },
+      {
+        "comment": "",
+        "key": "Bottom assistant window",
+        "location": {
+          "startingColumn": 61,
+          "startingLine": 820
+        }
+      },
+      {
+        "comment": "",
+        "key": "Expanded",
+        "location": {
+          "startingColumn": 33,
+          "startingLine": 862
+        }
+      },
+      {
+        "comment": "",
+        "key": "Drag to resize",
+        "location": {
+          "startingColumn": 46,
+          "startingLine": 862
+        }
+      },
+      {
+        "comment": "",
+        "key": "ADAPTIVE CANVAS",
+        "location": {
+          "startingColumn": 57,
+          "startingLine": 898
+        }
+      },
+      {
+        "comment": "",
+        "key": "LIVE CONTEXT",
+        "location": {
+          "startingColumn": 77,
+          "startingLine": 898
+        }
+      },
+      {
+        "comment": "",
+        "key": "Overview with fast pivots into the active workspace.",
+        "location": {
+          "startingColumn": 57,
+          "startingLine": 902
+        }
+      },
+      {
+        "comment": "",
+        "key": "Conversation-linked surfaces stay one action away.",
+        "location": {
+          "startingColumn": 114,
+          "startingLine": 902
+        }
+      },
+      {
+        "comment": "",
+        "key": "CURRENT FOCUS",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 987
+        }
+      },
+      {
+        "comment": "",
+        "key": "Workspace",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 1137
+        }
+      },
+      {
+        "comment": "",
+        "key": "System",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 1152
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1190
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1185
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open in New Window",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 1198
+        }
+      },
+      {
+        "comment": "",
+        "key": "EVE %@",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 1219
+        }
+      },
+      {
+        "comment": "",
+        "key": "Switch User",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 1323
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@%@",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1315
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@ · %@",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 1328
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sign Out",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 1341
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add Another User",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 1352
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@ · %@",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 1381
+        }
+      },
+      {
+        "comment": "",
+        "key": "Not signed in",
+        "location": {
+          "startingColumn": 67,
+          "startingLine": 1381
+        }
+      },
+      {
+        "comment": "",
+        "key": "Switching…",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1430
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 1439
+        }
+      },
+      {
+        "comment": "",
+        "key": "Switch User",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1411
+        }
+      },
+      {
+        "comment": "",
+        "key": "Enter PIN for %@",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1412
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 1434
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld image%@",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1633
+        }
+      },
+      {
+        "comment": "",
+        "key": "Stop listening",
+        "location": {
+          "startingColumn": 46,
+          "startingLine": 1671
+        }
+      },
+      {
+        "comment": "",
+        "key": "Start listening",
+        "location": {
+          "startingColumn": 65,
+          "startingLine": 1671
+        }
+      },
+      {
+        "comment": "",
+        "key": "Collapse",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 1693
+        }
+      },
+      {
+        "comment": "",
+        "key": "Expand tools",
+        "location": {
+          "startingColumn": 55,
+          "startingLine": 1693
+        }
+      },
+      {
+        "comment": "",
+        "key": "@ops",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1755
+        }
+      },
+      {
+        "comment": "",
+        "key": "@agents",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1764
+        }
+      },
+      {
+        "comment": "",
+        "key": "code",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1773
+        }
+      },
+      {
+        "comment": "",
+        "key": "VOICE RELAY",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 2010
+        }
+      },
+      {
+        "comment": "",
+        "key": "Eve mission console",
+        "location": {
+          "startingColumn": 74,
+          "startingLine": 2014
+        }
+      },
+      {
+        "comment": "",
+        "key": "Active conversation",
+        "location": {
+          "startingColumn": 98,
+          "startingLine": 2014
+        }
+      },
+      {
+        "comment": "",
+        "key": "WORKSPACE",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 2066
+        }
+      },
+      {
+        "comment": "",
+        "key": "CURRENT THREAD",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 2139
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open in new window",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 2397
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open in New Window",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 2418
+        }
+      },
+      {
+        "comment": "",
+        "key": "EVE",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 2487
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sync now (⌘R)",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 2545
+        }
+      },
+      {
+        "comment": "",
+        "key": "LOCK",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 2551
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 3059
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 2906
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld SELECTED",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 2786
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear selection",
+        "location": {
+          "startingColumn": 19,
+          "startingLine": 2838
+        }
+      },
+      {
+        "comment": "",
+        "key": "READ ALOUD",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 2795
+        }
+      },
+      {
+        "comment": "",
+        "key": "COPY",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 2808
+        }
+      },
+      {
+        "comment": "",
+        "key": "STOP",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 2822
+        }
+      },
+      {
+        "comment": "",
+        "key": "Search this thread…",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 2860
+        }
+      },
+      {
+        "comment": "",
+        "key": "no matches",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 2867
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld of %lld",
+        "location": {
+          "startingColumn": 50,
+          "startingLine": 2867
+        }
+      },
+      {
+        "comment": "",
+        "key": "Back to Dashboard",
+        "location": {
+          "startingColumn": 19,
+          "startingLine": 2981
+        }
+      },
+      {
+        "comment": "",
+        "key": "Search messages in this thread (⌘F)",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 3017
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open this thread in its own native window so you can run multiple conversations side by side",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 3029
+        }
+      },
+      {
+        "comment": "",
+        "key": "End this conversation and start a fresh thread",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 3041
+        }
+      },
+      {
+        "comment": "",
+        "key": "Start a brand-new conversation",
+        "location": {
+          "startingColumn": 19,
+          "startingLine": 3052
+        }
+      },
+      {
+        "comment": "",
+        "key": "LIVE THREAD",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 2989
+        }
+      },
+      {
+        "comment": "",
+        "key": "FRESH START",
+        "location": {
+          "startingColumn": 51,
+          "startingLine": 2989
+        }
+      },
+      {
+        "comment": "",
+        "key": "·",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 3115
+        }
+      },
+      {
+        "comment": "",
+        "key": "HISTORY",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 3126
+        }
+      },
+      {
+        "comment": "",
+        "key": "BACK TO LIVE",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 3107
+        }
+      },
+      {
+        "comment": "",
+        "key": "Eve is standing by",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 3151
+        }
+      },
+      {
+        "comment": "",
+        "key": "Use the mic for voice or type below.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 3154
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pop the orb into its own window (⌘⌥E)",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 3272
+        }
+      },
+      {
+        "comment": "",
+        "key": "COMMAND CENTER",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 3305
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 3348
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 3436
+        }
+      },
+      {
+        "comment": "",
+        "key": "P%lld",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 3461
+        }
+      },
+      {
+        "comment": "",
+        "key": "OPEN AS WINDOW",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 3503
+        }
+      },
+      {
+        "comment": "",
+        "key": "Operation not found",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 3561
+        }
+      },
+      {
+        "comment": "",
+        "key": "Agent not found",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 3567
+        }
+      },
+      {
+        "comment": "",
+        "key": "Directive not found",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 3573
+        }
+      },
+      {
+        "comment": "",
+        "key": "DESCRIPTION",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 3592
+        }
+      },
+      {
+        "comment": "",
+        "key": "LAST ACTION",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 3614
+        }
+      },
+      {
+        "comment": "",
+        "key": "Here's where everything stands. Tap into anything, or open the input below to talk.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 3877
+        }
+      },
+      {
+        "comment": "",
+        "key": "EVE · NEXUS BRIEFING",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 3866
+        }
+      },
+      {
+        "comment": "",
+        "key": "→",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 3898
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld MSG%@",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 3940
+        }
+      },
+      {
+        "comment": "",
+        "key": "CONTINUE THIS THREAD",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 3963
+        }
+      },
+      {
+        "comment": "",
+        "key": "START FRESH",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 3976
+        }
+      },
+      {
+        "comment": "",
+        "key": "+ %lld more — open OPERATIONS panel",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 4024
+        }
+      },
+      {
+        "comment": "",
+        "key": "·",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 4007
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 4070
+        }
+      },
+      {
+        "comment": "",
+        "key": "/ %lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 4085
+        }
+      },
+      {
+        "comment": "",
+        "key": "Read aloud",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 4221
+        }
+      },
+      {
+        "comment": "",
+        "key": "Copy message",
+        "location": {
+          "startingColumn": 19,
+          "startingLine": 4231
+        }
+      },
+      {
+        "comment": "",
+        "key": "Eve",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 4267
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld ACTION%@",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 4274
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reply to This",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 4336
+        }
+      },
+      {
+        "comment": "",
+        "key": "Read Aloud",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 4342
+        }
+      },
+      {
+        "comment": "",
+        "key": "Stop Speaking",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 4347
+        }
+      },
+      {
+        "comment": "",
+        "key": "Copy Message",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 4353
+        }
+      },
+      {
+        "comment": "",
+        "key": "FAILED",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 4580
+        }
+      },
+      {
+        "comment": "",
+        "key": "COPIED",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 4628
+        }
+      },
+      {
+        "comment": "",
+        "key": "COPY",
+        "location": {
+          "startingColumn": 50,
+          "startingLine": 4628
+        }
+      },
+      {
+        "comment": "",
+        "key": "Read aloud",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 4684
+        }
+      },
+      {
+        "comment": "",
+        "key": "Edit this prompt and regenerate Eve's reply",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 4693
+        }
+      },
+      {
+        "comment": "",
+        "key": "Copy",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 4702
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 4714
+        }
+      },
+      {
+        "comment": "",
+        "key": "Re-send with edits",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 4733
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 4740
+        }
+      },
+      {
+        "comment": "",
+        "key": "Read Aloud",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 4758
+        }
+      },
+      {
+        "comment": "",
+        "key": "Stop Speaking",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 4763
+        }
+      },
+      {
+        "comment": "",
+        "key": "Edit & Regenerate",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 4767
+        }
+      },
+      {
+        "comment": "",
+        "key": "Copy Message",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 4772
+        }
+      },
+      {
+        "comment": "",
+        "key": "No matches",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 5050
+        }
+      },
+      {
+        "comment": "",
+        "key": "MENTION",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 5039
+        }
+      },
+      {
+        "comment": "",
+        "key": "Esc to dismiss",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 5043
+        }
+      },
+      {
+        "comment": "",
+        "key": "COMMAND",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 5181
+        }
+      },
+      {
+        "comment": "",
+        "key": "Enter to run",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 5185
+        }
+      },
+      {
+        "comment": "",
+        "key": "VISION · %lld image%@",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 5266
+        }
+      },
+      {
+        "comment": "",
+        "key": "CLEAR",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 5274
+        }
+      },
+      {
+        "comment": "",
+        "key": "Voice mode is on — tap to stop",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 5308
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tap to start voice mode",
+        "location": {
+          "startingColumn": 79,
+          "startingLine": 5308
+        }
+      },
+      {
+        "comment": "",
+        "key": "You're muted — tap to unmute",
+        "location": {
+          "startingColumn": 41,
+          "startingLine": 5326
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tap to mute (Eve keeps talking, you stay quiet)",
+        "location": {
+          "startingColumn": 76,
+          "startingLine": 5326
+        }
+      },
+      {
+        "comment": "",
+        "key": "Attach image — Eve uses llava (vision)",
+        "location": {
+          "startingColumn": 19,
+          "startingLine": 5350
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 5338
+        }
+      },
+      {
+        "comment": "",
+        "key": "Stop Eve speaking",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 5402
+        }
+      },
+      {
+        "comment": "",
+        "key": "DIRECTIVE",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 5354
+        }
+      },
+      {
+        "comment": "",
+        "key": "Send a directive...",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 5361
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 5359
+        }
+      },
+      {
+        "comment": "",
+        "key": "HUB",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 5434
+        }
+      },
+      {
+        "comment": "",
+        "key": "COMMAND HUB",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 5617
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open in New Window",
+        "location": {
+          "startingColumn": 52,
+          "startingLine": 5833
+        }
+      },
+      {
+        "comment": "",
+        "key": "Set Standby",
+        "location": {
+          "startingColumn": 79,
+          "startingLine": 5834
+        }
+      },
+      {
+        "comment": "",
+        "key": "Activate",
+        "location": {
+          "startingColumn": 95,
+          "startingLine": 5834
+        }
+      },
+      {
+        "comment": "",
+        "key": "Run Scan",
+        "location": {
+          "startingColumn": 52,
+          "startingLine": 5835
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open in New Window",
+        "location": {
+          "startingColumn": 48,
+          "startingLine": 5879
+        }
+      },
+      {
+        "comment": "",
+        "key": "No activity yet. Run a scan or activate the agent.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 6063
+        }
+      },
+      {
+        "comment": "",
+        "key": "ACTIVITY",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 6051
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld EVENTS",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 6056
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open channel to %@. Each agent uses its own persona, role, and directives.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 6106
+        }
+      },
+      {
+        "comment": "",
+        "key": "DIRECT COMMS",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 6089
+        }
+      },
+      {
+        "comment": "",
+        "key": "CLEAR",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 6096
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@ is responding…",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 6116
+        }
+      },
+      {
+        "comment": "",
+        "key": "Send to %@…",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 6126
+        }
+      },
+      {
+        "comment": "",
+        "key": "AGENT",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 6203
+        }
+      },
+      {
+        "comment": "",
+        "key": "YOU",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 6203
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open in New Window",
+        "location": {
+          "startingColumn": 52,
+          "startingLine": 6310
+        }
+      },
+      {
+        "comment": "",
+        "key": "Set Active",
+        "location": {
+          "startingColumn": 52,
+          "startingLine": 6311
+        }
+      },
+      {
+        "comment": "",
+        "key": "Set Paused",
+        "location": {
+          "startingColumn": 52,
+          "startingLine": 6312
+        }
+      },
+      {
+        "comment": "",
+        "key": "Set Complete",
+        "location": {
+          "startingColumn": 52,
+          "startingLine": 6313
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open in New Window",
+        "location": {
+          "startingColumn": 48,
+          "startingLine": 6359
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add a record first — Eve needs context to write briefs.",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 6601
+        }
+      },
+      {
+        "comment": "",
+        "key": "No %@ yet. Tap GENERATE.",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 6602
+        }
+      },
+      {
+        "comment": "",
+        "key": "EVE BRIEFS",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 6540
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add at least one record before generating a brief",
+        "location": {
+          "startingColumn": 45,
+          "startingLine": 6565
+        }
+      },
+      {
+        "comment": "",
+        "key": "Generate this brief from records via Grok",
+        "location": {
+          "startingColumn": 99,
+          "startingLine": 6565
+        }
+      },
+      {
+        "comment": "",
+        "key": "GENERATING…",
+        "location": {
+          "startingColumn": 49,
+          "startingLine": 6554
+        }
+      },
+      {
+        "comment": "",
+        "key": "GENERATE",
+        "location": {
+          "startingColumn": 101,
+          "startingLine": 6554
+        }
+      },
+      {
+        "comment": "",
+        "key": "REGENERATE",
+        "location": {
+          "startingColumn": 114,
+          "startingLine": 6554
+        }
+      },
+      {
+        "comment": "",
+        "key": "No records yet. Add intel, findings, or notes.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 6672
+        }
+      },
+      {
+        "comment": "",
+        "key": "RECORDS",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 6613
+        }
+      },
+      {
+        "comment": "",
+        "key": "CLOSE",
+        "location": {
+          "startingColumn": 48,
+          "startingLine": 6621
+        }
+      },
+      {
+        "comment": "",
+        "key": "ADD",
+        "location": {
+          "startingColumn": 58,
+          "startingLine": 6621
+        }
+      },
+      {
+        "comment": "",
+        "key": "Record title",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 6632
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 6644
+        }
+      },
+      {
+        "comment": "",
+        "key": "SAVE",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 6652
+        }
+      },
+      {
+        "comment": "",
+        "key": "·",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 6785
+        }
+      },
+      {
+        "comment": "",
+        "key": "CLOSE",
+        "location": {
+          "startingColumn": 47,
+          "startingLine": 6887
+        }
+      },
+      {
+        "comment": "",
+        "key": "NEW",
+        "location": {
+          "startingColumn": 57,
+          "startingLine": 6887
+        }
+      },
+      {
+        "comment": "",
+        "key": "· P%lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 6992
+        }
+      },
+      {
+        "comment": "",
+        "key": "· OFF",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 6996
+        }
+      },
+      {
+        "comment": "",
+        "key": "DEACTIVATE",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 7053
+        }
+      },
+      {
+        "comment": "",
+        "key": "ACTIVATE",
+        "location": {
+          "startingColumn": 57,
+          "startingLine": 7053
+        }
+      },
+      {
+        "comment": "",
+        "key": "Title",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 7141
+        }
+      },
+      {
+        "comment": "",
+        "key": "Target (e.g. all, eve, agents)",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 7148
+        }
+      },
+      {
+        "comment": "",
+        "key": "PRIORITY",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 7136
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 7130
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 62,
+          "startingLine": 7137
+        }
+      },
+      {
+        "comment": "",
+        "key": "SAVE DIRECTIVE",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 7165
+        }
+      },
+      {
+        "comment": "",
+        "key": "Search memory…",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 7209
+        }
+      },
+      {
+        "comment": "",
+        "key": "CLOSE",
+        "location": {
+          "startingColumn": 47,
+          "startingLine": 7241
+        }
+      },
+      {
+        "comment": "",
+        "key": "NEW",
+        "location": {
+          "startingColumn": 57,
+          "startingLine": 7241
+        }
+      },
+      {
+        "comment": "",
+        "key": "PRIORITY",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 7264
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 7258
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 73,
+          "startingLine": 7265
+        }
+      },
+      {
+        "comment": "",
+        "key": "SAVE MEMORY",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 7279
+        }
+      },
+      {
+        "comment": "",
+        "key": "P%lld",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 7340
+        }
+      },
+      {
+        "comment": "",
+        "key": "Search every thread… (titles + content)",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 7423
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld THREAD%@ MATCH \"%@\"",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 7462
+        }
+      },
+      {
+        "comment": "",
+        "key": "No threads match \"%@\"",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 7473
+        }
+      },
+      {
+        "comment": "",
+        "key": "NEW CONVERSATION",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 7490
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open in New Window",
+        "location": {
+          "startingColumn": 52,
+          "startingLine": 7520
+        }
+      },
+      {
+        "comment": "",
+        "key": "Load in Main Chat",
+        "location": {
+          "startingColumn": 52,
+          "startingLine": 7521
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 7954
+        }
+      },
+      {
+        "comment": "",
+        "key": "·",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 7974
+        }
+      },
+      {
+        "comment": "",
+        "key": "Directory",
+        "location": {
+          "startingColumn": 45,
+          "startingLine": 8010
+        }
+      },
+      {
+        "comment": "",
+        "key": "File",
+        "location": {
+          "startingColumn": 59,
+          "startingLine": 8010
+        }
+      },
+      {
+        "comment": "",
+        "key": "No fields available",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 8061
+        }
+      },
+      {
+        "comment": "",
+        "key": "Eve answers from local Ollama. Falls back to nexus-web Grok if Ollama is down.",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 8190
+        }
+      },
+      {
+        "comment": "",
+        "key": "Eve answers from nexus-web Grok with full tool calling. Falls back to local Ollama if offline.",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 8191
+        }
+      },
+      {
+        "comment": "",
+        "key": "BRAIN MODE",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 8160
+        }
+      },
+      {
+        "comment": "",
+        "key": "LOCAL FIRST",
+        "location": {
+          "startingColumn": 47,
+          "startingLine": 8165
+        }
+      },
+      {
+        "comment": "",
+        "key": "CLOUD FIRST",
+        "location": {
+          "startingColumn": 63,
+          "startingLine": 8165
+        }
+      },
+      {
+        "comment": "",
+        "key": "EVE VOICE",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 8273
+        }
+      },
+      {
+        "comment": "",
+        "key": "ELEVENLABS",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 8278
+        }
+      },
+      {
+        "comment": "",
+        "key": "ACTIVE",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 8301
+        }
+      },
+      {
+        "comment": "",
+        "key": "Scanning installed models…",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 8356
+        }
+      },
+      {
+        "comment": "",
+        "key": "No models found. Run `ollama pull <name>` from terminal.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 8360
+        }
+      },
+      {
+        "comment": "",
+        "key": "LOCAL LLM",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 8344
+        }
+      },
+      {
+        "comment": "",
+        "key": "OLLAMA · :11434",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 8349
+        }
+      },
+      {
+        "comment": "",
+        "key": "ACTIVE",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 8376
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open in new window",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 8451
+        }
+      },
+      {
+        "comment": "",
+        "key": "ESC",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 8559
+        }
+      },
+      {
+        "comment": "",
+        "key": "Jump to anything…",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 8553
+        }
+      },
+      {
+        "comment": "",
+        "key": "No matches.",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 8586
+        }
+      },
+      {
+        "comment": "",
+        "key": "Locked. Open Lumen to authenticate.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 8719
+        }
+      },
+      {
+        "comment": "",
+        "key": "No conversation yet.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 8736
+        }
+      },
+      {
+        "comment": "",
+        "key": "EVE",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 8705
+        }
+      },
+      {
+        "comment": "",
+        "key": "LAST REPLY",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 8725
+        }
+      },
+      {
+        "comment": "",
+        "key": "Quit Lumen",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 8781
+        }
+      },
+      {
+        "comment": "",
+        "key": "No panel selected",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 8885
+        }
+      },
+      {
+        "comment": "",
+        "key": "DETACHED",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 8871
+        }
+      },
+      {
+        "comment": "",
+        "key": "Operation unavailable",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 8974
+        }
+      },
+      {
+        "comment": "",
+        "key": "The requested operation is not loaded in the current operations dataset.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 8977
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@ · %@",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 9004
+        }
+      }
+    ]
+  },
+  "version": 1
+}

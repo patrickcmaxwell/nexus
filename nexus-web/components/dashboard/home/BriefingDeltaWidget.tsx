@@ -76,7 +76,7 @@ export default function BriefingDeltaWidget() {
   if (!hasAnything) return null
 
   return (
-    <section className="rounded-lg border border-violet-400/25 bg-violet-400/[0.04] p-4 flex flex-col gap-3">
+    <section className="rounded-xl border border-border bg-card p-5 flex flex-col gap-3">
       <header className="flex items-center gap-2">
         <h2 className="text-[9px] font-mono font-bold tracking-[0.18em] text-muted-foreground uppercase">
           What changed since last visit
@@ -127,7 +127,7 @@ export default function BriefingDeltaWidget() {
           <Row
             key={r.id}
             Icon={FileText}
-            color="text-cyan-400"
+            color="text-primary"
             primary={r.title}
             secondary={`${r.type.toUpperCase()} · ${r.operationLabel}`}
           />
@@ -159,7 +159,7 @@ function Pill({ label, value, color }: { label: string; value: number; color: "v
   const cls: Record<typeof color, string> = {
     violet: "text-violet-400 border-violet-400/35 bg-violet-400/10",
     amber:  "text-amber-400 border-amber-400/35 bg-amber-400/10",
-    cyan:   "text-cyan-400 border-cyan-400/35 bg-cyan-400/10",
+    cyan:   "text-primary border-primary/35 bg-primary/10",
     rose:   "text-rose-400 border-rose-400/35 bg-rose-400/10",
   }
   return (

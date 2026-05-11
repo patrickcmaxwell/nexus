@@ -7,6 +7,8 @@ import {
   CheckCircle2, ShieldAlert, Monitor, KeyRound,
 } from "lucide-react"
 import FaceReenrollModal from "@/components/security/FaceReenrollModal"
+import { UserAvatar } from "@/components/ui/UserAvatar"
+import ConnectionsPanel from "@/components/dashboard/settings/ConnectionsPanel"
 
 type Initial = {
   humanId: string
@@ -25,6 +27,8 @@ type Session = {
   last_verified_at: string
   expires_at: string
   auth_method: string
+  device_label: string | null
+  ip_address: string | null
   current: boolean
 }
 
@@ -222,40 +226,30 @@ export default function SettingsClient({ initial }: { initial: Initial }) {
   return (
     <div className="min-h-screen p-4 sm:p-6 md:p-10 max-w-3xl mx-auto">
       <div className="mb-8">
-        <p className="font-mono text-[10px] tracking-[0.3em] uppercase mb-1" style={{ color: "var(--nexus-cyan)" }}>Settings</p>
-        <h1 className="text-2xl font-bold text-foreground">Your account</h1>
-        <p className="text-sm text-muted-foreground mt-1">Manage how you appear in Nexus and how you sign in.</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Your account</h1>
+        <p className="text-sm text-muted-foreground mt-2">Manage how you appear in Nexus and how you sign in.</p>
       </div>
 
       {/* IDENTITY */}
       <Card title="Identity" icon={<User size={16} />}>
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
-          <div className="flex flex-col items-center gap-2">
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="avatar" className="w-24 h-24 rounded-full object-cover border" style={{ borderColor: "oklch(0.75 0.18 200 / 0.4)" }} />
-            ) : (
-              <div
-                className="w-24 h-24 rounded-full flex items-center justify-center text-2xl font-bold"
-                style={{ background: "oklch(0.75 0.18 200 / 0.1)", border: "2px solid oklch(0.75 0.18 200 / 0.3)", color: "var(--nexus-cyan)" }}
-              >
-                {(displayName || "?").split(" ").map((s) => s[0]).join("").slice(0, 2).toUpperCase()}
-              </div>
-            )}
-            <div className="flex gap-1.5">
+          <div className="flex flex-col items-center gap-3">
+            <UserAvatar name={displayName} src={avatarUrl} size="xl" ring="muted" />
+            <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="px-2 py-1 font-mono text-[9px] tracking-widest uppercase text-muted-foreground hover:text-foreground border border-border/50 hover:border-border flex items-center gap-1"
+                className="px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground border border-border rounded-lg hover:bg-muted transition-colors flex items-center gap-1.5"
               >
-                <Upload size={11} /> Upload
+                <Upload size={12} /> Upload
               </button>
               {avatarUrl && (
                 <button
                   type="button"
                   onClick={removeAvatar}
-                  className="px-2 py-1 font-mono text-[9px] tracking-widest uppercase text-muted-foreground hover:text-destructive border border-border/50 hover:border-destructive/50 flex items-center gap-1"
+                  className="px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-destructive border border-border rounded-lg hover:bg-destructive/10 transition-colors flex items-center gap-1.5"
                 >
-                  <Trash2 size={11} />
+                  <Trash2 size={12} />
                 </button>
               )}
               <input
@@ -296,7 +290,7 @@ export default function SettingsClient({ initial }: { initial: Initial }) {
             </Field>
 
             {identityMsg && (
-              <p className="font-mono text-[10px] tracking-widest uppercase" style={{ color: identityMsg.ok ? "var(--nexus-success)" : "var(--nexus-danger)" }}>
+              <p className={`text-sm ${identityMsg.ok ? "text-nexus-success" : "text-nexus-danger"}`}>
                 {identityMsg.text}
               </p>
             )}
@@ -304,10 +298,9 @@ export default function SettingsClient({ initial }: { initial: Initial }) {
             <button
               type="submit"
               disabled={identitySaving}
-              className="self-start mt-1 px-4 py-2 font-mono text-[10px] tracking-[0.2em] uppercase flex items-center gap-2 disabled:opacity-40"
-              style={{ background: "oklch(0.75 0.18 200 / 0.12)", border: "1px solid oklch(0.75 0.18 200 / 0.5)", color: "var(--nexus-cyan)" }}
+              className="self-start mt-1 px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity flex items-center gap-2 disabled:opacity-40"
             >
-              {identitySaving ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+              {identitySaving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
               Save changes
             </button>
           </form>
@@ -349,7 +342,7 @@ export default function SettingsClient({ initial }: { initial: Initial }) {
           </Field>
 
           {pinMsg && (
-            <p className="font-mono text-[10px] tracking-widest uppercase" style={{ color: pinMsg.ok ? "var(--nexus-success)" : "var(--nexus-danger)" }}>
+            <p className={`text-sm ${pinMsg.ok ? "text-nexus-success" : "text-nexus-danger"}`}>
               {pinMsg.text}
             </p>
           )}
@@ -357,10 +350,9 @@ export default function SettingsClient({ initial }: { initial: Initial }) {
           <button
             type="submit"
             disabled={pinSaving || !currentPin || !newPin || !confirmPin}
-            className="self-start px-4 py-2 font-mono text-[10px] tracking-[0.2em] uppercase flex items-center gap-2 disabled:opacity-40"
-            style={{ background: "oklch(0.75 0.18 200 / 0.12)", border: "1px solid oklch(0.75 0.18 200 / 0.5)", color: "var(--nexus-cyan)" }}
+            className="self-start px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity flex items-center gap-2 disabled:opacity-40"
           >
-            {pinSaving ? <Loader2 size={12} className="animate-spin" /> : <KeyRound size={12} />}
+            {pinSaving ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />}
             Update PIN
           </button>
         </form>
@@ -373,17 +365,16 @@ export default function SettingsClient({ initial }: { initial: Initial }) {
           you grow a beard, or recognition has been flaky.
         </p>
         {faceMsg && (
-          <p className="font-mono text-[10px] tracking-widest uppercase mb-3" style={{ color: faceMsg.ok ? "var(--nexus-success)" : "var(--nexus-danger)" }}>
+          <p className={`text-sm mb-3 ${faceMsg.ok ? "text-nexus-success" : "text-nexus-danger"}`}>
             {faceMsg.text}
           </p>
         )}
         <button
           type="button"
           onClick={() => setFaceModalOpen(true)}
-          className="px-4 py-2 font-mono text-[10px] tracking-[0.2em] uppercase flex items-center gap-2"
-          style={{ background: "oklch(0.75 0.18 200 / 0.12)", border: "1px solid oklch(0.75 0.18 200 / 0.5)", color: "var(--nexus-cyan)" }}
+          className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity flex items-center gap-2"
         >
-          <Camera size={12} /> Re-enroll face
+          <Camera size={14} /> Re-enroll face
         </button>
       </Card>
 
@@ -402,34 +393,36 @@ export default function SettingsClient({ initial }: { initial: Initial }) {
             {sessions.map((s) => (
               <li
                 key={s.id}
-                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 px-3 py-2"
-                style={{
-                  background: s.current ? "oklch(0.75 0.18 200 / 0.06)" : "transparent",
-                  border: `1px solid ${s.current ? "oklch(0.75 0.18 200 / 0.4)" : "oklch(0.3 0 0 / 0.2)"}`,
-                }}
+                className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 px-4 py-3 rounded-lg border ${
+                  s.current
+                    ? "bg-primary/5 border-primary/40"
+                    : "bg-transparent border-border"
+                }`}
               >
-                <div className="flex flex-col min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs uppercase tracking-widest" style={{ color: s.current ? "var(--nexus-cyan)" : "var(--foreground)" }}>
-                      {s.auth_method}
+                <div className="flex flex-col min-w-0 gap-0.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`text-sm font-medium ${s.current ? "text-primary" : "text-foreground"}`}>
+                      {s.device_label ?? "Unknown device"}
                     </span>
                     {s.current && (
-                      <span className="font-mono text-[9px] tracking-widest uppercase px-1.5 py-0.5" style={{ background: "oklch(0.75 0.18 200 / 0.15)", color: "var(--nexus-cyan)" }}>
+                      <span className="text-xs px-2 py-0.5 rounded-md bg-primary/15 text-primary">
                         This device
                       </span>
                     )}
                   </div>
-                  <span className="text-[10px] text-muted-foreground">
-                    Last active {timeAgo(s.last_verified_at)} · expires {new Date(s.expires_at).toLocaleDateString()}
+                  <span className="text-xs text-muted-foreground flex flex-wrap gap-x-2 gap-y-0.5">
+                    <span>Signed in via {authMethodLabel(s.auth_method)}</span>
+                    <span>· Last active {timeAgo(s.last_verified_at)}</span>
+                    {s.ip_address && <span className="font-mono">· {s.ip_address}</span>}
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => revokeSession(s.id)}
                   disabled={sessionActionId === s.id}
-                  className="self-start sm:self-auto px-2 py-1 font-mono text-[9px] tracking-widest uppercase text-muted-foreground hover:text-destructive active:text-destructive border border-border/40 hover:border-destructive/50 flex items-center gap-1 disabled:opacity-40 min-h-[28px]"
+                  className="self-start sm:self-auto px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-destructive border border-border hover:border-destructive/50 hover:bg-destructive/10 rounded-lg flex items-center gap-1.5 disabled:opacity-40 transition-colors"
                 >
-                  {sessionActionId === s.id ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} />}
+                  {sessionActionId === s.id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
                   Revoke
                 </button>
               </li>
@@ -442,20 +435,23 @@ export default function SettingsClient({ initial }: { initial: Initial }) {
             type="button"
             onClick={signOutEverywhere}
             disabled={sessionActionId === "others" || sessions.filter((s) => !s.current).length === 0}
-            className="px-3 py-2 font-mono text-[10px] tracking-[0.2em] uppercase flex items-center gap-2 disabled:opacity-40"
-            style={{ background: "oklch(0.65 0.05 25 / 0.1)", border: "1px solid oklch(0.65 0.18 25 / 0.4)", color: "oklch(0.85 0.12 25)" }}
+            className="px-4 py-2 text-sm font-medium rounded-lg text-destructive border border-destructive/40 hover:bg-destructive/10 transition-colors flex items-center gap-2 disabled:opacity-40"
           >
-            <ShieldAlert size={12} /> Sign out other devices
+            <ShieldAlert size={14} /> Sign out other devices
           </button>
           <button
             type="button"
             onClick={logoutCurrent}
-            className="px-3 py-2 font-mono text-[10px] tracking-[0.2em] uppercase flex items-center gap-2 text-muted-foreground hover:text-foreground border border-border/50 hover:border-border"
+            className="px-4 py-2 text-sm font-medium rounded-lg text-muted-foreground hover:text-foreground border border-border hover:bg-muted transition-colors flex items-center gap-2"
           >
-            <LogOut size={12} /> Sign out this device
+            <LogOut size={14} /> Sign out this device
           </button>
         </div>
       </Card>
+
+      <div className="mb-5">
+        <ConnectionsPanel />
+      </div>
 
       <FaceReenrollModal
         open={faceModalOpen}
@@ -467,26 +463,19 @@ export default function SettingsClient({ initial }: { initial: Initial }) {
 }
 
 // ── Visual primitives ──────────────────────────────────────────────────────
+//
+// Clean Apple/Linear baseline: soft rounded cards with hairline borders, no
+// HUD corner brackets, no neon-mono labels. Inputs use the theme tokens.
 
 const fieldClass =
-  "w-full px-3 py-2 font-sans text-sm bg-[oklch(0.08_0.01_240)] border border-[oklch(0.75_0.18_200_/_0.25)] focus:border-[oklch(0.75_0.18_200_/_0.6)] focus:outline-none text-foreground"
+  "w-full px-3 py-2.5 text-sm bg-background border border-border rounded-lg focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 text-foreground transition-colors"
 
 function Card({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section
-      className="relative mb-6 p-5 md:p-6 overflow-hidden"
-      style={{
-        background: "oklch(0.10 0.015 240)",
-        border: "1px solid oklch(0.75 0.18 200 / 0.18)",
-      }}
-    >
-      <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-[var(--nexus-cyan)]/40" />
-      <div className="absolute top-0 right-0 w-3 h-3 border-t border-r border-[var(--nexus-cyan)]/40" />
-      <div className="absolute bottom-0 left-0 w-3 h-3 border-b border-l border-[var(--nexus-cyan)]/40" />
-      <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-[var(--nexus-cyan)]/40" />
-      <div className="flex items-center gap-2 mb-4">
-        <div style={{ color: "var(--nexus-cyan)" }}>{icon}</div>
-        <h2 className="font-mono text-[11px] tracking-[0.2em] uppercase text-foreground">{title}</h2>
+    <section className="mb-5 rounded-2xl bg-card border border-border p-5 md:p-6">
+      <div className="flex items-center gap-2.5 mb-5">
+        <div className="text-muted-foreground">{icon}</div>
+        <h2 className="text-base font-semibold text-foreground">{title}</h2>
       </div>
       {children}
     </section>
@@ -496,7 +485,7 @@ function Card({ title, icon, children }: { title: string; icon: React.ReactNode;
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="font-mono text-[9px] tracking-[0.15em] text-muted-foreground uppercase">{label}</span>
+      <span className="text-sm font-medium text-foreground">{label}</span>
       {children}
     </label>
   )
@@ -511,4 +500,11 @@ function timeAgo(iso: string): string {
   if (h < 24) return `${h}h ago`
   const d = Math.round(h / 24)
   return `${d}d ago`
+}
+
+function authMethodLabel(method: string): string {
+  if (method === "pin") return "Email + PIN"
+  if (method === "face") return "Face scan"
+  if (method === "passphrase") return "Passphrase (legacy)"
+  return method
 }

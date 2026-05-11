@@ -1,0 +1,12 @@
+{
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/build/SourcePackages/checkouts/SwiftTerm/Sources/SwiftTerm/Apple/AppleTerminalView.swift" : {
+    "abi-baseline-json" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/SwiftTerm.build/Release/SwiftTerm.build/Objects-normal/arm64/SwiftTerm.abi.json",
+    "const-values" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/SwiftTerm.build/Release/SwiftTerm.build/Objects-normal/arm64/SwiftTerm-primary.swiftconstvalues",
+    "dependencies" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/SwiftTerm.build/Release/SwiftTerm.build/Objects-normal/arm64/SwiftTerm-primary.d",
+    "diagnostics" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/SwiftTerm.build/Release/SwiftTerm.build/Objects-normal/arm64/SwiftTerm-primary.dia",
+    "objc-header" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/SwiftTerm.build/Release/SwiftTerm.build/Objects-normal/arm64/SwiftTerm-Swift.h",
+    "swiftdoc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/SwiftTerm.build/Release/SwiftTerm.build/Objects-normal/arm64/SwiftTerm.swiftdoc",
+    "swiftmodule" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/SwiftTerm.build/Release/SwiftTerm.build/Objects-normal/arm64/SwiftTerm.swiftmodule",
+    "swiftsourceinfo" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/SwiftTerm.build/Release/SwiftTerm.build/Objects-normal/arm64/SwiftTerm.swiftsourceinfo"
+  }
+}

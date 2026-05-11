@@ -1,0 +1,12 @@
+{
+  "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/AgentWindow.swift" : {
+    "abi-baseline-json" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/lumen_desktop.abi.json",
+    "const-values" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/lumen-desktop-primary.swiftconstvalues",
+    "dependencies" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/lumen-desktop-primary.d",
+    "diagnostics" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/lumen-desktop-primary.dia",
+    "objc-header" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/lumen_desktop-Swift.h",
+    "swiftdoc" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/lumen_desktop.swiftdoc",
+    "swiftmodule" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/lumen_desktop.swiftmodule",
+    "swiftsourceinfo" : "/Users/shadow/code/nexus/lumen/lumen-desktop/build/Build/Intermediates.noindex/lumen-desktop.build/Release/lumen-desktop.build/Objects-normal/arm64/lumen_desktop.swiftsourceinfo"
+  }
+}

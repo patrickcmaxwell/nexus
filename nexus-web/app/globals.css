@@ -251,7 +251,19 @@ html.light[data-ui="simple"] {
     overflow-x: hidden;
     /* Better mobile touch behavior */
     -webkit-tap-highlight-color: transparent;
+    /* Apple-style optical tightening + tighter line-height for headings */
+    letter-spacing: -0.011em;
+    line-height: 1.55;
+    font-feature-settings: "kern", "liga", "ss01", "ss02", "cv02";
+    text-rendering: optimizeLegibility;
   }
+  h1, h2, h3, h4 {
+    letter-spacing: -0.018em;
+    line-height: 1.2;
+  }
+  /* Tabular numbers everywhere by default — financial/data interfaces look
+   * better with consistent digit widths. */
+  .tabular-nums { font-variant-numeric: tabular-nums; }
 
   /* ══ iOS ZOOM PREVENTION ══════════════════════════════════════════════
      iOS Safari zooms in when focusing an input whose font-size < 16px.

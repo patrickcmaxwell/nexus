@@ -10,7 +10,10 @@ import WebKit
 
 struct AuthGate: View {
     @EnvironmentObject var auth: AuthManager
-    @State private var mode: Mode = .passcode
+    // Default to face mode — face capture is the primary verification path
+    // for this device. Passcode remains available via the pill toggle as a
+    // fallback when the camera is unusable or face match fails.
+    @State private var mode: Mode = .face
     @State private var hostStatus: HostStatus = .resolving
 
     enum Mode { case passcode, face }

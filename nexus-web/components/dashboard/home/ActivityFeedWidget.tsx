@@ -224,7 +224,7 @@ function ActivityModal({ activity, onClose }: { activity: Item[]; onClose: () =>
                           </span>
                         </div>
 
-                        <ChevronRight size={12} style={{ color: "rgba(0,200,255,0)", marginTop: 4, flexShrink: 0, transition: "color 0.15s" }} className="group-hover:!text-cyan-400/40" />
+                        <ChevronRight size={12} style={{ color: "rgba(0,200,255,0)", marginTop: 4, flexShrink: 0, transition: "color 0.15s" }} className="group-hover:!text-primary/40" />
                       </Link>
                     </li>
                   )
@@ -256,7 +256,7 @@ export default function ActivityFeedWidget({ activity }: { activity: Item[] }) {
     <>
       {open && <ActivityModal activity={activity} onClose={() => setOpen(false)} />}
 
-      <section className="rounded-xl border border-border bg-card/30 overflow-hidden">
+      <section className="rounded-xl border border-border bg-card overflow-hidden">
         <header className="flex items-center justify-between px-4 py-3 border-b border-border">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-secondary border border-border">
@@ -270,7 +270,7 @@ export default function ActivityFeedWidget({ activity }: { activity: Item[] }) {
 
           <button
             onClick={() => setOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-[9px] uppercase tracking-widest border transition-colors hover:border-accent/40 hover:text-accent"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors hover:border-accent/40 hover:text-accent"
             style={{ borderColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)" }}
           >
             {activity.length > 0 && (
@@ -328,7 +328,7 @@ export default function ActivityFeedWidget({ activity }: { activity: Item[] }) {
               <li>
                 <button
                   onClick={() => setOpen(true)}
-                  className="w-full flex items-center justify-center gap-1.5 py-2.5 text-[10px] font-mono uppercase tracking-widest text-muted-foreground hover:text-accent transition-colors border-t border-border/50"
+                  className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-muted-foreground hover:text-accent transition-colors border-t border-border/50"
                 >
                   +{activity.length - 3} more events
                   <ChevronRight size={10} />

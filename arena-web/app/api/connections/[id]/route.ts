@@ -64,9 +64,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.values && typeof body.values === "object") {
     const incoming = body.values as Record<string, string>
     const existingCreds = (existing.credentials as Record<string, string>) ?? {}
-    const existingConfig = (existing.config as Record<string, string>) ?? {}
+    const existingConfig = (existing.config as Record<string, unknown>) ?? {}
     const credentials: Record<string, string> = { ...existingCreds }
-    const config: Record<string, string> = { ...existingConfig }
+    const config: Record<string, unknown> = { ...existingConfig }
     for (const field of provider.connectFields) {
       const v = incoming[field.key]
       if (v === undefined) continue
@@ -77,6 +77,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         if (v !== "") credentials[field.key] = v
       } else {
         config[field.key] = v
+      }
+    }
+    // Pass-through for OAuth-flow extras the per-provider settings page
+    // sends (default_team_id, permissions JSON, etc.) — keys not declared
+    // in connectFields are still honored when the user owns the row.
+    const FIELD_KEYS = new Set(provider.connectFields.map(f => f.key))
+    const PASSTHROUGH = new Set(["default_team_id", "permissions"])
+    for (const key of Object.keys(incoming)) {
+      if (FIELD_KEYS.has(key)) continue
+      if (!PASSTHROUGH.has(key)) continue
+      const raw = incoming[key]
+      if (key === "permissions") {
+        // Sent as JSON string from the settings page; parse and store as object
+        try { config.permissions = JSON.parse(raw) } catch { /* skip bad JSON */ }
+      } else {
+        config[key] = raw
       }
     }
     update.credentials = credentials

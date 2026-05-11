@@ -97,7 +97,7 @@ export default function ArenaPanel({
     <main className="min-h-screen p-6 md:p-10 max-w-5xl mx-auto">
       <header className="mb-8 flex items-start justify-between">
         <div>
-          <p className="font-mono text-[10px] tracking-[0.3em] uppercase mb-1" style={{ color: "var(--nexus-cyan)" }}>
+          <p className="font-mono text-[10px] tracking-[0.3em] uppercase mb-1" style={{ color: "var(--primary)" }}>
             Arena
           </p>
           <h1 className="text-2xl font-bold text-foreground">The executor layer</h1>
@@ -111,7 +111,7 @@ export default function ArenaPanel({
           rel="noreferrer"
           className="px-4 py-2 font-mono text-[10px] tracking-[0.2em] uppercase flex items-center gap-2"
           style={{
-            color: "var(--nexus-cyan)",
+            color: "var(--primary)",
             background: "oklch(0.75 0.18 200 / 0.12)",
             border: "1px solid oklch(0.75 0.18 200 / 0.5)",
           }}
@@ -165,7 +165,7 @@ export default function ArenaPanel({
 
       {/* Stats grid */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-8">
-        <StatTile label="Total actions" value={actions.length} color="var(--nexus-cyan)" icon={Activity} />
+        <StatTile label="Total actions" value={actions.length} color="var(--primary)" icon={Activity} />
         <StatTile label="Successful"    value={successCount}  color="oklch(0.78 0.18 155)" icon={CheckCircle2} />
         <StatTile label="Errored"       value={errorCount}    color="oklch(0.65 0.22 25)"  icon={AlertCircle} />
         <StatTile label="Mocked"        value={mockedCount}   color="oklch(0.85 0.16 90)"  icon={Sparkles} />
@@ -174,14 +174,14 @@ export default function ArenaPanel({
       {/* Connections summary */}
       <section className="mb-8">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-mono text-[10px] tracking-[0.25em] uppercase" style={{ color: "var(--nexus-cyan)" }}>
+          <h2 className="font-mono text-[10px] tracking-[0.25em] uppercase" style={{ color: "var(--primary)" }}>
             Your Connections
           </h2>
           <a
             href={`${ARENA_BASE}/dashboard`}
             target="_blank"
             rel="noreferrer"
-            className="font-mono text-[9px] tracking-widest uppercase text-muted-foreground hover:text-foreground flex items-center gap-1"
+            className="text-xs font-medium text-muted-foreground hover:text-foreground flex items-center gap-1"
           >
             Add or edit <ArrowUpRight size={10} />
           </a>
@@ -203,7 +203,7 @@ export default function ArenaPanel({
 
       {/* Endpoint health */}
       <section className="mb-8">
-        <h2 className="font-mono text-[10px] tracking-[0.25em] uppercase mb-3" style={{ color: "var(--nexus-cyan)" }}>
+        <h2 className="font-mono text-[10px] tracking-[0.25em] uppercase mb-3" style={{ color: "var(--primary)" }}>
           Service Health
         </h2>
         <EndpointsHealth endpoints={ARENA_ENDPOINTS} baseUrl={ARENA_BASE} />
@@ -212,15 +212,15 @@ export default function ArenaPanel({
       {/* Action log */}
       <section>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-mono text-[10px] tracking-[0.25em] uppercase" style={{ color: "var(--nexus-cyan)" }}>
+          <h2 className="font-mono text-[10px] tracking-[0.25em] uppercase" style={{ color: "var(--primary)" }}>
             Action Log
           </h2>
           <button
             onClick={refresh}
             disabled={refreshing}
-            className="px-3 py-1.5 font-mono text-[9px] tracking-widest uppercase flex items-center gap-1.5 disabled:opacity-40"
+            className="px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 disabled:opacity-40"
             style={{
-              color: "var(--nexus-cyan)",
+              color: "var(--primary)",
               background: "oklch(0.75 0.18 200 / 0.1)",
               border: "1px solid oklch(0.75 0.18 200 / 0.4)",
             }}
@@ -285,7 +285,7 @@ function StatTile({
         <Icon size={12} style={{ color }} />
         <p className="font-mono text-2xl font-bold tabular-nums" style={{ color }}>{value}</p>
       </div>
-      <p className="font-mono text-[9px] tracking-widest uppercase text-white/45">{label}</p>
+      <p className="text-xs font-medium text-white/45">{label}</p>
     </div>
   )
 }
@@ -323,14 +323,14 @@ function FilterGroup({
   return (
     <div className="flex items-center gap-1 p-1 bg-white/[0.04] border border-white/8">
       <Filter size={10} className="text-white/35 mx-1" />
-      <span className="font-mono text-[8px] tracking-widest uppercase text-white/35 mr-1">{label}</span>
+      <span className="text-xs font-medium uppercase text-white/35 mr-1">{label}</span>
       {options.map((opt) => (
         <button
           key={opt.key}
           onClick={() => onChange(opt.key)}
           className="font-mono text-[9px] tracking-[0.15em] uppercase px-2 py-1"
           style={{
-            color: value === opt.key ? "var(--nexus-cyan)" : "rgba(255,255,255,0.5)",
+            color: value === opt.key ? "var(--primary)" : "rgba(255,255,255,0.5)",
             background: value === opt.key ? "oklch(0.75 0.18 200 / 0.12)" : "transparent",
             border: value === opt.key ? "1px solid oklch(0.75 0.18 200 / 0.4)" : "1px solid transparent",
           }}
@@ -354,13 +354,13 @@ function ActionRow({ action }: { action: Action }) {
       )}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="font-mono text-xs uppercase tracking-widest text-white/85">{action.action}</span>
+          <span className="text-xs font-medium text-foreground">{action.action}</span>
           {action.caller && (
-            <span className="font-mono text-[9px] tracking-widest uppercase text-white/40">via {action.caller}</span>
+            <span className="text-xs font-medium text-white/40">via {action.caller}</span>
           )}
           {mocked && (
             <span
-              className="font-mono text-[9px] tracking-widest uppercase px-1.5 py-0.5 inline-flex items-center gap-1"
+              className="text-xs font-medium px-1.5 py-0.5 inline-flex items-center gap-1"
               style={{ color: "rgb(252,211,77)", background: "rgba(252,211,77,0.1)", border: "1px solid rgba(252,211,77,0.4)" }}
             >
               <Sparkles size={9} /> mocked
@@ -374,7 +374,7 @@ function ActionRow({ action }: { action: Action }) {
           <p className="text-[11px] text-white/45 mt-0.5 truncate">{detail}</p>
         )}
       </div>
-      <span className="font-mono text-[9px] tracking-widest text-white/40 shrink-0">
+      <span className="text-xs text-muted-foreground shrink-0">
         {relative(action.created_at)}
       </span>
     </li>

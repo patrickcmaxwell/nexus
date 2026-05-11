@@ -1,0 +1,48 @@
+{
+  "source": "/Users/shadow/code/nexus/lumen/lumen-desktop/lumen-desktop/PresenceLockView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "App stays running. Sync, terminals, scheduled jobs continue underneath.",
+        "location": {
+          "startingColumn": 14,
+          "startingLine": 199
+        }
+      },
+      {
+        "comment": "",
+        "key": "LUMEN LOCKED",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 90
+        }
+      },
+      {
+        "comment": "",
+        "key": "Passcode",
+        "location": {
+          "startingColumn": 25,
+          "startingLine": 161
+        }
+      },
+      {
+        "comment": "",
+        "key": "VERIFYING…",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 183
+        }
+      },
+      {
+        "comment": "",
+        "key": "UNLOCK",
+        "location": {
+          "startingColumn": 59,
+          "startingLine": 183
+        }
+      }
+    ]
+  },
+  "version": 1
+}

@@ -29,19 +29,48 @@ Provider webhooks ────────────────────�
                                                   └──►  Supabase audit log (inbound/* prefix)
 ```
 
-## Provider integrations (5 live)
+## Provider integrations (5 live; 4 with full OAuth)
 
-Each provider lives in `arena-web/lib/providers/{name}.ts` and implements the `Provider` interface from `arena-web/lib/providers/types.ts`. Adding a new provider = one file.
+Each provider has a base implementation in `arena-web/lib/providers/{name}.ts`. The 4 with OAuth also have `arena-web/lib/oauth/{name}.ts` helpers + start/callback/{data} routes + an Apple-styled `/connect/{name}` landing + `/connect/{name}/[id]/settings` page with a live data picker fetched directly from the provider.
 
-| Provider | File | Methods supported | Notes |
-|---|---|---|---|
-| **ClickUp** | `lib/providers/clickup.ts` | createTask, updateTask, testConnection | Needs `CLICKUP_API_KEY` + list id per connection |
-| **Notion** | `lib/providers/notion.ts` | createTask, updateTask, testConnection | Database id per connection; pages = "tasks" |
-| **GitHub** | `lib/providers/github.ts` | createTask, updateTask, testConnection | Issues = tasks; per-repo connection |
-| **Stripe** | `lib/providers/stripe.ts` | routePayment, testConnection | Test mode by default; live keys per connection |
-| **Slack** | `lib/providers/slack.ts` | createTask, testConnection | Posts message to channel = "task" |
+| Provider | OAuth | Manual fallback | Live picker | Settings path |
+|---|---|---|---|---|
+| **ClickUp** | ✅ | ✅ `/connect/clickup/manual` | List (workspace → folder → list) | `/connect/clickup/[id]/settings` |
+| **Notion** | ✅ | ✅ `/connect/notion/manual` | Database (only those shared with the integration) + property name mapping | `/connect/notion/[id]/settings` |
+| **GitHub** | ✅ | ✅ `/connect/github/manual` | Repo (private repos marked 🔒) | `/connect/github/[id]/settings` |
+| **Slack** | ✅ | (none) | Channel (private channels marked 🔒, requires bot to be invited) | `/connect/slack/[id]/settings` |
+| **Stripe** | ❌ (intentional) | ✅ `/connect/stripe` | — | `/connect/stripe/[id]/edit` |
 
-Provider methods are optional — connections only show options the provider supports.
+Stripe stays manual because payments are high-blast-radius; flipping it to OAuth is a deliberate decision (Q1 in `/code/echo/decisions.md`).
+
+### OAuth flow shape (consistent across all 4)
+
+1. User visits `/connect/{provider}` — page detects `{PROVIDER}_CLIENT_ID` env var. If missing, shows inline 5-6 step admin guide (no doc-hunting).
+2. User clicks "Continue with {Provider}" → `/api/oauth/{provider}/start` mints a signed CSRF state cookie + redirects to provider's consent page.
+3. Provider redirects back to `/api/oauth/{provider}/callback` with `code` + `state`.
+4. Callback verifies state cookie, exchanges code for access token, fetches authorized identity (workspace name / username / repo list / etc.), persists/updates `arena_connections` row.
+5. Redirects to `/connect/{provider}/[id]/settings?just_connected=1` — Apple-styled settings page with live data picker (fetched per-render via the provider's API), default-target selection, friendly name, webhook URL display, disconnect.
+
+Tokens stored in `arena_connections.credentials.access_token` (Notion also stores `refresh_token`; ClickUp tokens are long-lived; GitHub OAuth Apps don't expire by default; Slack bot tokens are long-lived).
+
+Provider lib reads `connection.credentials.access_token` first, falls back to legacy `api_key` / `token` / `bot_token` / `integration_token` for backward compatibility with manual-paste connections.
+
+## Eve handoff for missing connections
+
+When Eve fires `arena_task_create` and the user has NO matching provider connection, `/api/task/create` returns:
+
+```json
+{
+  "success": false,
+  "needs_connection": true,
+  "provider": "clickup",
+  "provider_name": "ClickUp",
+  "connect_url": "https://arena.maxnexus.io/connect/clickup",
+  "message": "You haven't connected ClickUp yet. Open ... to connect, then ask me again."
+}
+```
+
+Eve's system prompt has a directive: when a tool returns `needs_connection: true`, surface the `connect_url` naturally as a clickable link instead of pretending the action worked or apologizing.
 
 ## Connection lifecycle
 
@@ -81,79 +110,93 @@ The 3 task/payment tools (`arena_task_create`, `arena_task_update`, `arena_payme
 
 ## What's deployed and working
 
-- ✅ All 5 providers
-- ✅ Connection add/edit/delete/test
+- ✅ All 5 providers (4 with OAuth, 1 manual)
+- ✅ Connection add (OAuth or manual) / edit / delete / test
+- ✅ Per-connection settings page with live data picker (lists / databases / repos / channels)
 - ✅ Eve outbound tool routing per provider
+- ✅ Eve handoff: missing-connection responses include `connect_url` so Eve can direct the user to sign in
 - ✅ Audit log with caller + status + result
 - ✅ Auto-flip to errored on auth failure
 - ✅ Notification email on error (Resend, 24h throttle, requires `RESEND_API_KEY`)
 - ✅ First-run guide
 - ✅ Webhook receiver with per-connection secret + URL display
-- ✅ `arena_failures` Eve tool
-- ✅ `arena_providers` Eve tool
+- ✅ Apple/Linear-style design across the whole platform
+- ✅ Cross-subdomain cookie auth (`SESSION_COOKIE_DOMAIN=.maxnexus.io` on both Vercel projects)
+- ✅ Eve introspection tools: `arena_providers`, `arena_failures`
 
 ## What needs Patrick's hand
 
-These can't happen autonomously:
+To activate any provider:
 
-| Task | Where | Impact if skipped |
-|---|---|---|
-| **DNS: add `arena.maxnexus.io`** | DNS provider for maxnexus.io | Must use Vercel-issued URL; cross-subdomain cookie auth doesn't work |
-| **Vercel: attach `arena.maxnexus.io` to arena-web project** | Vercel dashboard → arena-web → Domains | (depends on DNS) |
-| **Set `SESSION_COOKIE_DOMAIN=.maxnexus.io` on BOTH nexus-web AND arena-web** | Vercel env vars | Without this, signing into nexus-web doesn't carry to arena-web — users have to sign in twice |
-| **Set `RESEND_API_KEY` on arena-web** | Vercel env vars (copy from nexus-web) | Connection error emails won't send (graceful — flips status, dashboard shows banner, but no email) |
-| **Set `ARENA_BASE_URL=https://arena.maxnexus.io` on nexus-web** | Vercel env vars | Eve will keep using `https://arena.maxnexus.io` — works, just not pretty |
-| **Provider API keys** | Either env vars OR per-connection in the UI | Without them, providers fall back to safe-mock mode (action logged with `mocked: true` flag) |
+1. Register OAuth app at the provider's developer portal (links + steps inline on each `/connect/{provider}` page when env vars aren't set)
+2. Set `{PROVIDER}_CLIENT_ID` + `{PROVIDER}_CLIENT_SECRET` on arena-web Vercel env
 
-## Test plan once domain is live
+That's the whole story per provider. ~5 min each. Detail in `mission/pending-changes.md` "Provider OAuth bring-up."
 
-1. Open `https://arena.maxnexus.io` → signs you in via existing nexus-web session (cookie auth)
-2. Land on `/dashboard` → first-run guide appears (no connections yet)
-3. Click "Connect ClickUp" → paste API key + list id → save → connection appears in list
-4. Click the pencil → see the webhook URL (https://arena.maxnexus.io/api/webhooks/...)
-5. Test it: POST a fake event to the webhook URL → check audit log for `inbound/clickup/X` entry
-6. In nexus-web Eve chat: "create a task to test the integration" → Eve fires `arena_task_create`, real ClickUp task appears
-7. Ask Eve: "is anything broken?" → calls `arena_failures` → returns `healthy: true`
-8. Rotate the ClickUp key on ClickUp's side, fire another task → auth error → status flips to errored → email lands within 24h
-9. Open `/dashboard` again → errored banner shows, click pencil → rotate creds → status flips back to active
+Still pending Patrick's decisions:
+- **Q1**: Stripe — flip to OAuth or keep manual API key forever? (Currently kept manual — payments are high-blast-radius.)
+- **Q2** (NEW): Webhook HMAC signature verification — important before turning webhooks loose on production-critical flows. Not built yet (foundation exists; per-provider signature schemes deferred).
+
+## Test plan once a provider is connected
+
+1. **Test the no-connection handoff first** (before connecting): open Eve at `portal.maxnexus.io/dashboard/maxwell` → *"create a clickup task called 'first test'"* → Eve should reply with the connect URL, not silently fail
+2. **Connect**: visit `arena.maxnexus.io/connect/clickup` → "Continue with ClickUp" → consent → land on settings page with green "Connected" banner
+3. **Pick default**: live dropdown of your real ClickUp lists → choose one → Save
+4. **Eve test for real**: same prompt → real task lands in the list you picked
+5. **Verify audit log**: `arena.maxnexus.io/dashboard` → "Recent activity" panel → see the `task/create` entry with `mocked: false`
+6. **Eve introspection**: ask Eve *"is anything broken?"* → `arena_failures` returns `healthy: true`
+7. **Test failure handling**: rotate the ClickUp key on ClickUp's side → Eve fires another task → auth error → status flips to errored → email lands within 24h (if `RESEND_API_KEY` set)
+8. **Repeat for Notion / GitHub / Slack** — same shape, different developer portal
 
 ## Critical files
 
 ```
-arena-web/app/dashboard/page.tsx                          ← user's dashboard
-arena-web/app/connect/[provider]/page.tsx                 ← add connection
-arena-web/app/connect/[provider]/[id]/edit/page.tsx       ← edit / rotate / webhook URL
-arena-web/app/api/connections/route.ts                    ← list/create/delete
-arena-web/app/api/connections/[id]/route.ts               ← per-connection get/patch
-arena-web/app/api/connections/test/route.ts               ← test before save
-arena-web/app/api/task/{create,update}/route.ts           ← Eve outbound
-arena-web/app/api/payment/route.ts                        ← Eve outbound
-arena-web/app/api/sync/push/route.ts                      ← Eve outbound
-arena-web/app/api/webhooks/[connectionId]/[secret]/route.ts ← inbound webhooks
-arena-web/lib/providers/{clickup,notion,github,stripe,slack}.ts
-arena-web/lib/providers/types.ts                          ← Provider interface
-arena-web/lib/providers/index.ts                          ← registry
-arena-web/lib/connection-health.ts                        ← auto error tracking + notify
-arena-web/lib/email/sendConnectionError.ts                ← Resend integration
-arena-web/lib/audit.ts                                    ← arena_action_log writer
-arena-web/lib/auth/session.ts                             ← cookie auth (mirrors nexus-web)
-arena-web/components/{ConnectionsList,RecentActions,FirstRunGuide}.tsx
-nexus-web/app/api/eve/route.ts                            ← Eve tool definitions + execution
+arena-web/app/dashboard/page.tsx                                       ← user's dashboard
+arena-web/app/connect/[provider]/page.tsx                              ← generic add (used by Stripe + manual fallbacks)
+arena-web/app/connect/[provider]/[id]/edit/page.tsx                    ← generic edit
+arena-web/app/connect/{clickup,notion,github,slack}/page.tsx           ← OAuth landing pages (provider-specific)
+arena-web/app/connect/{clickup,notion,github,slack}/{Provider}ConnectClient.tsx ← landing UI
+arena-web/app/connect/{clickup,notion,github,slack}/[id]/settings/page.tsx     ← per-connection settings
+arena-web/app/connect/{clickup,notion,github,slack}/[id]/settings/{Provider}SettingsClient.tsx
+arena-web/app/connect/{clickup,notion,github,slack}/manual/page.tsx    ← legacy manual fallback
+arena-web/app/api/connections/route.ts                                 ← list/create/delete
+arena-web/app/api/connections/[id]/route.ts                            ← per-connection get/patch
+arena-web/app/api/connections/test/route.ts                            ← test before save
+arena-web/app/api/oauth/{clickup,notion,github,slack}/start/route.ts   ← initiate OAuth flow
+arena-web/app/api/oauth/{clickup,notion,github,slack}/callback/route.ts ← exchange code → token → persist
+arena-web/app/api/oauth/clickup/lists/route.ts                         ← live list picker
+arena-web/app/api/oauth/notion/databases/route.ts                      ← live database picker
+arena-web/app/api/oauth/github/repos/route.ts                          ← live repo picker
+arena-web/app/api/oauth/slack/channels/route.ts                        ← live channel picker
+arena-web/app/api/task/{create,update}/route.ts                        ← Eve outbound (with needs_connection handoff)
+arena-web/app/api/payment/route.ts                                     ← Eve outbound (Stripe)
+arena-web/app/api/sync/push/route.ts                                   ← Eve outbound
+arena-web/app/api/webhooks/[connectionId]/[secret]/route.ts            ← inbound webhooks
+arena-web/lib/oauth/{clickup,notion,github,slack}.ts                   ← OAuth helpers per provider
+arena-web/lib/providers/{clickup,notion,github,stripe,slack}.ts        ← provider implementations (read OAuth tokens or legacy)
+arena-web/lib/providers/index.ts                                       ← registry + Provider interface
+arena-web/lib/connection-health.ts                                     ← auto error tracking + notify
+arena-web/lib/email/sendConnectionError.ts                             ← Resend integration
+arena-web/lib/audit.ts                                                 ← arena_action_log writer
+arena-web/lib/auth/session.ts                                          ← cookie auth (mirrors nexus-web)
+arena-web/components/{ConnectionsList,RecentActions,FirstRunGuide}.tsx ← clean Apple-style baseline
+nexus-web/app/api/eve/route.ts                                         ← Eve tool definitions + execution + needs_connection directive
 ```
 
 ## Schema migrations applied
 
 - **022_arena_connection_notifications** — adds `arena_connections.error_notified_at TIMESTAMPTZ` for 24h notification throttle
 - **023_arena_webhook_secret** — adds `arena_connections.webhook_secret TEXT NOT NULL`, default `encode(gen_random_bytes(24), 'hex')`, backfilled on existing rows
+- **024_schedules** — `schedules` + `schedule_runs` tables for Operation Calendar (native scheduling)
 
 Earlier migrations (017, 020, 021) created the original `arena_action_log` and `arena_connections` tables — pre-existing.
 
-## Next steps after domain is live
+## Next steps
 
 In rough priority:
 
-1. **Per-provider HMAC verification on webhooks** — GitHub uses X-Hub-Signature-256, Stripe uses stripe-signature, Slack uses X-Slack-Signature + timestamp, ClickUp uses X-Signature. Add per-provider signature check before logging inbound events.
+1. **Per-provider HMAC verification on webhooks** — GitHub uses X-Hub-Signature-256, Stripe uses stripe-signature, Slack uses X-Slack-Signature + timestamp, ClickUp uses X-Signature. Add per-provider signature check before logging inbound events. Foundation exists; per-provider code deferred.
 2. **Webhook → Eve trigger** — when a Slack `:done:` reaction lands on an Eve-posted message, post status update back into the conversation. Closes the loop.
-3. **Per-connection API key** — ClickUp/Notion/etc keys live on the connection row's `credentials` field today (per-user). Document this in the UI; right now users might assume there's a global env var.
-4. **Connection-test cron** — every hour, hit `provider.testConnection()` for all active connections; auto-flip status before the user notices. Cheaper than waiting for the next Eve call to discover the breakage.
-5. **Stripe live mode safeguards** — currently any Stripe key works. Consider requiring an explicit `?live=1` query param on connection-create for sk_live_ keys, with confirmation dialog. Payments are high-blast-radius.
+3. **Connection-test cron** — every hour, hit `provider.testConnection()` for all active connections; auto-flip status before the user notices. Cheaper than waiting for the next Eve call to discover the breakage.
+4. **External calendar sync** (Google / Apple) — ships as Arena providers; uses Operation Calendar's `external_event` table to flow back into native scheduling.
+5. **Stripe OAuth + live-mode safeguards** — Q1 decision pending. If we go OAuth, Stripe Connect for split payments; if we stay manual, at minimum require an explicit `?live=1` confirmation dialog when an `sk_live_` key is pasted.
