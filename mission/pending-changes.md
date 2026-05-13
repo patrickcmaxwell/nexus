@@ -4,7 +4,86 @@ Proposed code changes waiting on a condition. Each entry has a **trigger** that 
 
 ---
 
-## ⭐ TOP PRIORITY (2026-05-08): Provider OAuth bring-up
+## ⭐ NEW TOP PRIORITY (2026-05-12): Push nexus-web Trash2 fix to production
+
+**Trigger:** ASAP. Production `portal.maxnexus.io` dashboard currently crashes with `ReferenceError: Trash2 is not defined` on render.
+
+**What's done:** `components/dashboard/ConsoleClient.tsx` — added `Trash2` to the lucide-react import (lines 5–8). Edit committed locally; **NOT pushed**.
+
+**What's pending:**
+```
+cd /Users/shadow/code/nexus/nexus-web
+git add components/dashboard/ConsoleClient.tsx
+git commit -m "fix: add missing Trash2 import to ConsoleClient"
+git push
+```
+Vercel auto-deploys (~30–60s). Verify dashboard renders without the error overlay.
+
+---
+
+## (2026-05-12): nexus-web mobile + iPad chat responsive audit
+
+**Trigger:** Patrick can spare 1–2 hours with focus on responsive breakpoint work.
+
+**Problem:** Chat composers (`MaxwellClient.tsx`, `EveCommand.tsx`) cramped on mobile (≤480px) and iPad (768–1024px). Layouts use desktop-first flexbox that breaks at small widths.
+
+**What's needed:**
+- Audit `components/dashboard/MaxwellClient.tsx` for fixed widths + flex assumptions.
+- Apply Tailwind responsive prefixes (`sm:` / `md:` / `lg:`) to chat composer + sidebar + message rail layouts.
+- Match `MentionInput` `maxHeightClass` / `expandable` props per `feedback_chat_input_compact.md` memory rules.
+- Test on iPhone Safari (real device or DevTools `iPhone 15 Pro`), iPad Safari (`iPad mini`), and `iPad Pro 12.9"` (landscape).
+
+---
+
+## (2026-05-12): Push notifications APN cert + server-side dispatch
+
+**Trigger:** Patrick gets APN cert from Apple Developer portal AND wants to wire backend.
+
+**iOS side already done** in Settings → NOTIFICATIONS:
+- Master toggle requests UNUserNotificationCenter permission
+- Four event toggles persist intent under `nexus.notify.*` UserDefaults keys (`agentDone` / `scheduleFired` / `researchDone` / `opUpdated`)
+- Permission state surface shown live
+
+**Backend side pending:**
+- APN cert from developer.apple.com → upload to APN provider service (Vercel functions can't do APN directly; need a service like Firebase Cloud Messaging or a custom server)
+- Device registration endpoint on nexus-web — POST device token + user_id
+- Dispatch on agent-completed / schedule-fired / research-done events (hook into the existing cron + research-job pipeline)
+- Read per-user `nexus.notify.*` prefs server-side to decide whether to fire
+
+---
+
+## (2026-05-12): Eve watches terminal sessions (proactive alerts)
+
+**Trigger:** Push notifications done (above) AND terminal bridge proven stable in daily use.
+
+**Idea:** Eve monitors live `terminal_sessions.last_snapshot` stream across Patrick's Lumen-spawned Claude Code sessions. Server-side cron tails active sessions, feeds snapshots to Eve's analyst with a "should I alert?" prompt. Dispatches push when:
+- Session hits a blocker (`error:` patterns, y/n prompt waiting, hung input)
+- Long-running task finishes
+- Session starts doing something off-script (rm -rf, modifying high-blast-radius files, etc.)
+
+Could also be granted decision authority on common Y/N prompts based on directive rules — Eve approves safe operations automatically, escalates the rest.
+
+---
+
+## (2026-05-12): iOS offline cache + queued writes
+
+**Trigger:** Patrick takes the iPhone somewhere with bad signal for >1 hour and the dead-data experience becomes painful.
+
+**Idea:** SQLite or `URLCache` layer for read-most list endpoints (operations / agents / schedules / memory) — cached responses served when network unreachable. Write endpoints (createOperation, addRecord, runAgent, etc.) queue locally and replay on next network success. Conflict resolution: server is source of truth on read-back.
+
+---
+
+## (2026-05-12): Voice fluidity perf profiling
+
+**Trigger:** Patrick still finds Lumen-on-iPhone voice mode laggy in real-world use, despite the streaming TTS shipped 2026-05-12.
+
+**What's done:** `EveVoiceManager` now does sentence-by-sentence TTS — first sentence speaks ~1–3 s after submit vs ~7–17 s before.
+
+**What's pending:** Real on-device profiling: time from button-tap → STT-complete → first-delta-from-LLM → first-TTS-byte → first-speaker-output. Use Instruments → Time Profiler. Likely candidates: SFSpeechRecognizer warmup, network RTT, ElevenLabs latency, AVAudioPlayer init.
+
+---
+
+## ⭐ PRIOR TOP (2026-05-08): Provider OAuth bring-up
 
 **Trigger:** Patrick wants Eve to act through any of the 4 OAuth providers (ClickUp / Notion / GitHub / Slack).
 

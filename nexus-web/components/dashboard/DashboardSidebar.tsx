@@ -64,7 +64,7 @@ export default function DashboardSidebar({ userEmail, userName, userRole, userAv
     return (
       <>
         {/* ── SIMPLE DESKTOP SIDEBAR ─────────────────────────────────────── */}
-        <aside className="hidden md:flex fixed left-0 top-0 bottom-0 w-72 flex-col z-40 bg-sidebar border-r border-sidebar-border">
+        <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-72 flex-col z-40 bg-sidebar border-r border-sidebar-border">
           {/* Header */}
           <div className="px-6 py-6 flex-shrink-0">
             <div className="flex items-center gap-3">
@@ -135,7 +135,7 @@ export default function DashboardSidebar({ userEmail, userName, userRole, userAv
         </aside>
 
         {/* ── SIMPLE MOBILE BOTTOM TAB BAR ───────────────────────────────── */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-sidebar/95 backdrop-blur-xl border-t border-sidebar-border"
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-sidebar/95 backdrop-blur-xl border-t border-sidebar-border"
           style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
         >
           <div className="overflow-x-auto scrollbar-thin">
@@ -164,7 +164,7 @@ export default function DashboardSidebar({ userEmail, userName, userRole, userAv
   return (
     <>
       {/* ── FUTURISTIC DESKTOP SIDEBAR — IRON MAN HUD ────────────────────── */}
-      <aside className="hidden md:flex fixed left-0 top-0 bottom-0 w-72 flex-col z-40 overflow-hidden bg-sidebar border-r border-sidebar-border">
+      <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-72 flex-col z-40 overflow-hidden bg-sidebar border-r border-sidebar-border">
         {/* Animated scan line */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-30">
           <div className="absolute left-0 right-0 h-[2px] nexus-scanline" />
@@ -274,7 +274,7 @@ export default function DashboardSidebar({ userEmail, userName, userRole, userAv
       </aside>
 
       {/* ── FUTURISTIC MOBILE BOTTOM TAB BAR — TRON STYLE ────────────────── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-sidebar/95 backdrop-blur-xl border-t border-primary/15"
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-sidebar/95 backdrop-blur-xl border-t border-primary/15"
         style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
       >
         {/* Top glow line */}

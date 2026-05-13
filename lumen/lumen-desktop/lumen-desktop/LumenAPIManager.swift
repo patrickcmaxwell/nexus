@@ -4,7 +4,12 @@ class LumenAPIManager {
     static let shared = LumenAPIManager()
 
     static let localBase  = "http://localhost:3000"
-    static let remoteBase = "https://nexus.talkcircles.io"
+    // Production base. Migrated 2026-05-12 from the legacy
+    // `nexus.talkcircles.io` to `portal.maxnexus.io` to match the iOS
+    // app's hardcoded production target. Mismatched bases were causing
+    // the cross-device terminal bridge to silently fail (Lumen wrote
+    // sessions to one DB while iOS read from another).
+    static let remoteBase = "https://portal.maxnexus.io"
 
     var nexusBase = localBase
     var sessionCookie: String?  // kept for nexus-web dashboard calls only

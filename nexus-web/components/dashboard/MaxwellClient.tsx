@@ -180,7 +180,12 @@ export default function MaxwellClient({
   const [sidebarWidth, setSidebarWidth] = useState(264)
   const [isDesktop, setIsDesktop] = useState(false)
   useEffect(() => {
-    const check = () => setIsDesktop(window.innerWidth >= 768)
+    // Match the lg: breakpoint (1024px) used by the dashboard layout
+    // so the sessions sidebar inline width + resize handle only fire on
+    // actual desktop widths. Was hardcoded to 768 which produced an
+    // iPad-portrait layout where the sidebar took horizontal space the
+    // chat surface needed.
+    const check = () => setIsDesktop(window.innerWidth >= 1024)
     check()
     window.addEventListener("resize", check)
     return () => window.removeEventListener("resize", check)
@@ -694,12 +699,12 @@ export default function MaxwellClient({
   }
 
   return (
-    <div className="flex h-[calc(100dvh-5rem)] md:h-screen overflow-hidden bg-background">
+    <div className="flex h-[calc(100dvh-5rem)] lg:h-screen overflow-hidden bg-background">
 
       {/* ── Mobile backdrop for sessions drawer ────────────────────────────── */}
       {mobileSessionsOpen && (
         <button
-          className="md:hidden fixed inset-0 bg-foreground/20 backdrop-blur-sm z-30"
+          className="lg:hidden fixed inset-0 bg-foreground/20 backdrop-blur-sm z-30"
           onClick={() => setMobileSessionsOpen(false)}
           aria-label="Close sessions"
         />
@@ -708,17 +713,17 @@ export default function MaxwellClient({
       {/* ── Conversation Sidebar (drawer on mobile, resizable on desktop) ── */}
       <aside
         className={`
-          fixed md:static inset-y-0 left-0 w-[85%] max-w-[320px] md:max-w-none
+          fixed lg:static inset-y-0 left-0 w-[85%] max-w-[320px] lg:max-w-none
           border-r border-border bg-card flex flex-col flex-shrink-0
-          z-40 transition-transform duration-300 ease-out md:transition-none
-          ${mobileSessionsOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
-          pb-20 md:pb-0 relative
+          z-40 transition-transform duration-300 ease-out lg:transition-none
+          ${mobileSessionsOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+          pb-20 lg:pb-0 relative
         `}
         style={isDesktop ? { width: sidebarWidth } : undefined}
       >
         {/* Drag handle — right edge */}
         <div
-          className="hidden md:block absolute top-0 right-0 w-1.5 h-full cursor-col-resize z-50 group hover:bg-primary/20 active:bg-primary/30 transition-colors"
+          className="hidden lg:block absolute top-0 right-0 w-1.5 h-full cursor-col-resize z-50 group hover:bg-primary/20 active:bg-primary/30 transition-colors"
           onMouseDown={(e) => {
             e.preventDefault()
             isDragging.current = true
@@ -763,7 +768,7 @@ export default function MaxwellClient({
               </button>
               <button
                 onClick={() => setMobileSessionsOpen(false)}
-                className="md:hidden p-2 text-muted-foreground hover:text-foreground rounded-lg"
+                className="lg:hidden p-2 text-muted-foreground hover:text-foreground rounded-lg"
                 aria-label="Close sessions"
               >
                 <X size={18} />
@@ -1042,13 +1047,13 @@ export default function MaxwellClient({
         )}
 
         {/* Header */}
-        <div className="flex items-center justify-between gap-1.5 px-2 md:px-5 py-2 md:py-3 border-b border-border flex-shrink-0 bg-background/80 backdrop-blur-sm">
+        <div className="flex items-center justify-between gap-1.5 px-2 lg:px-5 py-2 lg:py-3 border-b border-border flex-shrink-0 bg-background/80 backdrop-blur-sm">
           {/* Left: Hamburger (mobile) + Eve status */}
-          <div className="flex items-center gap-2 md:gap-3 min-w-0">
+          <div className="flex items-center gap-2 lg:gap-3 min-w-0">
             {/* Mobile hamburger / sessions toggle */}
             <button
               onClick={() => setMobileSessionsOpen(true)}
-              className="md:hidden p-2 -ml-1 text-muted-foreground hover:text-foreground rounded-lg"
+              className="lg:hidden p-2 -ml-1 text-muted-foreground hover:text-foreground rounded-lg"
               aria-label="Open sessions"
             >
               <Menu size={20} />
@@ -1078,9 +1083,9 @@ export default function MaxwellClient({
           </div>
 
           {/* Right: controls — compact on mobile, full on desktop */}
-          <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
+          <div className="flex items-center gap-1.5 lg:gap-2 flex-shrink-0">
             {summarizing && (
-              <span className="hidden md:inline text-xs text-amber-400 animate-pulse font-medium px-2">Committing...</span>
+              <span className="hidden lg:inline text-xs text-amber-400 animate-pulse font-medium px-2">Committing...</span>
             )}
 
             {/* Voice toggle */}
@@ -1092,14 +1097,14 @@ export default function MaxwellClient({
                 if (!next) stopEve()
               }}
               title={voiceEnabled ? "Voice on — click to mute Eve" : "Voice off — click to unmute Eve"}
-              className={`relative flex items-center gap-2 px-2 md:px-4 py-1.5 md:py-2 rounded-xl border text-sm font-semibold transition-all duration-200 ${
+              className={`relative flex items-center gap-2 px-2 lg:px-4 py-1.5 lg:py-2 rounded-xl border text-sm font-semibold transition-all duration-200 ${
                 voiceEnabled
                   ? "bg-primary/15 border-primary/60 text-primary "
                   : "bg-card border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
               }`}
             >
               {voiceEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-              <span className="hidden md:inline">{voiceEnabled ? "Voice" : "Muted"}</span>
+              <span className="hidden lg:inline">{voiceEnabled ? "Voice" : "Muted"}</span>
             </button>
 
             {/* Stop speaking */}
@@ -1107,10 +1112,10 @@ export default function MaxwellClient({
               <button
                 onClick={stopEve}
                 title="Stop Eve speaking"
-                className="flex items-center gap-2 px-2 md:px-4 py-1.5 md:py-2 rounded-xl border border-red-500/60 bg-red-500/10 text-red-400 text-sm font-semibold hover:bg-red-500/20 transition-all duration-200 animate-pulse"
+                className="flex items-center gap-2 px-2 lg:px-4 py-1.5 lg:py-2 rounded-xl border border-red-500/60 bg-red-500/10 text-red-400 text-sm font-semibold hover:bg-red-500/20 transition-all duration-200 animate-pulse"
               >
                 <Square size={14} fill="currentColor" />
-                <span className="hidden md:inline">Stop</span>
+                <span className="hidden lg:inline">Stop</span>
               </button>
             )}
 
@@ -1119,7 +1124,7 @@ export default function MaxwellClient({
               <button
                 onClick={() => speakAsEve(stripMentionsToPlain(lastEveMessage.content), ttsMode)}
                 title="Replay last Eve message"
-                className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl border border-primary/30 bg-primary/5 text-primary/70 text-sm font-semibold hover:bg-primary/15 hover:text-primary hover:border-primary/60 transition-all duration-200"
+                className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-xl border border-primary/30 bg-primary/5 text-primary/70 text-sm font-semibold hover:bg-primary/15 hover:text-primary hover:border-primary/60 transition-all duration-200"
               >
                 <Volume2 size={15} />
               </button>
@@ -1129,14 +1134,14 @@ export default function MaxwellClient({
             <button
               onClick={() => { setShowMemory(!showMemory); if (!showMemory) loadMemories() }}
               title="Memory bank"
-              className={`flex items-center gap-2 px-2 md:px-4 py-1.5 md:py-2 rounded-xl border text-sm font-semibold transition-all duration-200 ${
+              className={`flex items-center gap-2 px-2 lg:px-4 py-1.5 lg:py-2 rounded-xl border text-sm font-semibold transition-all duration-200 ${
                 showMemory
                   ? "bg-violet-500/15 border-violet-500/50 text-violet-400"
                   : "bg-card border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
               }`}
             >
               <Brain size={16} />
-              <span className="hidden md:inline">Memory</span>
+              <span className="hidden lg:inline">Memory</span>
               {memories.length > 0 && (
                 <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${showMemory ? "bg-violet-500/30 text-violet-300" : "bg-muted text-muted-foreground"}`}>
                   {memories.length}
@@ -1149,7 +1154,7 @@ export default function MaxwellClient({
               onClick={handleManualSummarize}
               disabled={summarizing || isLoading}
               title="Commit conversation to memory"
-              className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-card text-muted-foreground text-sm font-semibold hover:text-foreground hover:border-foreground/30 disabled:opacity-30 transition-all duration-200"
+              className="hidden lg:flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-card text-muted-foreground text-sm font-semibold hover:text-foreground hover:border-foreground/30 disabled:opacity-30 transition-all duration-200"
             >
               <GitCommitHorizontal size={16} />
               <span>Commit</span>
@@ -1160,13 +1165,13 @@ export default function MaxwellClient({
         <div className="flex flex-1 overflow-hidden">
           {/* Messages */}
           <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-            <div className="flex-1 overflow-y-auto px-2 md:px-6 py-3 md:py-6">
+            <div className="flex-1 overflow-y-auto px-2 lg:px-6 py-3 lg:py-6">
               {loadingMessages ? (
                 <div className="flex items-center justify-center h-40">
                   <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
                 </div>
               ) : (
-                <div className="flex flex-col gap-3 md:gap-5 max-w-3xl mx-auto">
+                <div className="flex flex-col gap-3 lg:gap-5 max-w-3xl mx-auto">
                   {timeline.map((item) => {
                     // Topic divider
                     if ("_type" in item && item._type === "topic") {
@@ -1262,7 +1267,7 @@ export default function MaxwellClient({
                           )}
                         </div>
                         <div className={isUser
-                          ? "rounded-2xl px-3.5 md:px-5 py-2.5 md:py-3.5 bg-primary/12 border border-primary/20 max-w-[92%] md:max-w-[75%]"
+                          ? "rounded-2xl px-3.5 lg:px-5 py-2.5 lg:py-3.5 bg-primary/12 border border-primary/20 max-w-[92%] lg:max-w-[75%]"
                           : "w-full"}
                         >
                           {isUser ? (
@@ -1327,7 +1332,7 @@ export default function MaxwellClient({
             </div>
 
             {/* ── Input bar ──────────────────────────────────────────────────── */}
-            <div className="px-2 md:px-6 pb-2 md:pb-6 pt-1 flex-shrink-0">
+            <div className="px-2 lg:px-6 pb-2 lg:pb-6 pt-1 flex-shrink-0">
               <div className="max-w-3xl mx-auto">
                 {/* Transcript pill */}
                 {transcript && (
@@ -1386,7 +1391,7 @@ export default function MaxwellClient({
                   </div>
                 )}
 
-                <div className="flex items-end gap-1.5 md:gap-3 bg-card border border-border rounded-2xl px-2.5 md:px-4 py-2 md:py-3 focus-within:border-accent/50 focus-within:ring-2 focus-within:ring-accent/20 transition-all">
+                <div className="flex items-end gap-1.5 lg:gap-3 bg-card border border-border rounded-2xl px-2.5 lg:px-4 py-2 lg:py-3 focus-within:border-accent/50 focus-within:ring-2 focus-within:ring-accent/20 transition-all">
                   <MentionInput
                     ref={inputRef}
                     value={input}
@@ -1413,13 +1418,13 @@ export default function MaxwellClient({
                     className="flex-1 pr-8"
                   />
 
-                  <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0 pb-0.5">
+                  <div className="flex items-center gap-1.5 lg:gap-2 flex-shrink-0 pb-0.5">
                     {/* Tag topic button */}
                     {activeConversationId && (
                       <button
                         type="button"
                         onClick={() => setShowAddTopic(!showAddTopic)}
-                        className={`w-11 h-11 md:w-10 md:h-10 rounded-xl flex items-center justify-center transition-all ${showAddTopic ? "bg-accent/20 text-accent" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
+                        className={`w-11 h-11 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center transition-all ${showAddTopic ? "bg-accent/20 text-accent" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
                         title="Mark topic in conversation"
                       >
                         <Tag size={18} />
@@ -1432,7 +1437,7 @@ export default function MaxwellClient({
                         type="button"
                         onMouseDown={e => e.preventDefault()}
                         onClick={toggleMic}
-                        className={`w-11 h-11 md:w-10 md:h-10 rounded-xl flex items-center justify-center transition-all ${isMicOn
+                        className={`w-11 h-11 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center transition-all ${isMicOn
                           ? "bg-accent text-accent-foreground shadow-lg shadow-accent/30 scale-105"
                           : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
                         title={isMicOn ? "Stop listening" : "Start voice input"}
@@ -1446,7 +1451,7 @@ export default function MaxwellClient({
                       type="button"
                       onClick={handleSubmit}
                       disabled={isLoading || !input.trim()}
-                      className="w-11 h-11 md:w-10 md:h-10 rounded-xl bg-accent text-accent-foreground flex items-center justify-center hover:bg-accent/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-accent/20"
+                      className="w-11 h-11 lg:w-10 lg:h-10 rounded-xl bg-accent text-accent-foreground flex items-center justify-center hover:bg-accent/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-accent/20"
                       title="Send message"
                     >
                       <Send size={17} />
@@ -1454,7 +1459,7 @@ export default function MaxwellClient({
                   </div>
                 </div>
 
-                <p className="hidden md:block text-xs text-muted-foreground text-center mt-3">
+                <p className="hidden lg:block text-xs text-muted-foreground text-center mt-3">
                   Enter to send · Shift+Enter for new line · Type @ to mention{voiceSupported ? " · Tap mic to speak" : ""}
                 </p>
               </div>
@@ -1466,11 +1471,11 @@ export default function MaxwellClient({
             <>
               {/* Mobile backdrop */}
               <button
-                className="md:hidden fixed inset-0 bg-foreground/20 backdrop-blur-sm z-30"
+                className="lg:hidden fixed inset-0 bg-foreground/20 backdrop-blur-sm z-30"
                 onClick={() => setShowMemory(false)}
                 aria-label="Close memory"
               />
-              <div className="fixed md:static inset-y-0 right-0 w-[85%] max-w-sm md:w-72 md:max-w-none md:inset-auto border-l border-border bg-card flex flex-col flex-shrink-0 overflow-hidden z-40 pb-20 md:pb-0">
+              <div className="fixed lg:static inset-y-0 right-0 w-[85%] max-w-sm lg:w-72 lg:max-w-none lg:inset-auto border-l border-border bg-card flex flex-col flex-shrink-0 overflow-hidden z-40 pb-20 lg:pb-0">
               <div className="p-4 border-b border-border flex items-center justify-between">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-foreground">Memory Bank</p>
@@ -1478,7 +1483,7 @@ export default function MaxwellClient({
                 </div>
                 <button
                   onClick={() => setShowMemory(false)}
-                  className="md:hidden p-1.5 text-muted-foreground hover:text-foreground rounded-lg"
+                  className="lg:hidden p-1.5 text-muted-foreground hover:text-foreground rounded-lg"
                   aria-label="Close memory"
                 >
                   <X size={18} />

@@ -79,6 +79,33 @@ class EveVoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate, AVSpee
     private var conversationId: String?
     private var useLocalBrain = false  // toggled by "use local" / "use grok" voice phrases
 
+    // MARK: - Streaming TTS state
+    //
+    // Instead of waiting for the full reply, complete sentences are pulled
+    // out as deltas arrive and each is sent to TTS independently. The
+    // first sentence usually finishes generating in <1 s after submit,
+    // so audio playback starts ~5-8s earlier than the old "wait then
+    // speak the whole thing" path.
+    //
+    // streamingTTSEnabled — feature flag; flip off via UserDefaults if
+    // a bug appears. Default ON because perceived latency is the win.
+    //
+    // ttsRequestId — monotonically incremented each time a new request
+    // begins. In-flight TTS fetches check their captured id against the
+    // current value before enqueuing; mismatched = stale and dropped.
+    // This is how we avoid playing fragments of the previous reply when
+    // the Director starts a new turn mid-speak.
+    //
+    // pendingSentence — characters accumulated since the last sentence
+    // boundary. Flushed (queued for TTS) on `. ! ? \n` or at stream end.
+    private var streamingTTSEnabled: Bool {
+        UserDefaults.standard.object(forKey: "nexus.tts.streaming") as? Bool ?? true
+    }
+    private var ttsRequestId: Int = 0
+    private var pendingSentence: String = ""
+    private var ttsAudioQueue: [Data] = []
+    private var ttsIsPlaying: Bool = false
+
     @Published var isListening = false
     @Published var transcribedText = ""
     @Published var statusMessage = "Ready"
@@ -541,6 +568,14 @@ class EveVoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate, AVSpee
                     )
                 }
 
+                // Begin a fresh streaming-TTS window. Anything still in
+                // flight or queued from a previous turn becomes stale and
+                // will be discarded by the requestId check.
+                let currentRequestId = await MainActor.run { () -> Int in
+                    self.beginStreamingTTSWindow()
+                    return self.ttsRequestId
+                }
+
                 let r = try await api.askEveStreaming(
                     message: message,
                     conversationId: conversationId,
@@ -549,6 +584,10 @@ class EveVoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate, AVSpee
                         if let last = self.messages.indices.last, self.messages[last].role == .eve {
                             self.messages[last].content += chunk
                         }
+                        // Feed the chunk into the sentence-boundary buffer.
+                        // Complete sentences are immediately handed off to
+                        // TTS so playback can start mid-generation.
+                        self.consumeStreamingChunkForTTS(chunk, requestId: currentRequestId)
                         // Stream into the Live Activity body so the Lock
                         // Screen / Dynamic Island reflects what Eve is
                         // saying as she says it.
@@ -580,6 +619,9 @@ class EveVoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate, AVSpee
                     if self.conversationId == nil { self.conversationId = replyConvId }
                     self.lastReply     = replyContent
                     self.statusMessage = "Ready"
+                    // Flush any trailing fragment without a sentence end —
+                    // e.g. a reply that doesn't end in punctuation.
+                    self.flushPendingSentenceForTTS(requestId: currentRequestId)
                     // Make sure the final bubble has the canonical content
                     // and full tool-call list (deltas may have arrived
                     // out-of-order with the `done` event).
@@ -594,7 +636,13 @@ class EveVoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate, AVSpee
                     )
                 }
             }
-            speak(replyContent)
+            // When streaming TTS is on, sentence-by-sentence playback has
+            // already started — DON'T speak the whole reply again. For the
+            // local-brain path (which doesn't stream) and as a fallback if
+            // streaming TTS is disabled, fall through to whole-reply speak.
+            if useLocalBrain || !streamingTTSEnabled {
+                speak(replyContent)
+            }
 
         } catch NexusAPIClient.APIError.unauthorized {
             await MainActor.run {
@@ -625,6 +673,118 @@ class EveVoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate, AVSpee
                 await MainActor.run { self.fallbackSystemSpeak(speakable) }
             }
         }
+    }
+
+    // MARK: - Streaming TTS
+
+    /// Reset the streaming-TTS state for a new request. Bumps the
+    /// requestId so any in-flight TTS fetches from a previous turn will
+    /// be discarded when they return. Stops any currently-playing audio
+    /// so the user hears the new turn cleanly.
+    @MainActor
+    private func beginStreamingTTSWindow() {
+        ttsRequestId &+= 1
+        pendingSentence = ""
+        ttsAudioQueue.removeAll()
+        ttsIsPlaying = false
+        speechSynth.stopSpeaking(at: .immediate)
+        audioPlayer?.stop()
+        audioPlayer = nil
+    }
+
+    /// Append streaming chunk to the sentence buffer; if we cross a
+    /// sentence boundary, hand the completed sentence to TTS.
+    /// Boundary heuristic: `. ! ? \n` followed by space/newline/EOS.
+    /// Tiny sentences (<8 chars) are coalesced into the next one so we
+    /// don't spawn TTS fetches for things like "Hi.".
+    @MainActor
+    private func consumeStreamingChunkForTTS(_ chunk: String, requestId: Int) {
+        guard streamingTTSEnabled, requestId == ttsRequestId else { return }
+        pendingSentence += chunk
+        // Extract every complete sentence currently in the buffer.
+        while let split = findSentenceEnd(in: pendingSentence) {
+            let sentence = String(pendingSentence[..<split])
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            pendingSentence = String(pendingSentence[split...])
+            if sentence.count >= 8 {
+                enqueueTTS(sentence, requestId: requestId)
+            } else if !sentence.isEmpty {
+                // Re-coalesce micro-sentence into the next one — avoids
+                // pointless TTS fetch for "Yes." "Sure." etc.
+                pendingSentence = sentence + " " + pendingSentence
+                break
+            }
+        }
+    }
+
+    /// Flush whatever's left in the sentence buffer at stream end.
+    /// Replies that don't end in punctuation still get spoken.
+    @MainActor
+    private func flushPendingSentenceForTTS(requestId: Int) {
+        guard streamingTTSEnabled, requestId == ttsRequestId else { return }
+        let tail = pendingSentence.trimmingCharacters(in: .whitespacesAndNewlines)
+        pendingSentence = ""
+        if !tail.isEmpty {
+            enqueueTTS(tail, requestId: requestId)
+        }
+    }
+
+    /// Locate the first sentence-end position. Returns the index AFTER
+    /// the punctuation so the caller can slice cleanly. nil = no boundary
+    /// yet (keep buffering).
+    private func findSentenceEnd(in text: String) -> String.Index? {
+        let punct: Set<Character> = [".", "!", "?", "\n"]
+        var i = text.startIndex
+        while i < text.endIndex {
+            if punct.contains(text[i]) {
+                let next = text.index(after: i)
+                // Sentence boundary on punctuation if followed by space/
+                // newline/EOS. Catches "etc." too aggressively but TTS
+                // handles short phrases fine.
+                if next == text.endIndex
+                    || text[next].isWhitespace
+                    || text[next].isNewline {
+                    return next
+                }
+            }
+            i = text.index(after: i)
+        }
+        return nil
+    }
+
+    /// Kick off an async TTS fetch for a single sentence and queue the
+    /// resulting MP3 for playback. Sequential playback keeps voice
+    /// coherent — sentences play in order they were generated even if
+    /// later TTS fetches return faster than earlier ones (queue is FIFO).
+    @MainActor
+    private func enqueueTTS(_ sentence: String, requestId: Int) {
+        Task { [weak self] in
+            guard let self else { return }
+            let mp3 = await self.fetchEveTTS(text: sentence)
+            await MainActor.run {
+                // Stale check — request may have changed mid-fetch.
+                guard requestId == self.ttsRequestId else { return }
+                guard let mp3 else {
+                    // TTS failed for this sentence — fall back to system
+                    // voice for just this chunk and continue.
+                    self.fallbackSystemSpeak(sentence)
+                    return
+                }
+                self.ttsAudioQueue.append(mp3)
+                self.tickTTSQueue()
+            }
+        }
+    }
+
+    /// Advance the playback queue: if we're not currently playing and
+    /// there's a queued MP3, start it. Re-called from
+    /// `audioPlayerDidFinishPlaying` once a chunk finishes.
+    @MainActor
+    private func tickTTSQueue() {
+        guard !ttsIsPlaying, !ttsAudioQueue.isEmpty else { return }
+        let next = ttsAudioQueue.removeFirst()
+        ttsIsPlaying = true
+        playMP3(next)
     }
 
     private func fetchEveTTS(text: String) async -> Data? {
@@ -675,9 +835,21 @@ class EveVoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate, AVSpee
 
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         DispatchQueue.main.async { [weak self] in
-            self?.audioPlayer = nil
-            // Auto-resume listening once Eve's reply has finished playing.
-            // No-op outside conversation mode or while muted.
+            guard let self else { return }
+            self.audioPlayer = nil
+            self.ttsIsPlaying = false
+            // If there are more streamed sentences queued, advance to the
+            // next one instead of resuming the mic. Only when the queue
+            // drains AND no more deltas are buffered do we resume listening.
+            if !self.ttsAudioQueue.isEmpty {
+                self.tickTTSQueue()
+                return
+            }
+            if !self.pendingSentence.trimmingCharacters(in: .whitespaces).isEmpty {
+                // Still buffering a partial sentence — wait for more
+                // deltas to arrive (or for flush at stream end).
+                return
+            }
             Task { @MainActor [weak self] in
                 await self?.resumeListeningIfInConversation()
             }

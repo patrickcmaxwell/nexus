@@ -52,12 +52,17 @@ struct DashboardView: View {
     // MARK: Hero
 
     private var greeting: String {
+        // Pull the active human's first name from the API manager
+        // (populated by `authRegistry.onActiveHumanChanged` at app init).
+        // Honorifics like "Director" or "sir" are explicitly forbidden —
+        // Eve and the UI always use the person's first name directly.
+        let name = LumenAPIManager.shared.activeUserFirstName
         let hour = Calendar.current.component(.hour, from: Date())
         switch hour {
-        case 5..<12:  return "Good morning, Director."
-        case 12..<17: return "Good afternoon, Director."
-        case 17..<22: return "Good evening, Director."
-        default:      return "Late night, Director."
+        case 5..<12:  return "Good morning, \(name)."
+        case 12..<17: return "Good afternoon, \(name)."
+        case 17..<22: return "Good evening, \(name)."
+        default:      return "Late night, \(name)."
         }
     }
 

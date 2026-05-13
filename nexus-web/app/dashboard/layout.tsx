@@ -28,7 +28,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
         userRole={memberRole}
         userAvatarUrl={memberAvatarUrl}
       />
-      <main className="md:ml-72 pb-20 md:pb-0">
+      {/*
+        Switch sidebar/mobile-nav handoff from md: (768px) to lg: (1024px).
+        At md: width (iPad portrait, narrow desktop windows), the desktop
+        sidebar reserved 288px of horizontal space but the chat surface
+        ended up unusably narrow. Promoting to lg: gives tablets the
+        mobile layout, which is the right experience until we have a
+        proper compact-sidebar variant for that range.
+      */}
+      <main className="lg:ml-72 pb-20 lg:pb-0">
         {children}
       </main>
       <FloatingEveWrapper />

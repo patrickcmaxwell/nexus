@@ -185,7 +185,7 @@ enum EndpointCatalog {
         EndpointDef(id: "/api/eve/local",          group: "Eve", method: "POST", path: "/api/eve/local",         purpose: "Local-LLM chat fallback"),
         EndpointDef(id: "/api/eve/conversations",  group: "Eve", method: "GET",  path: "/api/eve/conversations", purpose: "Conversation list with previews"),
         EndpointDef(id: "/api/eve/history",        group: "Eve", method: "GET",  path: "/api/eve/history",       purpose: "Per-conversation message log"),
-        EndpointDef(id: "/api/eve/directives",     group: "Eve", method: "GET",  path: "/api/eve/directives",    purpose: "Director-defined directives"),
+        EndpointDef(id: "/api/eve/directives",     group: "Eve", method: "GET",  path: "/api/eve/directives",    purpose: "Operator-defined directives"),
         EndpointDef(id: "/api/eve/memory",         group: "Eve", method: "GET",  path: "/api/eve/memory",        purpose: "Eve memory bank"),
         EndpointDef(id: "/api/eve/briefing",       group: "Eve", method: "GET",  path: "/api/eve/briefing",      purpose: "What changed since last visit"),
 

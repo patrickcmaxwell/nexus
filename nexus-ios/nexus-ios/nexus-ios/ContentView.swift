@@ -3,6 +3,7 @@
 
 import SwiftUI
 import PhotosUI
+import UserNotifications
 
 struct ContentView: View {
     @StateObject private var voice = EveVoiceManager()
@@ -11,6 +12,8 @@ struct ContentView: View {
     @State private var showSettings = false
     @State private var showHistory = false
     @State private var showCommandCenter = false
+    @State private var showQuickCapture = false
+    @State private var showGlobalSearch = false
     @State private var photoSelection: [PhotosPickerItem] = []
     @State private var tab: Tab = .voice
     @State private var composeText: String = ""
@@ -21,28 +24,36 @@ struct ContentView: View {
     @FocusState private var composeFocused: Bool
 
     enum Tab: String, CaseIterable, Identifiable {
-        case voice, operations, agents, schedules, terminals, briefing, arena
+        case voice, dashboard, operations, agents, schedules, terminals, map, brain, connections, briefing, arena
         var id: String { rawValue }
         var label: String {
             switch self {
-            case .voice:      return "EVE"
-            case .operations: return "OPS"
-            case .agents:     return "AGENTS"
-            case .schedules:  return "SCHED"
-            case .terminals:  return "TERM"
-            case .briefing:   return "BRIEF"
-            case .arena:      return "ARENA"
+            case .voice:       return "EVE"
+            case .dashboard:   return "DASH"
+            case .operations:  return "OPS"
+            case .agents:      return "AGENTS"
+            case .schedules:   return "SCHED"
+            case .terminals:   return "TERM"
+            case .map:         return "MAP"
+            case .brain:       return "BRAIN"
+            case .connections: return "CONNECT"
+            case .briefing:    return "BRIEF"
+            case .arena:       return "ARENA"
             }
         }
         var icon: String {
             switch self {
-            case .voice:      return "waveform"
-            case .operations: return "square.stack.3d.up"
-            case .agents:     return "person.2"
-            case .schedules:  return "calendar"
-            case .terminals:  return "terminal"
-            case .briefing:   return "newspaper"
-            case .arena:      return "list.bullet.rectangle"
+            case .voice:       return "waveform"
+            case .dashboard:   return "rectangle.grid.2x2.fill"
+            case .operations:  return "square.stack.3d.up"
+            case .agents:      return "person.2"
+            case .schedules:   return "calendar"
+            case .terminals:   return "terminal"
+            case .map:         return "network"
+            case .brain:       return "brain.head.profile"
+            case .connections: return "link.circle"
+            case .briefing:    return "newspaper"
+            case .arena:       return "list.bullet.rectangle"
             }
         }
     }
@@ -184,6 +195,52 @@ struct ContentView: View {
     }
 
     private var authenticatedView: some View {
+        ZStack(alignment: .bottomTrailing) {
+            authenticatedStack
+            // Quick Capture FAB — overlay on every tab except Eve (where
+            // typing directly into the composer is faster). Tap opens a
+            // sheet that POSTs through askHomeBrain to the current Eve
+            // conversation. Replies arrive in the Eve tab so the user can
+            // stay focused on whatever surface they were inspecting.
+            if tab != .voice {
+                Button(action: { Haptics.tap(); showQuickCapture = true }) {
+                    Image(systemName: "plus.bubble.fill")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 56, height: 56)
+                        .background(
+                            LinearGradient(
+                                colors: [Color.indigo, Color.indigo.opacity(0.75)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .clipShape(Circle())
+                        .shadow(color: Color.indigo.opacity(0.35), radius: 12, y: 4)
+                        .shadow(color: .black.opacity(0.5), radius: 8, y: 2)
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, 18)
+                .padding(.bottom, 24)
+                .accessibilityLabel("Quick capture to Eve")
+                .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.3, dampingFraction: 0.85), value: tab)
+        .sheet(isPresented: $showQuickCapture) {
+            QuickCaptureSheet(onClose: { showQuickCapture = false }, voice: voice)
+        }
+        .sheet(isPresented: $showGlobalSearch) {
+            GlobalSearchSheet(
+                onClose: { showGlobalSearch = false },
+                onJumpToTab: { newTab in
+                    withAnimation(.easeInOut(duration: 0.18)) { tab = newTab }
+                }
+            )
+        }
+    }
+
+    private var authenticatedStack: some View {
         VStack(spacing: 0) {
             // Top bar: scrollable tab strip + collapsed identity/control
             // menu pinned right. Combining the avatar + gear into one
@@ -197,6 +254,18 @@ struct ContentView: View {
                     }
                     .padding(.vertical, 2)
                 }
+                Button(action: { Haptics.light(); showGlobalSearch = true }) {
+                    ZStack {
+                        Circle().fill(Color.white.opacity(0.06))
+                        Circle().stroke(Color.white.opacity(0.18), lineWidth: 1)
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.85))
+                    }
+                    .frame(width: 32, height: 32)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Global search")
                 if let profile = activeProfile {
                     identityButton(profile)
                 }
@@ -213,13 +282,23 @@ struct ContentView: View {
                 Spacer(minLength: 0)
                 Group {
                     switch tab {
-                    case .voice:      mainView
-                    case .operations: OperationsListView()
-                    case .agents:     AgentsListView()
-                    case .schedules:  SchedulesListView()
-                    case .terminals:  TerminalsListView()
-                    case .briefing:   BriefingView()
-                    case .arena:      ArenaLogView()
+                    case .voice:       mainView
+                    case .dashboard:   DashboardView(onJump: { newTab in
+                                            withAnimation(.easeInOut(duration: 0.18)) { tab = newTab }
+                                        })
+                    case .operations:  OperationsListView()
+                    case .agents:      AgentsListView()
+                    case .schedules:   NavigationStack { SchedulesListView() }
+                    case .terminals:   TerminalsListView()
+                    case .map:         NavigationStack {
+                                            NexusMapView(onJumpToTab: { newTab in
+                                                withAnimation(.easeInOut(duration: 0.18)) { tab = newTab }
+                                            })
+                                        }
+                    case .brain:       BrainView()
+                    case .connections: ConnectionsListView()
+                    case .briefing:    BriefingView()
+                    case .arena:       ArenaLogView()
                     }
                 }
                 .frame(maxWidth: 720)
@@ -1352,6 +1431,23 @@ private struct SettingsView: View {
     @State private var localBrainModel: String = UserDefaults.standard.string(forKey: "nexus.localBrainModel") ?? "llama3.2:3b"
     @State private var voiceId: String = UserDefaults.standard.string(forKey: "nexus.voiceId") ?? "EXAVITQu4vr4xnSDxMaL"
 
+    // Notification toggles — backed by UserDefaults so the future push
+    // pipeline can read them server-side via device registration. Even
+    // without server push wired up today, the toggles persist user intent.
+    @AppStorage("nexus.notify.enabled")        private var notifyEnabled: Bool = false
+    @AppStorage("nexus.notify.agentDone")      private var notifyAgentDone: Bool = true
+    @AppStorage("nexus.notify.scheduleFired")  private var notifyScheduleFired: Bool = true
+    @AppStorage("nexus.notify.researchDone")   private var notifyResearchDone: Bool = true
+    @AppStorage("nexus.notify.opUpdated")      private var notifyOpUpdated: Bool = false
+
+    // Refresh cadence shared with auto-refresh tasks (currently 30s in
+    // AgentsListView / OperationsListView). Expose so the Director can
+    // pick fresher data vs longer battery life.
+    @AppStorage("nexus.cadence.list")          private var listCadenceSec: Int = 30
+
+    @State private var notifPermStatus: String = "unknown"
+    @State private var savedToast: String = ""
+
     var body: some View {
         NavigationStack {
             Form {
@@ -1387,33 +1483,116 @@ private struct SettingsView: View {
                     }
                 }
                 Section {
-                    Button("Save") {
-                        let trimmed = baseURL.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-                        UserDefaults.standard.set(trimmed, forKey: "nexus.baseURL")
-
-                        let lan = localBrainURL.trimmingCharacters(in: .whitespaces)
-                        if lan.isEmpty {
-                            UserDefaults.standard.removeObject(forKey: "nexus.localBrainURL")
-                        } else {
-                            UserDefaults.standard.set(lan, forKey: "nexus.localBrainURL")
+                    Toggle("Enable notifications", isOn: $notifyEnabled)
+                        .onChange(of: notifyEnabled) { _, newVal in
+                            if newVal { requestNotificationPermission() }
                         }
-
-                        let m = localBrainModel.trimmingCharacters(in: .whitespaces)
-                        UserDefaults.standard.set(m.isEmpty ? "llama3.2:3b" : m, forKey: "nexus.localBrainModel")
-
-                        UserDefaults.standard.set(voiceId, forKey: "nexus.voiceId")
-
-                        dismiss()
+                    if notifyEnabled {
+                        Toggle("Agent finished a run", isOn: $notifyAgentDone)
+                        Toggle("Schedule fired", isOn: $notifyScheduleFired)
+                        Toggle("Research job complete", isOn: $notifyResearchDone)
+                        Toggle("Operation status changed", isOn: $notifyOpUpdated)
+                    }
+                    Text(notifPermStatus.isEmpty ? "Permission state will appear here." : "iOS permission: \(notifPermStatus)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } header: {
+                    Text("NOTIFICATIONS")
+                } footer: {
+                    Text("Toggles persist your intent; server-side push delivery is wired up separately. The system permission prompt fires once when you enable.")
+                }
+                Section {
+                    Picker("List refresh cadence", selection: $listCadenceSec) {
+                        Text("10 seconds").tag(10)
+                        Text("30 seconds").tag(30)
+                        Text("60 seconds").tag(60)
+                        Text("Manual only").tag(0)
+                    }
+                    Text("How often Operations / Agents lists auto-refresh. Manual = pull-to-refresh only (best battery).")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } header: {
+                    Text("REFRESH CADENCE")
+                }
+                Section {
+                    Button("Save") { save() }
+                    if !savedToast.isEmpty {
+                        Text(savedToast)
+                            .font(.caption)
+                            .foregroundColor(.green)
                     }
                 }
                 Section {
                     Button("Sign Out", role: .destructive) { onLogout() }
+                }
+                Section {
+                    HStack {
+                        Text("Version")
+                        Spacer()
+                        Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—")
+                            .foregroundColor(.secondary)
+                            .font(.system(.body, design: .monospaced))
+                    }
+                    HStack {
+                        Text("Build")
+                        Spacer()
+                        Text(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—")
+                            .foregroundColor(.secondary)
+                            .font(.system(.body, design: .monospaced))
+                    }
+                } header: {
+                    Text("ABOUT")
                 }
             }
             .navigationTitle("Settings")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
+                }
+            }
+            .task { refreshPermissionStatus() }
+        }
+    }
+
+    private func save() {
+        let trimmed = baseURL.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        UserDefaults.standard.set(trimmed, forKey: "nexus.baseURL")
+
+        let lan = localBrainURL.trimmingCharacters(in: .whitespaces)
+        if lan.isEmpty {
+            UserDefaults.standard.removeObject(forKey: "nexus.localBrainURL")
+        } else {
+            UserDefaults.standard.set(lan, forKey: "nexus.localBrainURL")
+        }
+
+        let m = localBrainModel.trimmingCharacters(in: .whitespaces)
+        UserDefaults.standard.set(m.isEmpty ? "llama3.2:3b" : m, forKey: "nexus.localBrainModel")
+        UserDefaults.standard.set(voiceId, forKey: "nexus.voiceId")
+
+        Haptics.success()
+        savedToast = "Saved."
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { savedToast = "" }
+    }
+
+    private func requestNotificationPermission() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
+            DispatchQueue.main.async {
+                if !granted { notifyEnabled = false }
+                refreshPermissionStatus()
+            }
+        }
+    }
+
+    private func refreshPermissionStatus() {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            DispatchQueue.main.async {
+                switch settings.authorizationStatus {
+                case .authorized:        notifPermStatus = "Authorized"
+                case .denied:            notifPermStatus = "Denied — fix in System Settings"
+                case .notDetermined:     notifPermStatus = "Not asked yet"
+                case .provisional:       notifPermStatus = "Provisional"
+                case .ephemeral:         notifPermStatus = "Ephemeral"
+                @unknown default:        notifPermStatus = "Unknown"
                 }
             }
         }
@@ -1617,32 +1796,87 @@ private struct ArenaLogView: View {
     @State private var entries: [NexusAPIClient.ArenaEntry] = []
     @State private var loading = true
     @State private var errorText: String = ""
+    @State private var statusFilter: StatusFilter = .all
+    @State private var search: String = ""
+
+    enum StatusFilter: String, CaseIterable, Identifiable {
+        case all, success, error
+        var id: String { rawValue }
+        var label: String { rawValue.capitalized }
+    }
+
+    private var filtered: [NexusAPIClient.ArenaEntry] {
+        let q = search.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return entries.filter { e in
+            let statusOk: Bool
+            switch statusFilter {
+            case .all:     statusOk = true
+            case .success: statusOk = e.status == "success" || e.status == nil  // null = legacy successes
+            case .error:   statusOk = e.status == "error"
+            }
+            guard statusOk else { return false }
+            if q.isEmpty { return true }
+            return e.action.lowercased().contains(q)
+                || (e.caller ?? "").lowercased().contains(q)
+                || (e.error_msg ?? "").lowercased().contains(q)
+        }
+    }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 6) {
-                if loading {
-                    Text("LOADING…")
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundColor(.gray).tracking(2)
-                        .padding(.top, 24)
-                } else if entries.isEmpty {
-                    Text(errorText.isEmpty ? "Eve hasn't fired any tools yet." : errorText)
-                        .font(.system(size: 13))
-                        .foregroundColor(.white.opacity(0.5))
-                        .padding(.top, 24)
-                } else {
-                    ForEach(entries) { e in
-                        ArenaEntryRow(entry: e)
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 10) {
+                    Picker("Status", selection: $statusFilter) {
+                        ForEach(StatusFilter.allCases) { f in
+                            Text(f.label).tag(f)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal, 16)
+
+                    Text("ARENA · \(filtered.count)\(search.isEmpty && statusFilter == .all ? "" : " / \(entries.count)")")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .tracking(2)
+                        .foregroundColor(.white.opacity(0.35))
+                        .padding(.horizontal, 20)
+                        .padding(.top, 4)
+
+                    if loading {
+                        Text("LOADING…")
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.gray).tracking(2)
+                            .padding(.top, 24)
+                            .frame(maxWidth: .infinity)
+                    } else if filtered.isEmpty {
+                        Text(emptyMessage)
+                            .font(.system(size: 13))
+                            .foregroundColor(.white.opacity(0.5))
+                            .padding(.top, 24)
+                            .padding(.horizontal, 20)
+                    } else {
+                        VStack(alignment: .leading, spacing: 6) {
+                            ForEach(filtered) { e in
+                                ArenaEntryRow(entry: e)
+                            }
+                        }
+                        .padding(.horizontal, 16)
                     }
                 }
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search action / caller / error")
+            .refreshable { await load() }
         }
-        .refreshable { await load() }
         .task { await load() }
+    }
+
+    private var emptyMessage: String {
+        if !errorText.isEmpty { return errorText }
+        if !search.isEmpty || statusFilter != .all {
+            return "No entries match this filter."
+        }
+        return "Eve hasn't fired any tools yet."
     }
 
     private func load() async {
@@ -1797,6 +2031,19 @@ private struct OperationsListView: View {
     @State private var loading = true
     @State private var error: String?
     @State private var refreshTask: Task<Void, Never>?
+    @State private var search: String = ""
+    @State private var showCreate: Bool = false
+
+    private var filtered: [NexusAPIClient.OperationSummary] {
+        let q = search.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !q.isEmpty else { return operations }
+        return operations.filter { op in
+            op.name.lowercased().contains(q)
+                || (op.description ?? "").lowercased().contains(q)
+                || op.status.lowercased().contains(q)
+                || (op.priority ?? "").lowercased().contains(q)
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -1816,15 +2063,36 @@ private struct OperationsListView: View {
                             .foregroundColor(.red.opacity(0.8))
                             .padding(.horizontal, 20)
                     }
-                    Text("OPERATIONS · \(operations.count)")
-                        .font(.system(size: 10, weight: .bold, design: .monospaced))
-                        .tracking(2)
-                        .foregroundColor(.white.opacity(0.35))
-                        .padding(.horizontal, 20)
-                        .padding(.top, 8)
+                    HStack {
+                        Text("OPERATIONS · \(filtered.count)\(search.isEmpty ? "" : " / \(operations.count)")")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .tracking(2)
+                            .foregroundColor(.white.opacity(0.35))
+                        Spacer()
+                        Button(action: { Haptics.light(); showCreate = true }) {
+                            Label("NEW", systemImage: "plus.circle.fill")
+                                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                .tracking(1.5)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 10).padding(.vertical, 5)
+                                .background(Color.indigo)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+
+                    if filtered.isEmpty && !search.isEmpty && !loading {
+                        Text("No operations match \"\(search)\"")
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.4))
+                            .padding(.horizontal, 20)
+                            .padding(.top, 8)
+                    }
 
                     VStack(spacing: 6) {
-                        ForEach(operations) { op in
+                        ForEach(filtered) { op in
                             NavigationLink(value: op) { OperationListRow(op: op) }
                                 .buttonStyle(.plain)
                         }
@@ -1834,17 +2102,29 @@ private struct OperationsListView: View {
                 .padding(.top, 12)
                 .padding(.bottom, 36)
             }
+            .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search operations")
             .refreshable { await refresh() }
             .navigationDestination(for: NexusAPIClient.OperationSummary.self) { op in
                 OperationDetailView(operation: op)
+            }
+            .sheet(isPresented: $showCreate) {
+                CreateOperationSheet { _ in
+                    showCreate = false
+                    Task { await refresh() }
+                }
             }
         }
         .task {
             await refresh()
             refreshTask = Task {
                 while !Task.isCancelled {
-                    try? await Task.sleep(nanoseconds: 30_000_000_000)
+                    // User-configurable cadence (Settings → REFRESH CADENCE).
+                    // 0 = manual-only, no auto-refresh loop.
+                    let cadence = UserDefaults.standard.integer(forKey: "nexus.cadence.list")
+                    let interval = cadence == 0 ? 30 : cadence
+                    try? await Task.sleep(nanoseconds: UInt64(interval) * 1_000_000_000)
                     if Task.isCancelled { break }
+                    if UserDefaults.standard.integer(forKey: "nexus.cadence.list") == 0 { continue }
                     await refresh()
                 }
             }
@@ -1923,6 +2203,20 @@ private struct OperationDetailView: View {
     @State private var loading = true
     @State private var error: String?
     @State private var cycling = false
+    @State private var showAddRecord = false
+    @State private var showEdit = false
+    @State private var showGenerateBrief = false
+    @State private var statusOverride: String? = nil
+    /// Record IDs with a research job kickoff in flight — disables the
+    /// Research pill on that row until the request comes back.
+    @State private var researching: Set<String> = []
+    @State private var actionToast: String = ""
+    /// Records view mode — flat list (default) or date-grouped timeline.
+    /// Persists in UserDefaults so the Director's preference sticks
+    /// across detail-screen visits.
+    @AppStorage("nexus.opdetail.recordsMode") private var recordsMode: String = "list"
+
+    private var currentStatus: String { statusOverride ?? operation.status }
 
     private let briefOrder = ["summary", "actions", "contradictions", "themes", "next-steps"]
 
@@ -1935,7 +2229,7 @@ private struct OperationDetailView: View {
                         .font(.system(size: 20, weight: .semibold))
                         .foregroundColor(.white)
                     HStack(spacing: 8) {
-                        statusPill(operation.status)
+                        statusPill(currentStatus)
                         if let p = operation.priority { priorityPill(p) }
                     }
                     if let desc = operation.description, !desc.isEmpty {
@@ -1961,6 +2255,34 @@ private struct OperationDetailView: View {
                             )
                     }
                     .disabled(cycling)
+
+                    Button(action: { showAddRecord = true }) {
+                        Label("Add record", systemImage: "plus.circle.fill")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12).padding(.vertical, 8)
+                            .background(Color.indigo)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+
+                    Menu {
+                        Button {
+                            showGenerateBrief = true
+                        } label: {
+                            Label("Generate brief…", systemImage: "doc.badge.plus")
+                        }
+                        Button {
+                            showEdit = true
+                        } label: {
+                            Label("Edit operation", systemImage: "pencil")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(.indigo)
+                            .padding(.horizontal, 6).padding(.vertical, 4)
+                    }
+
                     Spacer()
                 }
                 .padding(.horizontal, 16)
@@ -1979,6 +2301,12 @@ private struct OperationDetailView: View {
                         .foregroundColor(.red.opacity(0.8))
                         .padding(.horizontal, 16)
                 }
+                if !actionToast.isEmpty {
+                    Text(actionToast)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.pink.opacity(0.85))
+                        .padding(.horizontal, 16)
+                }
 
                 // Briefs
                 if !briefs.isEmpty {
@@ -1993,13 +2321,30 @@ private struct OperationDetailView: View {
                     }
                 }
 
-                // Records
-                section("RECORDS · \(records.count)") {
+                // Records (with list/timeline toggle)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("RECORDS · \(records.count)")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .tracking(2)
+                            .foregroundColor(.white.opacity(0.35))
+                        Spacer()
+                        Picker("Mode", selection: $recordsMode) {
+                            Image(systemName: "list.bullet").tag("list")
+                            Image(systemName: "clock.arrow.circlepath").tag("timeline")
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 96)
+                    }
+                    .padding(.horizontal, 20)
+
                     if records.isEmpty {
                         Text("No records yet.")
                             .font(.system(size: 12))
                             .foregroundColor(.white.opacity(0.4))
                             .padding(.horizontal, 16)
+                    } else if recordsMode == "timeline" {
+                        timelineView
                     } else {
                         VStack(spacing: 6) {
                             ForEach(records) { r in recordRow(r) }
@@ -2015,6 +2360,100 @@ private struct OperationDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task { await load() }
         .refreshable { await load() }
+        .sheet(isPresented: $showAddRecord) {
+            AddRecordSheet(operationId: operation.id) { didAdd in
+                showAddRecord = false
+                if didAdd { Task { await load() } }
+            }
+        }
+        .sheet(isPresented: $showEdit) {
+            EditOperationSheet(original: operation) { didSave in
+                showEdit = false
+                if didSave { Task { await load() } }
+            }
+        }
+        .sheet(isPresented: $showGenerateBrief) {
+            GenerateBriefSheet(operationId: operation.id) { didGenerate in
+                showGenerateBrief = false
+                if didGenerate { Task { await load() } }
+            }
+        }
+    }
+
+    /// Records grouped by day. Same row UI as the flat list, but each
+    /// row sits under a sticky-style day header with a vertical timeline
+    /// rail down the left margin. Reads better than the flat list when
+    /// an operation has 20+ records across many days.
+    @ViewBuilder
+    private var timelineView: some View {
+        let grouped = groupByDay(records)
+        VStack(alignment: .leading, spacing: 14) {
+            ForEach(grouped, id: \.0) { day, rows in
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Circle().fill(Color.indigo.opacity(0.85)).frame(width: 7, height: 7)
+                        Text(day.uppercased())
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .tracking(2)
+                            .foregroundColor(.indigo.opacity(0.85))
+                        Text("· \(rows.count)")
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundColor(.white.opacity(0.4))
+                        Spacer()
+                    }
+                    .padding(.horizontal, 16)
+
+                    // Vertical rail + indented rows
+                    HStack(alignment: .top, spacing: 0) {
+                        Rectangle()
+                            .fill(Color.white.opacity(0.12))
+                            .frame(width: 1)
+                            .padding(.leading, 19)
+                        VStack(spacing: 6) {
+                            ForEach(rows) { r in recordRow(r) }
+                        }
+                        .padding(.leading, 4)
+                        .padding(.trailing, 12)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Group records by yyyy-MM-dd of created_at, sorted newest-first.
+    /// Records with no parseable date land in an "UNDATED" bucket at end.
+    private func groupByDay(_ rows: [NexusAPIClient.OperationRecord]) -> [(String, [NexusAPIClient.OperationRecord])] {
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let isoBasic = ISO8601DateFormatter()
+        let display = DateFormatter()
+        display.dateStyle = .medium
+
+        var buckets: [String: [NexusAPIClient.OperationRecord]] = [:]
+        var order: [String] = []
+        var bucketDate: [String: Date] = [:]
+
+        for r in rows {
+            let raw = r.created_at ?? ""
+            let parsed = iso.date(from: raw) ?? isoBasic.date(from: raw)
+            let label: String
+            if let parsed {
+                label = display.string(from: parsed)
+                if bucketDate[label] == nil { bucketDate[label] = parsed }
+            } else {
+                label = "Undated"
+            }
+            if buckets[label] == nil { order.append(label) }
+            buckets[label, default: []].append(r)
+        }
+
+        // Sort buckets by date descending; "Undated" pinned at end.
+        order.sort { a, b in
+            if a == "Undated" { return false }
+            if b == "Undated" { return true }
+            return (bucketDate[a] ?? .distantPast) > (bucketDate[b] ?? .distantPast)
+        }
+        return order.map { ($0, buckets[$0] ?? []) }
     }
 
     @ViewBuilder
@@ -2047,7 +2486,8 @@ private struct OperationDetailView: View {
     }
 
     private func recordRow(_ r: NexusAPIClient.OperationRecord) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        let inFlight = researching.contains(r.id)
+        return VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 Text((r.type ?? "note").uppercased())
                     .font(.system(size: 9, weight: .bold, design: .monospaced))
@@ -2060,6 +2500,25 @@ private struct OperationDetailView: View {
                         .foregroundColor(.gray)
                 }
                 Spacer()
+                Button(action: { startResearch(r) }) {
+                    HStack(spacing: 4) {
+                        if inFlight {
+                            ProgressView().controlSize(.small).tint(.white)
+                        } else {
+                            Image(systemName: "magnifyingglass.circle.fill")
+                                .font(.system(size: 11, weight: .semibold))
+                        }
+                        Text(inFlight ? "QUEUEING" : "RESEARCH")
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .tracking(1.5)
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(Color.pink.opacity(0.75))
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(inFlight)
             }
             Text(r.title ?? "(untitled)")
                 .font(.system(size: 14, weight: .medium))
@@ -2076,6 +2535,26 @@ private struct OperationDetailView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.white.opacity(0.03))
         .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func startResearch(_ r: NexusAPIClient.OperationRecord) {
+        Haptics.heavy()
+        Task {
+            await MainActor.run { researching.insert(r.id) }
+            let ok = (try? await NexusAPIClient.shared.runRecordResearch(recordId: r.id)) ?? false
+            await MainActor.run {
+                researching.remove(r.id)
+                actionToast = ok ? "Research queued" : "Research kickoff failed"
+            }
+            if ok {
+                Haptics.success()
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                await load()
+            } else {
+                Haptics.error()
+            }
+            await MainActor.run { actionToast = "" }
+        }
     }
 
     private func statusPill(_ status: String) -> some View {
@@ -2129,18 +2608,169 @@ private struct OperationDetailView: View {
     }
 
     private func cycleStatus() {
+        Haptics.tap()
         Task {
             await MainActor.run { cycling = true }
             let next: String
-            switch operation.status {
+            switch currentStatus {
             case "planning": next = "active"
             case "active":   next = "paused"
             case "paused":   next = "active"
             case "complete": next = "planning"
             default:         next = "planning"
             }
-            _ = try? await NexusAPIClient.shared.setOperationStatus(id: operation.id, status: next)
-            await MainActor.run { cycling = false }
+            await MainActor.run { statusOverride = next }
+            let ok = (try? await NexusAPIClient.shared.setOperationStatus(id: operation.id, status: next)) ?? false
+            await MainActor.run {
+                cycling = false
+                if !ok {
+                    statusOverride = nil
+                    error = "Status change failed."
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Add Record sheet (operation detail → "+ Add record")
+
+/// Quick "drop a note" entry sheet attached to an operation. Five fields:
+/// title (required), content (long form), type, priority. POSTs through
+/// NexusAPIClient.addOperationRecord. Designed for phone-thumb use — wide
+/// text fields, big submit button, no nested navigation.
+private struct AddRecordSheet: View {
+    let operationId: String
+    let onClose: (Bool) -> Void
+
+    @State private var title: String = ""
+    @State private var content: String = ""
+    @State private var type: String = "note"
+    @State private var priority: String = "normal"
+    @State private var submitting: Bool = false
+    @State private var error: String = ""
+    @FocusState private var titleFocused: Bool
+
+    private let types = ["note", "intel", "finding", "data", "alert"]
+    private let priorities = ["low", "normal", "high", "critical"]
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    fieldLabel("TITLE")
+                    TextField("e.g. Sheldon called back", text: $title)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 16))
+                        .focused($titleFocused)
+                        .padding(.horizontal, 12).padding(.vertical, 11)
+                        .background(Color.white.opacity(0.06))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                    fieldLabel("CONTENT")
+                    TextEditor(text: $content)
+                        .scrollContentBackground(.hidden)
+                        .font(.system(size: 14))
+                        .frame(minHeight: 120)
+                        .padding(8)
+                        .background(Color.white.opacity(0.06))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                    fieldLabel("TYPE")
+                    Picker("Type", selection: $type) {
+                        ForEach(types, id: \.self) { Text($0.capitalized).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+
+                    fieldLabel("PRIORITY")
+                    Picker("Priority", selection: $priority) {
+                        ForEach(priorities, id: \.self) { Text($0.capitalized).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+
+                    if !error.isEmpty {
+                        Text(error)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.red.opacity(0.85))
+                    }
+
+                    Button(action: submit) {
+                        HStack(spacing: 8) {
+                            if submitting {
+                                ProgressView().controlSize(.small).tint(.white)
+                            } else {
+                                Image(systemName: "checkmark.circle.fill").font(.system(size: 14, weight: .bold))
+                            }
+                            Text(submitting ? "SAVING…" : "ADD RECORD")
+                                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                .tracking(1.5)
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(title.trimmingCharacters(in: .whitespaces).isEmpty || submitting
+                                    ? Color.gray.opacity(0.3)
+                                    : Color.indigo)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || submitting)
+                    .padding(.top, 4)
+                }
+                .padding(16)
+            }
+            .background(Color.black.ignoresSafeArea())
+            .navigationTitle("New Record")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { onClose(false) }
+                        .foregroundColor(.white.opacity(0.7))
+                }
+            }
+            .onAppear { titleFocused = true }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    private func fieldLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 9, weight: .bold, design: .monospaced))
+            .tracking(2)
+            .foregroundColor(.white.opacity(0.45))
+    }
+
+    private func submit() {
+        let t = title.trimmingCharacters(in: .whitespaces)
+        guard !t.isEmpty, !submitting else { return }
+        Haptics.tap()
+        submitting = true
+        error = ""
+        Task {
+            do {
+                let ok = try await NexusAPIClient.shared.addOperationRecord(
+                    operationId: operationId,
+                    title: t,
+                    content: content.trimmingCharacters(in: .whitespacesAndNewlines),
+                    type: type,
+                    priority: priority
+                )
+                await MainActor.run {
+                    submitting = false
+                    if ok {
+                        Haptics.success()
+                        onClose(true)
+                    } else {
+                        Haptics.error()
+                        error = "Server refused the record."
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    submitting = false
+                    Haptics.error()
+                    self.error = "Save failed: \(error.localizedDescription)"
+                }
+            }
         }
     }
 }
@@ -2153,6 +2783,18 @@ private struct AgentsListView: View {
     @State private var error: String?
     @State private var status: String = ""
     @State private var refreshTask: Task<Void, Never>?
+    @State private var search: String = ""
+    @State private var showCreate: Bool = false
+
+    private var filtered: [NexusAPIClient.AgentSummary] {
+        let q = search.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !q.isEmpty else { return agents }
+        return agents.filter { a in
+            a.name.lowercased().contains(q)
+                || (a.role ?? "").lowercased().contains(q)
+                || a.status.lowercased().contains(q)
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -2178,15 +2820,36 @@ private struct AgentsListView: View {
                             .foregroundColor(.red.opacity(0.8))
                             .padding(.horizontal, 20)
                     }
-                    Text("AGENTS · \(agents.count)")
-                        .font(.system(size: 10, weight: .bold, design: .monospaced))
-                        .tracking(2)
-                        .foregroundColor(.white.opacity(0.35))
-                        .padding(.horizontal, 20)
-                        .padding(.top, 8)
+                    HStack {
+                        Text("AGENTS · \(filtered.count)\(search.isEmpty ? "" : " / \(agents.count)")")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .tracking(2)
+                            .foregroundColor(.white.opacity(0.35))
+                        Spacer()
+                        Button(action: { Haptics.light(); showCreate = true }) {
+                            Label("NEW", systemImage: "plus.circle.fill")
+                                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                .tracking(1.5)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 10).padding(.vertical, 5)
+                                .background(Color.indigo)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+
+                    if filtered.isEmpty && !search.isEmpty && !loading {
+                        Text("No agents match \"\(search)\"")
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.4))
+                            .padding(.horizontal, 20)
+                            .padding(.top, 8)
+                    }
 
                     VStack(spacing: 6) {
-                        ForEach(agents) { a in
+                        ForEach(filtered) { a in
                             NavigationLink(value: a) {
                                 AgentListRow(agent: a,
                                              onRun: { run(a) },
@@ -2200,17 +2863,29 @@ private struct AgentsListView: View {
                 .padding(.top, 12)
                 .padding(.bottom, 36)
             }
+            .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search agents")
             .refreshable { await refresh() }
             .navigationDestination(for: NexusAPIClient.AgentSummary.self) { a in
                 AgentDetailView(agent: a)
+            }
+            .sheet(isPresented: $showCreate) {
+                CreateAgentSheet { _ in
+                    showCreate = false
+                    Task { await refresh() }
+                }
             }
         }
         .task {
             await refresh()
             refreshTask = Task {
                 while !Task.isCancelled {
-                    try? await Task.sleep(nanoseconds: 30_000_000_000)
+                    // User-configurable cadence (Settings → REFRESH CADENCE).
+                    // 0 = manual-only, no auto-refresh loop.
+                    let cadence = UserDefaults.standard.integer(forKey: "nexus.cadence.list")
+                    let interval = cadence == 0 ? 30 : cadence
+                    try? await Task.sleep(nanoseconds: UInt64(interval) * 1_000_000_000)
                     if Task.isCancelled { break }
+                    if UserDefaults.standard.integer(forKey: "nexus.cadence.list") == 0 { continue }
                     await refresh()
                 }
             }
@@ -2311,9 +2986,19 @@ private struct AgentDetailView: View {
     @State private var loading = true
     @State private var error: String?
     @State private var running = false
+    @State private var togglingStatus = false
+    @State private var showEdit = false
+    /// Local override of the agent's status so the UI reflects an active/
+    /// standby flip immediately without bouncing back to the parent list.
+    @State private var statusOverride: String? = nil
+
+    /// Active status driving the view — local override if set, else the
+    /// parent-provided value. Refactored from raw `agent.status` so the
+    /// toggle feels instant.
+    private var currentStatus: String { statusOverride ?? agent.status }
 
     private var statusColor: Color {
-        switch agent.status { case "active": return .green; case "standby": return .yellow; default: return .gray }
+        switch currentStatus { case "active": return .green; case "standby": return .yellow; default: return .gray }
     }
 
     var body: some View {
@@ -2324,7 +3009,7 @@ private struct AgentDetailView: View {
                         .font(.system(size: 20, weight: .semibold))
                         .foregroundColor(.white)
                     HStack(spacing: 8) {
-                        Text(agent.status.uppercased())
+                        Text(currentStatus.uppercased())
                             .font(.system(size: 9, weight: .bold, design: .monospaced))
                             .tracking(1.5)
                             .foregroundColor(statusColor)
@@ -2348,21 +3033,67 @@ private struct AgentDetailView: View {
                 }
                 .padding(.horizontal, 16)
 
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     Button(action: runNow) {
-                        Label(running ? "Running…" : "Run Now", systemImage: "bolt.fill")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.indigo)
-                            .padding(.horizontal, 12).padding(.vertical, 8)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.indigo.opacity(0.4), lineWidth: 1)
+                        HStack(spacing: 8) {
+                            if running {
+                                ProgressView().controlSize(.small).tint(.white)
+                            } else {
+                                Image(systemName: "bolt.fill").font(.system(size: 13, weight: .bold))
+                            }
+                            Text(running ? "RUNNING…" : "RUN NOW")
+                                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                .tracking(1.5)
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(
+                            LinearGradient(
+                                colors: currentStatus == "active"
+                                    ? [Color.indigo, Color.indigo.opacity(0.75)]
+                                    : [Color.gray.opacity(0.3), Color.gray.opacity(0.2)],
+                                startPoint: .top,
+                                endPoint: .bottom
                             )
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
-                    .disabled(running || agent.status != "active")
-                    Spacer()
+                    .buttonStyle(.plain)
+                    .disabled(running || currentStatus != "active" || togglingStatus)
+
+                    Button(action: toggleStatus) {
+                        HStack(spacing: 6) {
+                            if togglingStatus {
+                                ProgressView().controlSize(.small).tint(.white.opacity(0.8))
+                            } else {
+                                Image(systemName: currentStatus == "active" ? "pause.fill" : "play.fill")
+                                    .font(.system(size: 11, weight: .bold))
+                            }
+                            Text(currentStatus == "active" ? "STANDBY" : "ACTIVATE")
+                                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                .tracking(1.2)
+                        }
+                        .foregroundColor(.white.opacity(0.9))
+                        .padding(.horizontal, 14).padding(.vertical, 14)
+                        .background(Color.white.opacity(0.07))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(togglingStatus || running)
                 }
                 .padding(.horizontal, 16)
+
+                if currentStatus != "active" {
+                    Text("Activate the agent to run it.")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.4))
+                        .padding(.horizontal, 16)
+                }
 
                 if loading {
                     Text("LOADING…")
@@ -2403,8 +3134,22 @@ private struct AgentDetailView: View {
         }
         .background(Color.black.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(action: { showEdit = true }) {
+                    Image(systemName: "pencil.circle")
+                        .foregroundColor(.indigo)
+                }
+            }
+        }
         .task { await load() }
         .refreshable { await load() }
+        .sheet(isPresented: $showEdit) {
+            EditAgentSheet(original: agent) { didSave in
+                showEdit = false
+                if didSave { Task { await load() } }
+            }
+        }
     }
 
     private func activityRow(_ a: NexusAPIClient.AgentActivity) -> some View {
@@ -2449,11 +3194,32 @@ private struct AgentDetailView: View {
     }
 
     private func runNow() {
+        Haptics.heavy()
         Task {
             await MainActor.run { running = true }
             _ = try? await NexusAPIClient.shared.runAgent(id: agent.id)
             await MainActor.run { running = false }
             await load()
+        }
+    }
+
+    private func toggleStatus() {
+        Haptics.tap()
+        let target = currentStatus == "active" ? "standby" : "active"
+        Task {
+            await MainActor.run {
+                togglingStatus = true
+                statusOverride = target
+            }
+            let ok = (try? await NexusAPIClient.shared.setAgentStatus(id: agent.id, status: target)) ?? false
+            await MainActor.run {
+                togglingStatus = false
+                if !ok {
+                    // Roll back optimistic flip on failure
+                    statusOverride = nil
+                    error = "Status change failed."
+                }
+            }
         }
     }
 }
@@ -2464,6 +3230,25 @@ private struct SchedulesListView: View {
     @State private var schedules: [NexusAPIClient.ScheduleSummary] = []
     @State private var loading = true
     @State private var error: String?
+    @State private var search: String = ""
+    /// IDs of schedules currently mid-action (toggle or run-now) so the
+    /// UI can show a spinner and disable repeat taps.
+    @State private var busy: Set<String> = []
+    /// Optimistic enabled flags — flipped instantly on toggle so the UI
+    /// feels responsive, then reconciled from the server response.
+    @State private var enabledOverrides: [String: Bool] = [:]
+    @State private var toast: String = ""
+    @State private var showCreate: Bool = false
+
+    private var filtered: [NexusAPIClient.ScheduleSummary] {
+        let q = search.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !q.isEmpty else { return schedules }
+        return schedules.filter { s in
+            s.name.lowercased().contains(q)
+                || s.cron_expression.lowercased().contains(q)
+                || s.target_type.lowercased().contains(q)
+        }
+    }
 
     var body: some View {
         ScrollView {
@@ -2482,15 +3267,40 @@ private struct SchedulesListView: View {
                         .foregroundColor(.red.opacity(0.8))
                         .padding(.horizontal, 20)
                 }
-                Text("SCHEDULES · \(schedules.count)")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-                    .tracking(2)
-                    .foregroundColor(.white.opacity(0.35))
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
+                if !toast.isEmpty {
+                    Text(toast)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.indigo.opacity(0.85))
+                        .padding(.horizontal, 20)
+                }
+                HStack {
+                    Text("SCHEDULES · \(filtered.count)\(search.isEmpty ? "" : " / \(schedules.count)")")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .tracking(2)
+                        .foregroundColor(.white.opacity(0.35))
+                    Spacer()
+                    Button(action: { Haptics.light(); showCreate = true }) {
+                        Label("NEW", systemImage: "plus.circle.fill")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .tracking(1.5)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 10).padding(.vertical, 5)
+                            .background(Color.indigo)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
 
                 if schedules.isEmpty && !loading {
-                    Text("No schedules yet. Create one in the portal.")
+                    Text("No schedules yet. Tap + NEW to add one.")
+                        .font(.system(size: 12))
+                        .foregroundColor(.white.opacity(0.4))
+                        .padding(.horizontal, 20)
+                        .padding(.top, 8)
+                } else if filtered.isEmpty && !search.isEmpty {
+                    Text("No schedules match \"\(search)\"")
                         .font(.system(size: 12))
                         .foregroundColor(.white.opacity(0.4))
                         .padding(.horizontal, 20)
@@ -2498,26 +3308,36 @@ private struct SchedulesListView: View {
                 }
 
                 VStack(spacing: 6) {
-                    ForEach(schedules) { s in scheduleRow(s) }
+                    ForEach(filtered) { s in scheduleRow(s) }
                 }
                 .padding(.horizontal, 12)
             }
             .padding(.top, 12)
             .padding(.bottom, 36)
         }
+        .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search schedules")
         .refreshable { await load() }
         .task { await load() }
+        .sheet(isPresented: $showCreate) {
+            CreateScheduleSheet { _ in
+                showCreate = false
+                Task { await load() }
+            }
+        }
     }
 
     private func scheduleRow(_ s: NexusAPIClient.ScheduleSummary) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        let isEnabled = enabledOverrides[s.id] ?? s.enabled
+        let isBusy = busy.contains(s.id)
+        return VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 Circle()
-                    .fill(s.enabled ? Color.green : Color.gray)
+                    .fill(isEnabled ? Color.green : Color.gray)
                     .frame(width: 8, height: 8)
                 Text(s.name)
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.white.opacity(0.9))
+                    .lineLimit(1)
                 Spacer()
                 Text(s.target_type.replacingOccurrences(of: "_", with: " ").uppercased())
                     .font(.system(size: 9, weight: .bold, design: .monospaced))
@@ -2540,11 +3360,111 @@ private struct SchedulesListView: View {
                     .foregroundColor(status == "success" ? .white.opacity(0.5) : .red.opacity(0.7))
                     .lineLimit(2)
             }
+
+            HStack(spacing: 10) {
+                // Enabled toggle — optimistic flip + server sync. Disabled
+                // while in-flight so a double-tap can't desync state.
+                Toggle("", isOn: Binding(
+                    get: { isEnabled },
+                    set: { newVal in Task { await setEnabled(id: s.id, to: newVal) } }
+                ))
+                .labelsHidden()
+                .tint(.green)
+                .disabled(isBusy)
+                Text(isEnabled ? "ON" : "OFF")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .tracking(1.5)
+                    .foregroundColor(isEnabled ? .green.opacity(0.85) : .gray)
+
+                Spacer()
+
+                Button(action: { Task { await fireNow(s) } }) {
+                    HStack(spacing: 4) {
+                        if isBusy {
+                            ProgressView().controlSize(.small).tint(.white)
+                        } else {
+                            Image(systemName: "play.fill").font(.system(size: 9, weight: .bold))
+                        }
+                        Text("RUN NOW")
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .tracking(1.5)
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 10).padding(.vertical, 6)
+                    .background(Color.indigo.opacity(0.75))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                .buttonStyle(.plain)
+                .disabled(isBusy)
+            }
+            .padding(.top, 4)
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.white.opacity(0.03))
         .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func setEnabled(id: String, to enabled: Bool) async {
+        Haptics.tap()
+        await MainActor.run {
+            enabledOverrides[id] = enabled
+            busy.insert(id)
+        }
+        do {
+            let ok = try await NexusAPIClient.shared.setScheduleEnabled(id: id, enabled: enabled)
+            if ok {
+                await MainActor.run {
+                    if let idx = schedules.firstIndex(where: { $0.id == id }) {
+                        // ScheduleSummary is a let-struct; rebuild it with the
+                        // new enabled flag so the next render picks it up.
+                        let s = schedules[idx]
+                        schedules[idx] = NexusAPIClient.ScheduleSummary(
+                            id: s.id, name: s.name, description: s.description,
+                            cron_expression: s.cron_expression, timezone: s.timezone,
+                            target_type: s.target_type, target_id: s.target_id,
+                            enabled: enabled, next_run_at: s.next_run_at,
+                            last_run_at: s.last_run_at, last_status: s.last_status,
+                            last_error: s.last_error
+                        )
+                    }
+                    enabledOverrides.removeValue(forKey: id)
+                    busy.remove(id)
+                }
+            } else {
+                await rollback(id: id, message: "Toggle failed")
+            }
+        } catch {
+            await rollback(id: id, message: "Toggle failed: \(error.localizedDescription)")
+        }
+    }
+
+    private func fireNow(_ s: NexusAPIClient.ScheduleSummary) async {
+        Haptics.heavy()
+        await MainActor.run { busy.insert(s.id) }
+        do {
+            let ok = try await NexusAPIClient.shared.runScheduleNow(id: s.id)
+            await MainActor.run {
+                busy.remove(s.id)
+                toast = ok ? "Fired: \(s.name)" : "Run failed: \(s.name)"
+            }
+            try? await Task.sleep(nanoseconds: 1_800_000_000)
+            await MainActor.run { toast = "" }
+            await load()
+        } catch {
+            await MainActor.run {
+                busy.remove(s.id)
+                toast = "Run failed: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    private func rollback(id: String, message: String) async {
+        await MainActor.run {
+            enabledOverrides.removeValue(forKey: id)
+            busy.remove(id)
+            toast = message
+        }
     }
 
     private func load() async {
@@ -2554,6 +3474,7 @@ private struct SchedulesListView: View {
             await MainActor.run {
                 self.schedules = s
                 self.loading = false
+                self.enabledOverrides.removeAll()
             }
         } catch {
             await MainActor.run {
@@ -2956,6 +3877,7 @@ private struct CommandCenterView: View {
     @State private var liveOps: Int? = nil
     @State private var liveAgents: Int? = nil
     @State private var liveTerminals: Int? = nil
+    @State private var showTeam = false
 
     var body: some View {
         ZStack {
@@ -3021,6 +3943,9 @@ private struct CommandCenterView: View {
         .onAppear {
             appeared = true
             Task { await loadSnapshot() }
+        }
+        .sheet(isPresented: $showTeam) {
+            TeamListSheet(onClose: { showTeam = false })
         }
     }
 
@@ -3146,6 +4071,10 @@ private struct CommandCenterView: View {
 
     private var accountSection: some View {
         section("ACCOUNT") {
+            actionRow(icon: "person.3.sequence.fill", label: "Team") {
+                Haptics.light()
+                showTeam = true
+            }
             actionRow(icon: "gearshape", label: "Settings") {
                 Haptics.light()
                 onOpenSettings()
@@ -3227,6 +4156,3082 @@ private struct CommandCenterView: View {
             self.liveOps       = o
             self.liveAgents    = a
             self.liveTerminals = t
+        }
+    }
+}
+
+// MARK: - Connections (Arena providers — read-only visibility)
+
+/// What providers (ClickUp / Notion / GitHub / Stripe / Slack) the user
+/// has connected. Read-only: actual OAuth flows live on web — too much
+/// browser-redirect ceremony to do nicely on phone. This view tells the
+/// Director at a glance which integrations are wired and which are red.
+private struct ConnectionsListView: View {
+    @State private var connections: [NexusAPIClient.ArenaConnection] = []
+    @State private var loading = true
+    @State private var error: String?
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 10) {
+                if loading {
+                    Text("LOADING…")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .tracking(2)
+                        .foregroundColor(.gray)
+                        .padding(.top, 24)
+                        .frame(maxWidth: .infinity)
+                }
+                if let error {
+                    Text(error)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.red.opacity(0.8))
+                        .padding(.horizontal, 20)
+                }
+                Text("CONNECTIONS · \(connections.count)")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .tracking(2)
+                    .foregroundColor(.white.opacity(0.35))
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+
+                if connections.isEmpty && !loading {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("No connections wired yet.")
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.5))
+                        Text("Connect ClickUp, Notion, GitHub, Slack, or Stripe from the portal — they'll show up here once linked.")
+                            .font(.system(size: 11))
+                            .foregroundColor(.white.opacity(0.35))
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+                }
+
+                VStack(spacing: 6) {
+                    ForEach(connections) { c in connectionRow(c) }
+                }
+                .padding(.horizontal, 12)
+            }
+            .padding(.top, 12)
+            .padding(.bottom, 36)
+        }
+        .refreshable { await load() }
+        .task { await load() }
+    }
+
+    private func connectionRow(_ c: NexusAPIClient.ArenaConnection) -> some View {
+        let statusColor: Color = {
+            switch c.status {
+            case "active":  return .green
+            case "errored": return .red
+            case "expired": return .orange
+            default:        return .gray
+            }
+        }()
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                Image(systemName: providerIcon(c.provider))
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.white.opacity(0.85))
+                    .frame(width: 28)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(c.provider.uppercased())
+                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                        .tracking(1.5)
+                        .foregroundColor(.white.opacity(0.9))
+                    if let label = c.label, !label.isEmpty {
+                        Text(label)
+                            .font(.system(size: 11))
+                            .foregroundColor(.white.opacity(0.55))
+                            .lineLimit(1)
+                    }
+                }
+                Spacer()
+                HStack(spacing: 5) {
+                    Circle().fill(statusColor).frame(width: 6, height: 6)
+                    Text(c.status.uppercased())
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .tracking(1.5)
+                        .foregroundColor(statusColor)
+                }
+            }
+            if let last = c.last_used_at {
+                Text("last used \(last.prefix(19))")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.4))
+            }
+            if let err = c.last_error, !err.isEmpty {
+                Text(err)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(.red.opacity(0.75))
+                    .lineLimit(3)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white.opacity(0.03))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func providerIcon(_ provider: String) -> String {
+        switch provider {
+        case "clickup": return "checklist"
+        case "notion":  return "doc.text.fill"
+        case "github":  return "chevron.left.forwardslash.chevron.right"
+        case "slack":   return "number"
+        case "stripe":  return "creditcard.fill"
+        default:        return "link.circle.fill"
+        }
+    }
+
+    private func load() async {
+        await MainActor.run { loading = true; error = nil }
+        do {
+            let c = try await NexusAPIClient.shared.fetchConnections()
+            await MainActor.run {
+                self.connections = c
+                self.loading = false
+            }
+        } catch {
+            await MainActor.run {
+                self.error = "Load failed: \(error.localizedDescription)"
+                self.loading = false
+            }
+        }
+    }
+}
+
+// MARK: - Nexus Map (phone-native rendering of the system graph)
+
+/// The Nexus Map on web/Lumen is a force-directed graph of every entity
+/// in the system. On a phone that visualization is unreadable, so iOS
+/// renders the same data as a categorized browser: counts per node type
+/// at the top, drill into a type for the full list, search across all
+/// nodes. Same data contract (`/api/nexus-map`), different UX.
+struct NexusMapView: View {
+    /// Optional callback wired by ContentView so node detail can offer
+    /// "Open in <tab>" jumps. nil = no jump capability (sheet still shows
+    /// the node info, just without the jump button).
+    var onJumpToTab: ((ContentView.Tab) -> Void)? = nil
+
+    @State private var nodes: [NexusAPIClient.MapNode] = []
+    @State private var edges: [NexusAPIClient.MapEdge] = []
+    @State private var activeResearch: Int = 0
+    @State private var loading = true
+    @State private var error: String?
+    @State private var search: String = ""
+    @State private var selectedType: String? = nil
+    @State private var inspectingNode: NexusAPIClient.MapNode? = nil
+    /// Graph (luminous node/edge canvas, matching Lumen's 3D map) vs
+    /// list (searchable per-row browser). Graph is the default —
+    /// matches the desktop visual. Persists via UserDefaults.
+    @AppStorage("nexus.map.mode") private var mapMode: String = "graph"
+
+    /// Visible groups in the order we want them shown. Conversations are
+    /// usually the highest-count noisy bucket so we put them last.
+    private let typeOrder = ["operation", "agent", "record", "research", "topic", "directive", "human", "conversation"]
+
+    private var filteredNodes: [NexusAPIClient.MapNode] {
+        let q = search.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let inType: (NexusAPIClient.MapNode) -> Bool = { n in
+            selectedType == nil || n.type == selectedType
+        }
+        if q.isEmpty {
+            return nodes.filter(inType)
+        }
+        return nodes.filter { n in
+            inType(n) && (
+                n.title.lowercased().contains(q)
+                    || n.subtitle.lowercased().contains(q)
+                    || n.preview.lowercased().contains(q)
+                    || n.tags.contains(where: { $0.lowercased().contains(q) })
+            )
+        }
+    }
+
+    private var counts: [(type: String, count: Int)] {
+        let grouped = Dictionary(grouping: nodes, by: \.type)
+        return typeOrder.compactMap { t in
+            let c = grouped[t]?.count ?? 0
+            return c > 0 ? (t, c) : nil
+        }
+    }
+
+    var body: some View {
+        Group {
+            if mapMode == "graph" {
+                graphMode
+            } else {
+                listMode
+            }
+        }
+        .background(Color.black.ignoresSafeArea())
+        .refreshable { await load() }
+        .task { await load() }
+        .sheet(item: $inspectingNode) { n in
+            MapNodeDetailSheet(
+                node: n,
+                onClose: { inspectingNode = nil },
+                onJumpToTab: onJumpToTab
+            )
+        }
+    }
+
+    /// Graph view — Canvas-rendered nodes + edges. Matches Lumen's 3D
+    /// SceneKit map visually (just 2D) so the system feels coherent
+    /// across surfaces. Type filter chips at top, graph in the middle,
+    /// counts in the header. Tap a node to open the detail sheet.
+    @ViewBuilder
+    private var graphMode: some View {
+        VStack(spacing: 0) {
+            header
+
+            if !counts.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        chip(label: "ALL", count: nodes.count, isActive: selectedType == nil) {
+                            selectedType = nil
+                        }
+                        ForEach(counts, id: \.type) { row in
+                            chip(label: row.type.uppercased(), count: row.count, isActive: selectedType == row.type) {
+                                selectedType = row.type == selectedType ? nil : row.type
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                }
+                .padding(.vertical, 6)
+            }
+
+            if loading {
+                Spacer()
+                Text("LOADING MAP…")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .tracking(2)
+                    .foregroundColor(.gray)
+                Spacer()
+            } else if filteredNodes.isEmpty {
+                Spacer()
+                Text(selectedType == nil ? "No nodes yet." : "No \(selectedType ?? "") nodes.")
+                    .font(.system(size: 12))
+                    .foregroundColor(.white.opacity(0.4))
+                Spacer()
+            } else {
+                NexusMapGraph(
+                    nodes: filteredNodes,
+                    allNodes: nodes,
+                    edges: edges,
+                    highlightedType: selectedType,
+                    onTapNode: { node in
+                        Haptics.light()
+                        inspectingNode = node
+                    }
+                )
+            }
+        }
+    }
+
+    /// List view — original phone-native browser. Useful when you want
+    /// to scan/search rather than navigate visually.
+    @ViewBuilder
+    private var listMode: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                header
+                    .padding(.horizontal, 0)
+
+                if let error {
+                    Text(error)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.red.opacity(0.8))
+                        .padding(.horizontal, 20)
+                }
+
+                if !counts.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            chip(label: "ALL", count: nodes.count, isActive: selectedType == nil) {
+                                selectedType = nil
+                            }
+                            ForEach(counts, id: \.type) { row in
+                                chip(label: row.type.uppercased(), count: row.count, isActive: selectedType == row.type) {
+                                    selectedType = row.type == selectedType ? nil : row.type
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                    }
+                }
+
+                if loading {
+                    Text("LOADING…")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .tracking(2)
+                        .foregroundColor(.gray)
+                        .padding(.top, 24)
+                        .frame(maxWidth: .infinity)
+                } else if filteredNodes.isEmpty {
+                    Text(search.isEmpty
+                         ? "No \(selectedType ?? "nodes") yet."
+                         : "No nodes match \"\(search)\".")
+                        .font(.system(size: 12))
+                        .foregroundColor(.white.opacity(0.4))
+                        .padding(.horizontal, 20)
+                        .padding(.top, 8)
+                } else {
+                    Text("\(filteredNodes.count) shown")
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .tracking(1.5)
+                        .foregroundColor(.white.opacity(0.3))
+                        .padding(.horizontal, 20)
+                    VStack(spacing: 6) {
+                        ForEach(filteredNodes.prefix(200)) { node in
+                            nodeRow(node)
+                        }
+                        if filteredNodes.count > 200 {
+                            Text("(\(filteredNodes.count - 200) more — refine search)")
+                                .font(.system(size: 10, design: .monospaced))
+                                .foregroundColor(.white.opacity(0.4))
+                                .padding(.top, 8)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                }
+            }
+            .padding(.bottom, 36)
+        }
+        .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search the map")
+    }
+
+    /// Shared header — title, count, active-research line, plus the
+    /// graph/list mode toggle pinned right.
+    @ViewBuilder
+    private var header: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("NEXUS MAP")
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .tracking(2.5)
+                    .foregroundColor(.indigo.opacity(0.9))
+                Text("\(nodes.count) nodes · \(edges.count) edges")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.5))
+                if activeResearch > 0 {
+                    Text("● \(activeResearch) research job\(activeResearch == 1 ? "" : "s") running")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(.green.opacity(0.85))
+                }
+            }
+            Spacer()
+            // Graph / list toggle — pinned in the header so the Director
+            // can flip between visual and scan modes from any state.
+            Picker("Mode", selection: $mapMode) {
+                Image(systemName: "circle.grid.cross.fill").tag("graph")
+                Image(systemName: "list.bullet").tag("list")
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 96)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 10)
+        .padding(.bottom, 4)
+    }
+
+    private func chip(label: String, count: Int, isActive: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: { Haptics.light(); action() }) {
+            HStack(spacing: 6) {
+                Text(label)
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .tracking(1.5)
+                Text("\(count)")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundColor(isActive ? .black.opacity(0.6) : .white.opacity(0.5))
+            }
+            .foregroundColor(isActive ? .black : .white.opacity(0.7))
+            .padding(.horizontal, 10).padding(.vertical, 6)
+            .background(isActive ? Color.indigo.opacity(0.85) : Color.white.opacity(0.06))
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func nodeRow(_ n: NexusAPIClient.MapNode) -> some View {
+        Button(action: { Haptics.light(); inspectingNode = n }) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Image(systemName: Self.iconFor(n.type))
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(Self.colorFor(n.type))
+                        .frame(width: 18)
+                    Text(n.title)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.white.opacity(0.9))
+                        .lineLimit(1)
+                    Spacer()
+                    Text(n.type.uppercased())
+                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                        .tracking(1.5)
+                        .foregroundColor(Self.colorFor(n.type).opacity(0.85))
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(.white.opacity(0.3))
+                }
+                if !n.subtitle.isEmpty {
+                    Text(n.subtitle)
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.45))
+                        .lineLimit(1)
+                }
+                if !n.preview.isEmpty {
+                    Text(n.preview)
+                        .font(.system(size: 11))
+                        .foregroundColor(.white.opacity(0.55))
+                        .lineLimit(2)
+                }
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.white.opacity(0.03))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
+    }
+
+    static func iconFor(_ type: String) -> String {
+        switch type {
+        case "conversation": return "bubble.left.and.bubble.right.fill"
+        case "agent":        return "person.fill"
+        case "operation":    return "square.stack.3d.up.fill"
+        case "topic":        return "tag.fill"
+        case "record":       return "doc.text.fill"
+        case "research":     return "magnifyingglass"
+        case "directive":    return "shield.lefthalf.filled"
+        case "human":        return "person.crop.circle.fill"
+        default:             return "circle.fill"
+        }
+    }
+
+    static func colorFor(_ type: String) -> Color {
+        switch type {
+        case "conversation": return .blue
+        case "agent":        return .green
+        case "operation":    return .indigo
+        case "topic":        return .orange
+        case "record":       return .teal
+        case "research":     return .pink
+        case "directive":    return .yellow
+        case "human":        return .purple
+        default:             return .gray
+        }
+    }
+
+    private func load() async {
+        await MainActor.run { loading = true; error = nil }
+        do {
+            let r = try await NexusAPIClient.shared.fetchNexusMap()
+            await MainActor.run {
+                self.nodes = r.nodes
+                self.edges = r.edges ?? []
+                self.activeResearch = r.activeResearch ?? 0
+                self.loading = false
+            }
+        } catch {
+            await MainActor.run {
+                self.error = "Map unavailable: \(error.localizedDescription)"
+                self.loading = false
+            }
+        }
+    }
+}
+
+// MARK: - Create Operation sheet
+
+private struct CreateOperationSheet: View {
+    let onClose: (String?) -> Void   // returns new op id on success, nil on cancel
+
+    @State private var name: String = ""
+    @State private var description: String = ""
+    @State private var objectives: String = ""
+    @State private var priority: String = "medium"
+    @State private var status: String = "planning"
+    @State private var submitting: Bool = false
+    @State private var error: String = ""
+    @FocusState private var nameFocused: Bool
+
+    private let priorities = ["low", "medium", "high", "critical"]
+    private let statuses = ["planning", "active", "paused", "complete", "aborted"]
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    sheetField("NAME") {
+                        TextField("e.g. Operation Sheldon", text: $name)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 16))
+                            .focused($nameFocused)
+                    }
+                    sheetField("DESCRIPTION") {
+                        TextEditor(text: $description)
+                            .scrollContentBackground(.hidden)
+                            .font(.system(size: 14))
+                            .frame(minHeight: 80)
+                    }
+                    sheetField("OBJECTIVES") {
+                        TextEditor(text: $objectives)
+                            .scrollContentBackground(.hidden)
+                            .font(.system(size: 14))
+                            .frame(minHeight: 80)
+                    }
+                    fieldLabel("PRIORITY")
+                    Picker("Priority", selection: $priority) {
+                        ForEach(priorities, id: \.self) { Text($0.capitalized).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    fieldLabel("STATUS")
+                    Picker("Status", selection: $status) {
+                        ForEach(statuses, id: \.self) { Text($0.capitalized).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+
+                    if !error.isEmpty {
+                        Text(error)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.red.opacity(0.85))
+                    }
+
+                    submitButton("CREATE OPERATION", disabled: name.trimmingCharacters(in: .whitespaces).isEmpty || submitting, busy: submitting, action: submit)
+                        .padding(.top, 4)
+                }
+                .padding(16)
+            }
+            .background(Color.black.ignoresSafeArea())
+            .navigationTitle("New Operation")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { onClose(nil) }
+                        .foregroundColor(.white.opacity(0.7))
+                }
+            }
+            .onAppear { nameFocused = true }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    private func submit() {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, !submitting else { return }
+        Haptics.tap()
+        submitting = true
+        error = ""
+        Task {
+            do {
+                let newId = try await NexusAPIClient.shared.createOperation(
+                    name: trimmed,
+                    description: description.trimmingCharacters(in: .whitespacesAndNewlines),
+                    objectives: objectives.trimmingCharacters(in: .whitespacesAndNewlines),
+                    priority: priority,
+                    status: status
+                )
+                await MainActor.run {
+                    submitting = false
+                    if newId != nil {
+                        Haptics.success()
+                        onClose(newId)
+                    } else {
+                        Haptics.error()
+                        error = "Server didn't return an id."
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    submitting = false
+                    Haptics.error()
+                    self.error = "Create failed: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Create Agent sheet
+
+private struct CreateAgentSheet: View {
+    let onClose: (String?) -> Void
+
+    @State private var name: String = ""
+    @State private var role: String = ""
+    @State private var personality: String = ""
+    @State private var capabilitiesText: String = ""
+    @State private var directives: String = ""
+    @State private var status: String = "standby"
+    @State private var submitting: Bool = false
+    @State private var error: String = ""
+    @FocusState private var nameFocused: Bool
+
+    private let statuses = ["standby", "active", "offline"]
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    sheetField("NAME") {
+                        TextField("e.g. Researcher", text: $name)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 16))
+                            .focused($nameFocused)
+                    }
+                    sheetField("ROLE") {
+                        TextField("e.g. Watch for product mentions", text: $role)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 16))
+                    }
+                    sheetField("PERSONALITY") {
+                        TextEditor(text: $personality)
+                            .scrollContentBackground(.hidden)
+                            .font(.system(size: 14))
+                            .frame(minHeight: 80)
+                    }
+                    sheetField("CAPABILITIES (comma-separated)") {
+                        TextField("research, summarization", text: $capabilitiesText)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 14))
+                    }
+                    sheetField("DIRECTIVES") {
+                        TextEditor(text: $directives)
+                            .scrollContentBackground(.hidden)
+                            .font(.system(size: 14))
+                            .frame(minHeight: 80)
+                    }
+                    fieldLabel("INITIAL STATUS")
+                    Picker("Status", selection: $status) {
+                        ForEach(statuses, id: \.self) { Text($0.capitalized).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+
+                    if !error.isEmpty {
+                        Text(error)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.red.opacity(0.85))
+                    }
+
+                    submitButton(
+                        "CREATE AGENT",
+                        disabled: name.trimmingCharacters(in: .whitespaces).isEmpty
+                            || role.trimmingCharacters(in: .whitespaces).isEmpty
+                            || submitting,
+                        busy: submitting,
+                        action: submit
+                    )
+                    .padding(.top, 4)
+                }
+                .padding(16)
+            }
+            .background(Color.black.ignoresSafeArea())
+            .navigationTitle("New Agent")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { onClose(nil) }
+                        .foregroundColor(.white.opacity(0.7))
+                }
+            }
+            .onAppear { nameFocused = true }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    private func submit() {
+        let n = name.trimmingCharacters(in: .whitespaces)
+        let r = role.trimmingCharacters(in: .whitespaces)
+        guard !n.isEmpty, !r.isEmpty, !submitting else { return }
+        Haptics.tap()
+        submitting = true
+        error = ""
+
+        let caps = capabilitiesText
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+
+        Task {
+            do {
+                let newId = try await NexusAPIClient.shared.createAgent(
+                    name: n,
+                    role: r,
+                    personality: personality.trimmingCharacters(in: .whitespacesAndNewlines),
+                    capabilities: caps,
+                    directives: directives.trimmingCharacters(in: .whitespacesAndNewlines),
+                    status: status
+                )
+                await MainActor.run {
+                    submitting = false
+                    if newId != nil {
+                        Haptics.success()
+                        onClose(newId)
+                    } else {
+                        Haptics.error()
+                        error = "Server didn't return an id."
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    submitting = false
+                    Haptics.error()
+                    self.error = "Create failed: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+}
+
+// Shared sheet primitives used by Create Operation / Agent / Record.
+@ViewBuilder
+private func sheetField<Content: View>(_ label: String, @ViewBuilder _ content: () -> Content) -> some View {
+    VStack(alignment: .leading, spacing: 4) {
+        fieldLabel(label)
+        content()
+            .padding(.horizontal, 12).padding(.vertical, 11)
+            .background(Color.white.opacity(0.06))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+private func fieldLabel(_ text: String) -> some View {
+    Text(text)
+        .font(.system(size: 9, weight: .bold, design: .monospaced))
+        .tracking(2)
+        .foregroundColor(.white.opacity(0.45))
+}
+
+private func submitButton(_ label: String, disabled: Bool, busy: Bool, action: @escaping () -> Void) -> some View {
+    Button(action: action) {
+        HStack(spacing: 8) {
+            if busy {
+                ProgressView().controlSize(.small).tint(.white)
+            } else {
+                Image(systemName: "checkmark.circle.fill").font(.system(size: 14, weight: .bold))
+            }
+            Text(busy ? "SAVING…" : label)
+                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                .tracking(1.5)
+        }
+        .foregroundColor(.white)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 14)
+        .background(disabled ? Color.gray.opacity(0.3) : Color.indigo)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+    .buttonStyle(.plain)
+    .disabled(disabled)
+}
+
+// MARK: - Dashboard (at-a-glance overview)
+
+/// First-glance snapshot of the whole system: counts per surface, recent
+/// arena activity, current focus. Pulls each surface's existing list endpoint
+/// in parallel so the data is always live, not summarized server-side.
+/// Lumen's dashboard is much richer; this is the phone equivalent —
+/// landscape-readable at-a-glance state plus drill-in shortcuts.
+private struct DashboardView: View {
+    let onJump: (ContentView.Tab) -> Void
+
+    @State private var opsCount = 0
+    @State private var opsActive = 0
+    @State private var agentsCount = 0
+    @State private var agentsActive = 0
+    @State private var schedulesCount = 0
+    @State private var schedulesEnabled = 0
+    @State private var terminalsCount = 0
+    @State private var arenaRecent: [NexusAPIClient.ArenaEntry] = []
+    @State private var activeResearch = 0
+    @State private var loading = true
+    @State private var error: String?
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                if loading {
+                    Text("LOADING…")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .tracking(2)
+                        .foregroundColor(.gray)
+                        .padding(.top, 24)
+                        .frame(maxWidth: .infinity)
+                }
+                if let error {
+                    Text(error)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.red.opacity(0.8))
+                        .padding(.horizontal, 20)
+                }
+
+                // Active research banner — surfaces when the user has
+                // research jobs in flight (kicked off via the Research
+                // pill on operation records). Closes the feedback loop
+                // so "is my research running?" is answerable from this
+                // tab alone.
+                if activeResearch > 0 {
+                    HStack(spacing: 10) {
+                        ZStack {
+                            Circle().fill(Color.pink.opacity(0.18)).frame(width: 28, height: 28)
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.pink)
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("RESEARCH IN FLIGHT")
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .tracking(2)
+                                .foregroundColor(.pink.opacity(0.9))
+                            Text("\(activeResearch) job\(activeResearch == 1 ? "" : "s") running — findings will appear in their operations.")
+                                .font(.system(size: 11))
+                                .foregroundColor(.white.opacity(0.65))
+                        }
+                        Spacer()
+                    }
+                    .padding(12)
+                    .background(Color.pink.opacity(0.08))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.pink.opacity(0.35), lineWidth: 1))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .padding(.horizontal, 12)
+                }
+
+                // 2-col tile grid for the counts
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                    tile(title: "OPERATIONS", primary: "\(opsCount)", secondary: "\(opsActive) active", icon: "square.stack.3d.up.fill", color: .indigo, jumpTo: .operations)
+                    tile(title: "AGENTS", primary: "\(agentsCount)", secondary: "\(agentsActive) active", icon: "person.2.fill", color: .green, jumpTo: .agents)
+                    tile(title: "SCHEDULES", primary: "\(schedulesCount)", secondary: "\(schedulesEnabled) enabled", icon: "calendar", color: .blue, jumpTo: .schedules)
+                    tile(title: "TERMINALS", primary: "\(terminalsCount)", secondary: "live PTYs", icon: "terminal.fill", color: .teal, jumpTo: .terminals)
+                }
+                .padding(.horizontal, 12)
+
+                // Recent activity
+                Text("RECENT ARENA · \(arenaRecent.count)")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .tracking(2)
+                    .foregroundColor(.white.opacity(0.35))
+                    .padding(.horizontal, 20)
+                    .padding(.top, 10)
+
+                if arenaRecent.isEmpty && !loading {
+                    Text("Nothing fired yet.")
+                        .font(.system(size: 12))
+                        .foregroundColor(.white.opacity(0.4))
+                        .padding(.horizontal, 20)
+                } else {
+                    VStack(spacing: 6) {
+                        ForEach(arenaRecent.prefix(8)) { e in
+                            recentRow(e)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    Button(action: { Haptics.light(); onJump(.arena) }) {
+                        Text("OPEN ARENA LOG →")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .tracking(1.5)
+                            .foregroundColor(.indigo)
+                            .padding(.horizontal, 20)
+                            .padding(.top, 4)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.top, 12)
+            .padding(.bottom, 36)
+        }
+        .refreshable { await load() }
+        .task { await load() }
+    }
+
+    private func tile(title: String, primary: String, secondary: String, icon: String, color: Color, jumpTo: ContentView.Tab) -> some View {
+        Button(action: { Haptics.light(); onJump(jumpTo) }) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    ZStack {
+                        Circle().fill(color.opacity(0.18)).frame(width: 28, height: 28)
+                        Image(systemName: icon)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(color)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.white.opacity(0.3))
+                }
+                Text(primary)
+                    .font(.system(size: 34, weight: .light, design: .rounded))
+                    .foregroundColor(.white)
+                    .padding(.top, 4)
+                Text(title)
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .tracking(2)
+                    .foregroundColor(.white.opacity(0.55))
+                Text(secondary)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(color.opacity(0.85))
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                LinearGradient(
+                    colors: [Color.white.opacity(0.05), Color.white.opacity(0.025)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(color.opacity(0.22), lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(PressableTileStyle())
+    }
+
+    private func recentRow(_ e: NexusAPIClient.ArenaEntry) -> some View {
+        let okColor: Color = e.status == "success" ? .green : (e.status == "error" ? .red : .gray)
+        return HStack(spacing: 8) {
+            Circle().fill(okColor).frame(width: 6, height: 6)
+            Text(e.action.uppercased())
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .tracking(1.5)
+                .foregroundColor(.white.opacity(0.8))
+                .lineLimit(1)
+            Spacer()
+            Text(e.created_at.prefix(16))
+                .font(.system(size: 9, design: .monospaced))
+                .foregroundColor(.white.opacity(0.4))
+        }
+        .padding(.horizontal, 10).padding(.vertical, 8)
+        .background(Color.white.opacity(0.03))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func load() async {
+        await MainActor.run { loading = true; error = nil }
+        async let ops       = (try? NexusAPIClient.shared.fetchOperations()) ?? []
+        async let agents    = (try? NexusAPIClient.shared.fetchAgents()) ?? []
+        async let schedules = (try? NexusAPIClient.shared.fetchSchedules()) ?? []
+        async let terms     = (try? NexusAPIClient.shared.fetchTerminalSessions()) ?? []
+        async let arena     = (try? NexusAPIClient.shared.fetchArenaLog(limit: 10)) ?? []
+        // Nexus map provides the activeResearch heartbeat — same call the
+        // Map tab uses. Heavier than the per-surface fetches but already
+        // hot in cache from the Map tab if the user just visited it.
+        async let map       = (try? NexusAPIClient.shared.fetchNexusMap())
+
+        let (o, a, s, t, ar, m) = await (ops, agents, schedules, terms, arena, map)
+        await MainActor.run {
+            opsCount = o.count
+            opsActive = o.filter { $0.status == "active" }.count
+            agentsCount = a.count
+            agentsActive = a.filter { $0.status == "active" }.count
+            schedulesCount = s.count
+            schedulesEnabled = s.filter { $0.enabled }.count
+            terminalsCount = t.filter { $0.status == "running" || $0.status == "stale" }.count
+            arenaRecent = ar
+            activeResearch = m?.activeResearch ?? 0
+            loading = false
+        }
+    }
+}
+
+// MARK: - Create Schedule sheet
+
+/// Schedule creation on phone: preset-driven so the Director doesn't have
+/// to remember cron syntax. Five presets cover the common cases; a "Custom"
+/// option exposes the raw cron field for power users. Target picker depends
+/// on type — eve_chat / agent_run / operation_brief require a target_id, and
+/// we render a picker populated from the cached list view rather than
+/// re-fetching here.
+private struct CreateScheduleSheet: View {
+    let onClose: (String?) -> Void
+
+    @State private var name: String = ""
+    @State private var preset: CronPreset = .dailyMorning
+    @State private var customCron: String = "0 9 * * *"
+    @State private var targetType: String = "operation_brief"
+    @State private var targetId: String = ""
+    @State private var payloadText: String = ""        // for operation_brief: kind name
+    @State private var submitting: Bool = false
+    @State private var error: String = ""
+    @FocusState private var nameFocused: Bool
+
+    // Caches loaded once on appear so the target picker has options.
+    @State private var ops: [NexusAPIClient.OperationSummary] = []
+    @State private var agents: [NexusAPIClient.AgentSummary] = []
+
+    enum CronPreset: String, CaseIterable, Identifiable {
+        case dailyMorning, dailyEvening, hourly, weekdays5pm, mondays9am, custom
+        var id: String { rawValue }
+        var label: String {
+            switch self {
+            case .dailyMorning: return "Daily 9am"
+            case .dailyEvening: return "Daily 6pm"
+            case .hourly:       return "Every hour"
+            case .weekdays5pm:  return "Weekdays 5pm"
+            case .mondays9am:   return "Mondays 9am"
+            case .custom:       return "Custom…"
+            }
+        }
+        var cron: String {
+            switch self {
+            case .dailyMorning: return "0 9 * * *"
+            case .dailyEvening: return "0 18 * * *"
+            case .hourly:       return "0 * * * *"
+            case .weekdays5pm:  return "0 17 * * 1-5"
+            case .mondays9am:   return "0 9 * * 1"
+            case .custom:       return ""
+            }
+        }
+    }
+
+    private let targetTypes = ["operation_brief", "agent_run", "eve_chat", "arena_action"]
+
+    private var effectiveCron: String {
+        preset == .custom ? customCron.trimmingCharacters(in: .whitespaces) : preset.cron
+    }
+
+    private var requiresTargetId: Bool { targetType != "arena_action" }
+
+    private var canSubmit: Bool {
+        !name.trimmingCharacters(in: .whitespaces).isEmpty
+            && !effectiveCron.isEmpty
+            && (!requiresTargetId || !targetId.isEmpty)
+            && !submitting
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    sheetField("NAME") {
+                        TextField("e.g. Morning Sheldon check-in", text: $name)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 16))
+                            .focused($nameFocused)
+                    }
+
+                    fieldLabel("WHEN")
+                    Picker("When", selection: $preset) {
+                        ForEach(CronPreset.allCases) { p in
+                            Text(p.label).tag(p)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .padding(.horizontal, 12).padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.white.opacity(0.06))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                    if preset == .custom {
+                        sheetField("CRON EXPRESSION") {
+                            TextField("min hour dom month dow", text: $customCron)
+                                .textFieldStyle(.plain)
+                                .font(.system(size: 13, design: .monospaced))
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
+                        }
+                    } else {
+                        Text(preset.cron)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.indigo.opacity(0.75))
+                            .padding(.horizontal, 12).padding(.vertical, 8)
+                            .background(Color.white.opacity(0.04))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+
+                    fieldLabel("TARGET")
+                    Picker("Target type", selection: $targetType) {
+                        ForEach(targetTypes, id: \.self) { t in
+                            Text(t.replacingOccurrences(of: "_", with: " ").capitalized).tag(t)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    if targetType == "operation_brief" {
+                        targetIdPicker(label: "OPERATION", options: ops.map { ($0.id, $0.name) })
+                        sheetField("BRIEF KIND") {
+                            TextField("summary, actions, next-steps", text: $payloadText)
+                                .textFieldStyle(.plain)
+                                .font(.system(size: 14))
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
+                        }
+                    } else if targetType == "agent_run" {
+                        targetIdPicker(label: "AGENT", options: agents.map { ($0.id, $0.name) })
+                    } else if targetType == "eve_chat" {
+                        sheetField("CONVERSATION ID") {
+                            TextField("eve_conversations.id", text: $targetId)
+                                .textFieldStyle(.plain)
+                                .font(.system(size: 13, design: .monospaced))
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
+                        }
+                        Text("Tip: pick a conversation in the Eve tab and copy its id from history.")
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundColor(.white.opacity(0.35))
+                    } else {
+                        Text("arena_action target — payload-driven, configure in portal.")
+                            .font(.system(size: 11))
+                            .foregroundColor(.white.opacity(0.55))
+                    }
+
+                    if !error.isEmpty {
+                        Text(error)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.red.opacity(0.85))
+                    }
+
+                    submitButton("CREATE SCHEDULE", disabled: !canSubmit, busy: submitting, action: submit)
+                        .padding(.top, 4)
+                }
+                .padding(16)
+            }
+            .background(Color.black.ignoresSafeArea())
+            .navigationTitle("New Schedule")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { onClose(nil) }
+                        .foregroundColor(.white.opacity(0.7))
+                }
+            }
+            .onAppear {
+                nameFocused = true
+                Task { await loadTargets() }
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    @ViewBuilder
+    private func targetIdPicker(label: String, options: [(String, String)]) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            fieldLabel(label)
+            if options.isEmpty {
+                Text("None loaded — type the id manually.")
+                    .font(.system(size: 11))
+                    .foregroundColor(.white.opacity(0.4))
+                TextField("\(label) id", text: $targetId)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 13, design: .monospaced))
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+                    .padding(.horizontal, 12).padding(.vertical, 11)
+                    .background(Color.white.opacity(0.06))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+            } else {
+                Picker(label, selection: $targetId) {
+                    Text("Select…").tag("")
+                    ForEach(options, id: \.0) { id, name in
+                        Text(name).tag(id)
+                    }
+                }
+                .pickerStyle(.menu)
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.white.opacity(0.06))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+        }
+    }
+
+    private func loadTargets() async {
+        async let o = (try? NexusAPIClient.shared.fetchOperations()) ?? []
+        async let a = (try? NexusAPIClient.shared.fetchAgents()) ?? []
+        let (loadedOps, loadedAgents) = await (o, a)
+        await MainActor.run {
+            self.ops = loadedOps
+            self.agents = loadedAgents
+        }
+    }
+
+    private func submit() {
+        guard canSubmit else { return }
+        Haptics.tap()
+        submitting = true
+        error = ""
+
+        // Translate the iOS form into the server's payload shape.
+        // operation_brief expects { kind: "summary"|... }; eve_chat takes
+        // free-form message (we don't surface a payload field for it yet);
+        // agent_run takes no payload.
+        var payload: [String: Any] = [:]
+        if targetType == "operation_brief" {
+            let kind = payloadText.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !kind.isEmpty { payload["kind"] = kind } else { payload["kind"] = "summary" }
+        }
+
+        Task {
+            do {
+                let newId = try await NexusAPIClient.shared.createSchedule(
+                    name: name.trimmingCharacters(in: .whitespaces),
+                    cronExpression: effectiveCron,
+                    targetType: targetType,
+                    targetId: requiresTargetId ? targetId : nil,
+                    timezone: TimeZone.current.identifier,
+                    payload: payload,
+                    enabled: true,
+                    description: nil
+                )
+                await MainActor.run {
+                    submitting = false
+                    if newId != nil {
+                        Haptics.success()
+                        onClose(newId)
+                    } else {
+                        Haptics.error()
+                        error = "Server didn't return an id."
+                    }
+                }
+            } catch let NexusAPIClient.APIError.requestFailed(msg) {
+                await MainActor.run {
+                    submitting = false
+                    Haptics.error()
+                    error = msg
+                }
+            } catch {
+                await MainActor.run {
+                    submitting = false
+                    Haptics.error()
+                    self.error = "Create failed: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Quick Capture sheet (global FAB)
+
+/// Drop-a-thought sheet reachable from any tab via the floating "+" FAB.
+/// Same destination as the Eve tab composer — POSTs through askHomeBrain
+/// — but opens as a sheet so the Director doesn't lose tab context.
+/// Best used for "log this before I forget" moments while browsing Ops,
+/// Agents, etc.
+private struct QuickCaptureSheet: View {
+    let onClose: () -> Void
+    @ObservedObject var voice: EveVoiceManager
+
+    @State private var text: String = ""
+    @State private var submitting: Bool = false
+    @FocusState private var fieldFocused: Bool
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Eve will see this in the current conversation.")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.45))
+                    .padding(.horizontal, 4)
+
+                TextEditor(text: $text)
+                    .scrollContentBackground(.hidden)
+                    .font(.system(size: 16))
+                    .foregroundColor(.white)
+                    .focused($fieldFocused)
+                    .frame(minHeight: 160)
+                    .padding(10)
+                    .background(Color.white.opacity(0.06))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.indigo.opacity(fieldFocused ? 0.5 : 0.2), lineWidth: 1)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                submitButton(
+                    "SEND TO EVE",
+                    disabled: text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || submitting,
+                    busy: submitting,
+                    action: send
+                )
+
+                Spacer()
+            }
+            .padding(16)
+            .background(Color.black.ignoresSafeArea())
+            .navigationTitle("Quick Capture")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { onClose() }
+                        .foregroundColor(.white.opacity(0.7))
+                }
+            }
+            .onAppear { fieldFocused = true }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    private func send() {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !submitting else { return }
+        Haptics.tap()
+        submitting = true
+        // sendText is fire-and-forget — it spawns the Task internally and
+        // appends to voice.messages. We dismiss immediately so the user
+        // sees a clean "sent" feel; the reply lands in the Eve tab.
+        voice.sendText(trimmed)
+        Haptics.success()
+        onClose()
+    }
+}
+
+// MARK: - Map node detail sheet
+
+/// Tap-to-inspect on Nexus Map nodes. Shows full title / subtitle / preview
+/// / tags / timestamps. For node types that have a dedicated tab on iOS
+/// (operations, agents), offers a one-tap pivot via a "filter by type"
+/// nudge that closes the sheet and bounces the user to the right tab.
+/// We don't navigate across tabs to a specific entity yet — that needs
+/// cross-tab state plumbing.
+private struct MapNodeDetailSheet: View {
+    let node: NexusAPIClient.MapNode
+    let onClose: () -> Void
+    let onJumpToTab: ((ContentView.Tab) -> Void)?
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(spacing: 10) {
+                        Image(systemName: NexusMapView.iconFor(node.type))
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundColor(NexusMapView.colorFor(node.type))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(node.title)
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundColor(.white)
+                            Text(node.type.uppercased())
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .tracking(2)
+                                .foregroundColor(NexusMapView.colorFor(node.type).opacity(0.85))
+                        }
+                        Spacer()
+                    }
+
+                    if !node.subtitle.isEmpty {
+                        Text(node.subtitle)
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundColor(.white.opacity(0.55))
+                    }
+
+                    if !node.tags.isEmpty {
+                        FlowLayout(spacing: 6) {
+                            ForEach(node.tags, id: \.self) { tag in
+                                Text(tag.uppercased())
+                                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                    .tracking(1.2)
+                                    .foregroundColor(.white.opacity(0.7))
+                                    .padding(.horizontal, 8).padding(.vertical, 4)
+                                    .background(Color.white.opacity(0.08))
+                                    .clipShape(Capsule())
+                            }
+                        }
+                    }
+
+                    if !node.preview.isEmpty {
+                        Text(node.preview)
+                            .font(.system(size: 14))
+                            .foregroundColor(.white.opacity(0.85))
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.white.opacity(0.04))
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+
+                    HStack(spacing: 16) {
+                        timestamp("CREATED", node.createdAt)
+                        timestamp("UPDATED", node.updatedAt)
+                        if node.messageCount > 0 {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("MSGS")
+                                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                    .tracking(1.5)
+                                    .foregroundColor(.white.opacity(0.4))
+                                Text("\(node.messageCount)")
+                                    .font(.system(size: 12, design: .monospaced))
+                                    .foregroundColor(.white.opacity(0.7))
+                            }
+                        }
+                    }
+
+                    if let pivotTab = pivotTab {
+                        Button(action: { onJumpToTab?(pivotTab); onClose() }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "arrow.up.right.square.fill")
+                                    .font(.system(size: 12, weight: .bold))
+                                Text("OPEN IN \(pivotTab.label)")
+                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                    .tracking(1.5)
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 13)
+                            .background(Color.indigo)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.top, 8)
+                    }
+
+                    Spacer()
+                }
+                .padding(16)
+            }
+            .background(Color.black.ignoresSafeArea())
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") { onClose() }
+                        .foregroundColor(.white.opacity(0.7))
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    private var pivotTab: ContentView.Tab? {
+        switch node.type {
+        case "operation":    return .operations
+        case "agent":        return .agents
+        case "conversation": return .voice
+        default:             return nil
+        }
+    }
+
+    private func timestamp(_ label: String, _ iso: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .tracking(1.5)
+                .foregroundColor(.white.opacity(0.4))
+            Text(iso.prefix(16))
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundColor(.white.opacity(0.6))
+        }
+    }
+}
+
+/// Lightweight flow layout for tag chips — wraps to a new row when the
+/// horizontal axis runs out. SwiftUI doesn't ship a flow layout primitive
+/// pre-iOS 16, but iOS 16+ has the `Layout` protocol which gives us this.
+private struct FlowLayout: Layout {
+    let spacing: CGFloat
+    init(spacing: CGFloat = 6) { self.spacing = spacing }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var rowWidth: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        var totalHeight: CGFloat = 0
+        var maxRowWidth: CGFloat = 0
+        for v in subviews {
+            let size = v.sizeThatFits(.unspecified)
+            if rowWidth + size.width > maxWidth, rowWidth > 0 {
+                totalHeight += rowHeight + spacing
+                maxRowWidth = max(maxRowWidth, rowWidth - spacing)
+                rowWidth = 0
+                rowHeight = 0
+            }
+            rowWidth += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+        totalHeight += rowHeight
+        maxRowWidth = max(maxRowWidth, rowWidth - spacing)
+        return CGSize(width: min(maxRowWidth, maxWidth), height: totalHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX
+        var y = bounds.minY
+        var rowHeight: CGFloat = 0
+        for v in subviews {
+            let size = v.sizeThatFits(.unspecified)
+            if x + size.width > bounds.maxX, x > bounds.minX {
+                x = bounds.minX
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            v.place(at: CGPoint(x: x, y: y), proposal: .unspecified)
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+    }
+}
+
+// MARK: - Edit Operation sheet
+
+/// Reuses the Create sheet's shape but pre-populates fields from the
+/// existing operation and posts via PATCH instead of POST. iOS gets full
+/// CRU parity with Lumen — delete still goes through the portal because
+/// destructive ops deserve more confirmation surface than a phone modal.
+private struct EditOperationSheet: View {
+    let original: NexusAPIClient.OperationSummary
+    let onClose: (Bool) -> Void   // true = saved, false = cancelled
+
+    @State private var name: String
+    @State private var description: String
+    @State private var objectives: String
+    @State private var priority: String
+    @State private var status: String
+    @State private var submitting: Bool = false
+    @State private var error: String = ""
+
+    private let priorities = ["low", "medium", "high", "critical"]
+    private let statuses = ["planning", "active", "paused", "complete", "aborted"]
+
+    init(original: NexusAPIClient.OperationSummary, onClose: @escaping (Bool) -> Void) {
+        self.original = original
+        self.onClose = onClose
+        _name = State(initialValue: original.name)
+        _description = State(initialValue: original.description ?? "")
+        _objectives = State(initialValue: "")  // not on summary; user re-enters or leaves blank
+        _priority = State(initialValue: original.priority ?? "medium")
+        _status = State(initialValue: original.status)
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    sheetField("NAME") {
+                        TextField("Name", text: $name)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 16))
+                    }
+                    sheetField("DESCRIPTION") {
+                        TextEditor(text: $description)
+                            .scrollContentBackground(.hidden)
+                            .font(.system(size: 14))
+                            .frame(minHeight: 80)
+                    }
+                    sheetField("OBJECTIVES") {
+                        TextEditor(text: $objectives)
+                            .scrollContentBackground(.hidden)
+                            .font(.system(size: 14))
+                            .frame(minHeight: 80)
+                    }
+                    Text("Objectives weren't in the summary fetch; leave blank to keep the existing value.")
+                        .font(.system(size: 9, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.35))
+
+                    fieldLabel("PRIORITY")
+                    Picker("Priority", selection: $priority) {
+                        ForEach(priorities, id: \.self) { Text($0.capitalized).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    fieldLabel("STATUS")
+                    Picker("Status", selection: $status) {
+                        ForEach(statuses, id: \.self) { Text($0.capitalized).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+
+                    if !error.isEmpty {
+                        Text(error)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.red.opacity(0.85))
+                    }
+
+                    submitButton(
+                        "SAVE CHANGES",
+                        disabled: name.trimmingCharacters(in: .whitespaces).isEmpty || submitting,
+                        busy: submitting,
+                        action: submit
+                    )
+                    .padding(.top, 4)
+                }
+                .padding(16)
+            }
+            .background(Color.black.ignoresSafeArea())
+            .navigationTitle("Edit Operation")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { onClose(false) }
+                        .foregroundColor(.white.opacity(0.7))
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    private func submit() {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, !submitting else { return }
+        Haptics.tap()
+        submitting = true
+        error = ""
+        let obj = objectives.trimmingCharacters(in: .whitespacesAndNewlines)
+        Task {
+            do {
+                let ok = try await NexusAPIClient.shared.updateOperation(
+                    id: original.id,
+                    name: trimmed,
+                    description: description.trimmingCharacters(in: .whitespacesAndNewlines),
+                    objectives: obj.isEmpty ? nil : obj,
+                    priority: priority,
+                    status: status
+                )
+                await MainActor.run {
+                    submitting = false
+                    if ok {
+                        Haptics.success()
+                        onClose(true)
+                    } else {
+                        Haptics.error()
+                        error = "Update failed."
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    submitting = false
+                    Haptics.error()
+                    self.error = "Save failed: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Edit Agent sheet
+
+private struct EditAgentSheet: View {
+    let original: NexusAPIClient.AgentSummary
+    let onClose: (Bool) -> Void
+
+    @State private var name: String
+    @State private var role: String
+    @State private var personality: String
+    @State private var capabilitiesText: String
+    @State private var directives: String
+    @State private var status: String
+    @State private var submitting: Bool = false
+    @State private var error: String = ""
+
+    private let statuses = ["standby", "active", "offline"]
+
+    init(original: NexusAPIClient.AgentSummary, onClose: @escaping (Bool) -> Void) {
+        self.original = original
+        self.onClose = onClose
+        _name = State(initialValue: original.name)
+        _role = State(initialValue: original.role ?? "")
+        _personality = State(initialValue: "")
+        _capabilitiesText = State(initialValue: "")
+        _directives = State(initialValue: "")
+        _status = State(initialValue: original.status)
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    sheetField("NAME") {
+                        TextField("Name", text: $name)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 16))
+                    }
+                    sheetField("ROLE") {
+                        TextField("Role", text: $role)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 16))
+                    }
+                    sheetField("PERSONALITY") {
+                        TextEditor(text: $personality)
+                            .scrollContentBackground(.hidden)
+                            .font(.system(size: 14))
+                            .frame(minHeight: 80)
+                    }
+                    sheetField("CAPABILITIES (comma-separated)") {
+                        TextField("research, summarization", text: $capabilitiesText)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 14))
+                    }
+                    sheetField("DIRECTIVES") {
+                        TextEditor(text: $directives)
+                            .scrollContentBackground(.hidden)
+                            .font(.system(size: 14))
+                            .frame(minHeight: 80)
+                    }
+                    Text("Personality / capabilities / directives weren't in the summary fetch; leave blank to keep existing values.")
+                        .font(.system(size: 9, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.35))
+
+                    fieldLabel("STATUS")
+                    Picker("Status", selection: $status) {
+                        ForEach(statuses, id: \.self) { Text($0.capitalized).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+
+                    if !error.isEmpty {
+                        Text(error)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.red.opacity(0.85))
+                    }
+
+                    submitButton(
+                        "SAVE CHANGES",
+                        disabled: name.trimmingCharacters(in: .whitespaces).isEmpty
+                            || role.trimmingCharacters(in: .whitespaces).isEmpty
+                            || submitting,
+                        busy: submitting,
+                        action: submit
+                    )
+                    .padding(.top, 4)
+                }
+                .padding(16)
+            }
+            .background(Color.black.ignoresSafeArea())
+            .navigationTitle("Edit Agent")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { onClose(false) }
+                        .foregroundColor(.white.opacity(0.7))
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    private func submit() {
+        let n = name.trimmingCharacters(in: .whitespaces)
+        let r = role.trimmingCharacters(in: .whitespaces)
+        guard !n.isEmpty, !r.isEmpty, !submitting else { return }
+        Haptics.tap()
+        submitting = true
+        error = ""
+
+        let p = personality.trimmingCharacters(in: .whitespacesAndNewlines)
+        let d = directives.trimmingCharacters(in: .whitespacesAndNewlines)
+        let capsRaw = capabilitiesText.trimmingCharacters(in: .whitespaces)
+        let caps: [String]? = capsRaw.isEmpty
+            ? nil
+            : capabilitiesText
+                .split(separator: ",")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+
+        Task {
+            do {
+                let ok = try await NexusAPIClient.shared.updateAgent(
+                    id: original.id,
+                    name: n,
+                    role: r,
+                    personality: p.isEmpty ? nil : p,
+                    capabilities: caps,
+                    directives: d.isEmpty ? nil : d,
+                    status: status
+                )
+                await MainActor.run {
+                    submitting = false
+                    if ok {
+                        Haptics.success()
+                        onClose(true)
+                    } else {
+                        Haptics.error()
+                        error = "Update failed."
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    submitting = false
+                    Haptics.error()
+                    self.error = "Save failed: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Generate Brief sheet (kind picker)
+
+/// Asks Eve to produce a specific kind of brief for an operation. The
+/// analyst call can take 30-60s, so we show a streaming-feel progress
+/// indicator and disable dismissal mid-generation to avoid a "did it
+/// work?" question. Server validates `kind` against the canonical set:
+/// summary / actions / contradictions / themes / next-steps.
+private struct GenerateBriefSheet: View {
+    let operationId: String
+    let onClose: (Bool) -> Void
+
+    @State private var kind: String = "summary"
+    @State private var generating: Bool = false
+    @State private var error: String = ""
+    @State private var lastContent: String = ""
+
+    private let kinds = ["summary", "actions", "contradictions", "themes", "next-steps"]
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    fieldLabel("BRIEF KIND")
+                    Picker("Kind", selection: $kind) {
+                        ForEach(kinds, id: \.self) { k in
+                            Text(k.replacingOccurrences(of: "-", with: " ").capitalized).tag(k)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    Text(description(for: kind))
+                        .font(.system(size: 12))
+                        .foregroundColor(.white.opacity(0.55))
+                        .padding(.top, 4)
+
+                    submitButton(
+                        generating ? "EVE IS THINKING…" : "GENERATE BRIEF",
+                        disabled: generating,
+                        busy: generating,
+                        action: generate
+                    )
+                    .padding(.top, 8)
+
+                    if !error.isEmpty {
+                        Text(error)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.red.opacity(0.85))
+                    }
+
+                    if !lastContent.isEmpty {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("PREVIEW · \(kind.uppercased())")
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .tracking(2)
+                                .foregroundColor(.indigo)
+                            Text(lastContent)
+                                .font(.system(size: 13))
+                                .foregroundColor(.white.opacity(0.9))
+                        }
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.indigo.opacity(0.10))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.indigo.opacity(0.3), lineWidth: 1))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+
+                    Spacer()
+                }
+                .padding(16)
+            }
+            .background(Color.black.ignoresSafeArea())
+            .navigationTitle("Generate Brief")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(lastContent.isEmpty ? "Cancel" : "Done") {
+                        onClose(!lastContent.isEmpty)
+                    }
+                    .disabled(generating)
+                    .foregroundColor(.white.opacity(0.7))
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    private func description(for kind: String) -> String {
+        switch kind {
+        case "summary":        return "Plain-language synthesis of every record on this operation."
+        case "actions":        return "Concrete next steps — what should happen, who should do it."
+        case "contradictions": return "Where the records disagree, or where evidence conflicts."
+        case "themes":         return "Recurring patterns across the records — the underlying narrative."
+        case "next-steps":     return "Sequenced plan for moving the operation forward this week."
+        default:               return ""
+        }
+    }
+
+    private func generate() {
+        Haptics.heavy()
+        generating = true
+        error = ""
+        Task {
+            do {
+                let brief = try await NexusAPIClient.shared.generateBrief(operationId: operationId, kind: kind)
+                await MainActor.run {
+                    generating = false
+                    if let b = brief {
+                        Haptics.success()
+                        lastContent = b.content
+                    } else {
+                        Haptics.error()
+                        error = "Eve returned empty output."
+                    }
+                }
+            } catch let NexusAPIClient.APIError.requestFailed(msg) {
+                await MainActor.run {
+                    generating = false
+                    Haptics.error()
+                    error = msg
+                }
+            } catch {
+                await MainActor.run {
+                    generating = false
+                    Haptics.error()
+                    self.error = "Failed: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Brain tab (Memory + Directives)
+
+/// Eve's "brain config" — memories (ground-truth facts Eve cites in
+/// answers) and directives (operator-defined rules that override default
+/// behavior). Lumen exposes these as side-panel surfaces; iOS gets a
+/// single tab with a segmented selector to switch between the two lists.
+/// CRUD parity: list / add / activate-toggle / deactivate.
+private struct BrainView: View {
+    @State private var section: Section = .memories
+
+    enum Section: String, CaseIterable, Identifiable {
+        case memories, directives
+        var id: String { rawValue }
+        var label: String { rawValue.capitalized }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Picker("Section", selection: $section) {
+                ForEach(Section.allCases) { s in Text(s.label).tag(s) }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+
+            Group {
+                switch section {
+                case .memories:   EveMemoryListView()
+                case .directives: EveDirectivesListView()
+                }
+            }
+        }
+    }
+}
+
+private struct EveMemoryListView: View {
+    @State private var memories: [NexusAPIClient.EveMemory] = []
+    @State private var loading = true
+    @State private var error: String?
+    @State private var search: String = ""
+    @State private var busy: Set<String> = []
+    @State private var showAdd = false
+
+    private var filtered: [NexusAPIClient.EveMemory] {
+        let q = search.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !q.isEmpty else { return memories }
+        return memories.filter { $0.content.lowercased().contains(q) || $0.type.lowercased().contains(q) }
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    if loading {
+                        Text("LOADING…")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .tracking(2)
+                            .foregroundColor(.gray)
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 24)
+                    }
+                    if let error {
+                        Text(error)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.red.opacity(0.8))
+                            .padding(.horizontal, 20)
+                    }
+                    HStack {
+                        Text("MEMORY BANK · \(filtered.count)\(search.isEmpty ? "" : " / \(memories.count)")")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .tracking(2)
+                            .foregroundColor(.white.opacity(0.35))
+                        Spacer()
+                        Button(action: { Haptics.light(); showAdd = true }) {
+                            Label("NEW", systemImage: "plus.circle.fill")
+                                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                .tracking(1.5)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 10).padding(.vertical, 5)
+                                .background(Color.indigo)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+
+                    if memories.isEmpty && !loading {
+                        Text("Eve has no remembered facts yet. Tap + NEW to plant one.")
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.45))
+                            .padding(.horizontal, 20)
+                    }
+
+                    VStack(spacing: 6) {
+                        ForEach(filtered) { m in memoryRow(m) }
+                    }
+                    .padding(.horizontal, 12)
+                }
+                .padding(.bottom, 36)
+            }
+            .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search memories")
+            .refreshable { await load() }
+            .task { await load() }
+            .sheet(isPresented: $showAdd) {
+                AddMemorySheet { didAdd in
+                    showAdd = false
+                    if didAdd { Task { await load() } }
+                }
+            }
+        }
+    }
+
+    private func memoryRow(_ m: NexusAPIClient.EveMemory) -> some View {
+        let inFlight = busy.contains(m.id)
+        return VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 6) {
+                Text(m.type.uppercased())
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .tracking(1.5)
+                    .foregroundColor(.white.opacity(0.4))
+                Text("· P\(m.priority)")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .tracking(1)
+                    .foregroundColor(.indigo.opacity(0.7))
+                Spacer()
+                if let src = m.source, !src.isEmpty {
+                    Text(src)
+                        .font(.system(size: 9, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.3))
+                }
+                Button(action: { Task { await remove(m) } }) {
+                    if inFlight {
+                        ProgressView().controlSize(.small).tint(.red.opacity(0.7))
+                    } else {
+                        Image(systemName: "trash")
+                            .font(.system(size: 11))
+                            .foregroundColor(.red.opacity(0.7))
+                    }
+                }
+                .buttonStyle(.plain)
+                .disabled(inFlight)
+            }
+            Text(m.content)
+                .font(.system(size: 13))
+                .foregroundColor(.white.opacity(0.85))
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white.opacity(0.03))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func load() async {
+        await MainActor.run { loading = true; error = nil }
+        do {
+            let m = try await NexusAPIClient.shared.fetchMemories()
+            await MainActor.run { memories = m; loading = false }
+        } catch {
+            await MainActor.run {
+                self.error = "Load failed: \(error.localizedDescription)"
+                loading = false
+            }
+        }
+    }
+
+    private func remove(_ m: NexusAPIClient.EveMemory) async {
+        Haptics.warning()
+        await MainActor.run { busy.insert(m.id) }
+        let ok = (try? await NexusAPIClient.shared.deleteMemory(id: m.id)) ?? false
+        await MainActor.run {
+            busy.remove(m.id)
+            if ok {
+                memories.removeAll { $0.id == m.id }
+            }
+        }
+    }
+}
+
+private struct AddMemorySheet: View {
+    let onClose: (Bool) -> Void
+    @State private var type: String = "fact"
+    @State private var content: String = ""
+    @State private var priority: Int = 5
+    @State private var submitting: Bool = false
+    @State private var error: String = ""
+    @FocusState private var contentFocused: Bool
+
+    private let types = ["fact", "preference", "event", "reference", "directive"]
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    fieldLabel("TYPE")
+                    Picker("Type", selection: $type) {
+                        ForEach(types, id: \.self) { Text($0.capitalized).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+
+                    sheetField("CONTENT") {
+                        TextEditor(text: $content)
+                            .scrollContentBackground(.hidden)
+                            .font(.system(size: 14))
+                            .frame(minHeight: 120)
+                            .focused($contentFocused)
+                    }
+
+                    fieldLabel("PRIORITY · \(priority)")
+                    Stepper(value: $priority, in: 0...10) {
+                        Text("Higher = Eve weights more heavily")
+                            .font(.system(size: 11))
+                            .foregroundColor(.white.opacity(0.55))
+                    }
+
+                    if !error.isEmpty {
+                        Text(error)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.red.opacity(0.85))
+                    }
+
+                    submitButton("ADD MEMORY",
+                                 disabled: content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || submitting,
+                                 busy: submitting,
+                                 action: submit)
+                        .padding(.top, 4)
+                }
+                .padding(16)
+            }
+            .background(Color.black.ignoresSafeArea())
+            .navigationTitle("New Memory")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { onClose(false) }
+                        .foregroundColor(.white.opacity(0.7))
+                }
+            }
+            .onAppear { contentFocused = true }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    private func submit() {
+        let c = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !c.isEmpty, !submitting else { return }
+        Haptics.tap()
+        submitting = true
+        error = ""
+        Task {
+            do {
+                let ok = try await NexusAPIClient.shared.addMemory(type: type, content: c, priority: priority)
+                await MainActor.run {
+                    submitting = false
+                    if ok { Haptics.success(); onClose(true) }
+                    else  { Haptics.error(); error = "Save failed." }
+                }
+            } catch {
+                await MainActor.run {
+                    submitting = false
+                    Haptics.error()
+                    self.error = "Save failed: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+}
+
+private struct EveDirectivesListView: View {
+    @State private var directives: [NexusAPIClient.EveDirective] = []
+    @State private var loading = true
+    @State private var error: String?
+    @State private var search: String = ""
+    @State private var busy: Set<String> = []
+    @State private var showAdd = false
+
+    private var filtered: [NexusAPIClient.EveDirective] {
+        let q = search.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !q.isEmpty else { return directives }
+        return directives.filter {
+            $0.title.lowercased().contains(q) || $0.content.lowercased().contains(q)
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    if loading {
+                        Text("LOADING…")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .tracking(2).foregroundColor(.gray)
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 24)
+                    }
+                    if let error {
+                        Text(error)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.red.opacity(0.8))
+                            .padding(.horizontal, 20)
+                    }
+                    HStack {
+                        Text("DIRECTIVES · \(filtered.count)\(search.isEmpty ? "" : " / \(directives.count)")")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .tracking(2)
+                            .foregroundColor(.white.opacity(0.35))
+                        Spacer()
+                        Button(action: { Haptics.light(); showAdd = true }) {
+                            Label("NEW", systemImage: "plus.circle.fill")
+                                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                .tracking(1.5)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 10).padding(.vertical, 5)
+                                .background(Color.indigo)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+
+                    if directives.isEmpty && !loading {
+                        Text("No directives. Add one to override Eve's defaults.")
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.45))
+                            .padding(.horizontal, 20)
+                    }
+
+                    VStack(spacing: 6) {
+                        ForEach(filtered) { d in directiveRow(d) }
+                    }
+                    .padding(.horizontal, 12)
+                }
+                .padding(.bottom, 36)
+            }
+            .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search directives")
+            .refreshable { await load() }
+            .task { await load() }
+            .sheet(isPresented: $showAdd) {
+                AddDirectiveSheet { didAdd in
+                    showAdd = false
+                    if didAdd { Task { await load() } }
+                }
+            }
+        }
+    }
+
+    private func directiveRow(_ d: NexusAPIClient.EveDirective) -> some View {
+        let inFlight = busy.contains(d.id)
+        return VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 6) {
+                Text(d.type.uppercased())
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .tracking(1.5)
+                    .foregroundColor(d.type == "protocol" ? .orange.opacity(0.85) : .indigo.opacity(0.85))
+                if let t = d.target, !t.isEmpty {
+                    Text("· \(t)")
+                        .font(.system(size: 9, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.4))
+                }
+                Spacer()
+                Text("P\(d.priority)")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .tracking(1)
+                    .foregroundColor(.white.opacity(0.45))
+                Toggle("", isOn: Binding(
+                    get: { d.is_active },
+                    set: { newVal in Task { await setActive(d, to: newVal) } }
+                ))
+                .labelsHidden()
+                .tint(.green)
+                .disabled(inFlight)
+                Button(action: { Task { await remove(d) } }) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 11))
+                        .foregroundColor(.red.opacity(0.7))
+                }
+                .buttonStyle(.plain)
+                .disabled(inFlight)
+            }
+            Text(d.title)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.white.opacity(0.95))
+                .lineLimit(2)
+            Text(d.content)
+                .font(.system(size: 12))
+                .foregroundColor(.white.opacity(0.65))
+                .lineLimit(4)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white.opacity(d.is_active ? 0.03 : 0.015))
+        .opacity(d.is_active ? 1 : 0.55)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func load() async {
+        await MainActor.run { loading = true; error = nil }
+        do {
+            let d = try await NexusAPIClient.shared.fetchDirectives()
+            await MainActor.run { directives = d; loading = false }
+        } catch {
+            await MainActor.run {
+                self.error = "Load failed: \(error.localizedDescription)"
+                loading = false
+            }
+        }
+    }
+
+    private func setActive(_ d: NexusAPIClient.EveDirective, to newVal: Bool) async {
+        Haptics.tap()
+        await MainActor.run { busy.insert(d.id) }
+        let ok = (try? await NexusAPIClient.shared.setDirectiveActive(id: d.id, isActive: newVal)) ?? false
+        await MainActor.run {
+            busy.remove(d.id)
+            if ok, let idx = directives.firstIndex(where: { $0.id == d.id }) {
+                directives[idx] = NexusAPIClient.EveDirective(
+                    id: d.id, type: d.type, title: d.title, content: d.content,
+                    priority: d.priority, target: d.target, is_active: newVal,
+                    created_at: d.created_at, updated_at: d.updated_at
+                )
+            }
+        }
+    }
+
+    private func remove(_ d: NexusAPIClient.EveDirective) async {
+        Haptics.warning()
+        await MainActor.run { busy.insert(d.id) }
+        let ok = (try? await NexusAPIClient.shared.deleteDirective(id: d.id)) ?? false
+        await MainActor.run {
+            busy.remove(d.id)
+            if ok { directives.removeAll { $0.id == d.id } }
+        }
+    }
+}
+
+private struct AddDirectiveSheet: View {
+    let onClose: (Bool) -> Void
+    @State private var type: String = "directive"
+    @State private var title: String = ""
+    @State private var content: String = ""
+    @State private var priority: Int = 5
+    @State private var target: String = "all"
+    @State private var submitting: Bool = false
+    @State private var error: String = ""
+    @FocusState private var titleFocused: Bool
+
+    private let types = ["directive", "protocol"]
+    private let targets = ["all", "voice", "code", "research", "arena"]
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    fieldLabel("TYPE")
+                    Picker("Type", selection: $type) {
+                        ForEach(types, id: \.self) { Text($0.capitalized).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    sheetField("TITLE") {
+                        TextField("e.g. Avoid the word 'absolutely'", text: $title)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 16))
+                            .focused($titleFocused)
+                    }
+                    sheetField("CONTENT") {
+                        TextEditor(text: $content)
+                            .scrollContentBackground(.hidden)
+                            .font(.system(size: 14))
+                            .frame(minHeight: 120)
+                    }
+                    fieldLabel("TARGET")
+                    Picker("Target", selection: $target) {
+                        ForEach(targets, id: \.self) { Text($0.capitalized).tag($0) }
+                    }
+                    .pickerStyle(.menu)
+                    .padding(.horizontal, 12).padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.white.opacity(0.06))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                    fieldLabel("PRIORITY · \(priority)")
+                    Stepper(value: $priority, in: 0...10) {
+                        Text("Higher = Eve weights more heavily")
+                            .font(.system(size: 11))
+                            .foregroundColor(.white.opacity(0.55))
+                    }
+
+                    if !error.isEmpty {
+                        Text(error)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.red.opacity(0.85))
+                    }
+
+                    submitButton("ADD DIRECTIVE",
+                                 disabled: title.trimmingCharacters(in: .whitespaces).isEmpty
+                                    || content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                    || submitting,
+                                 busy: submitting, action: submit)
+                        .padding(.top, 4)
+                }
+                .padding(16)
+            }
+            .background(Color.black.ignoresSafeArea())
+            .navigationTitle("New Directive")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { onClose(false) }
+                        .foregroundColor(.white.opacity(0.7))
+                }
+            }
+            .onAppear { titleFocused = true }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    private func submit() {
+        let t = title.trimmingCharacters(in: .whitespaces)
+        let c = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty, !c.isEmpty, !submitting else { return }
+        Haptics.tap()
+        submitting = true
+        error = ""
+        Task {
+            do {
+                let ok = try await NexusAPIClient.shared.addDirective(
+                    type: type, title: t, content: c, priority: priority, target: target
+                )
+                await MainActor.run {
+                    submitting = false
+                    if ok { Haptics.success(); onClose(true) }
+                    else  { Haptics.error(); error = "Save failed." }
+                }
+            } catch {
+                await MainActor.run {
+                    submitting = false
+                    Haptics.error()
+                    self.error = "Save failed: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Global Search palette
+
+/// Universal search reachable from any tab via the magnifying-glass icon
+/// in the top bar. Searches conversations server-side (snippets) and
+/// operations / agents / memories / schedules client-side from cached
+/// lists. Groups results by source so the Director can scan to the right
+/// section quickly. Tapping a row jumps to the relevant tab.
+private struct GlobalSearchSheet: View {
+    let onClose: () -> Void
+    let onJumpToTab: (ContentView.Tab) -> Void
+
+    @State private var query: String = ""
+    @State private var convHits: [NexusAPIClient.ConversationSearchHit] = []
+    @State private var opHits: [NexusAPIClient.OperationSummary] = []
+    @State private var agentHits: [NexusAPIClient.AgentSummary] = []
+    @State private var memoryHits: [NexusAPIClient.EveMemory] = []
+    @State private var scheduleHits: [NexusAPIClient.ScheduleSummary] = []
+    @State private var searching: Bool = false
+    @State private var searchTask: Task<Void, Never>?
+    @FocusState private var fieldFocused: Bool
+
+    private var totalHits: Int {
+        convHits.count + opHits.count + agentHits.count + memoryHits.count + scheduleHits.count
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                // Search field
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.indigo)
+                    TextField("Search everything…", text: $query)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 16))
+                        .foregroundColor(.white)
+                        .focused($fieldFocused)
+                        .autocorrectionDisabled()
+                        .onChange(of: query) { _, _ in scheduleSearch() }
+                    if !query.isEmpty {
+                        Button(action: { query = "" }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(.white.opacity(0.4))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    if searching {
+                        ProgressView().controlSize(.small).tint(.indigo)
+                    }
+                }
+                .padding(.horizontal, 14).padding(.vertical, 11)
+                .background(Color.white.opacity(0.06))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.indigo.opacity(0.3), lineWidth: 1))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal, 16).padding(.top, 8)
+
+                if query.trimmingCharacters(in: .whitespaces).count < 2 {
+                    placeholder
+                } else if totalHits == 0 && !searching {
+                    emptyState
+                } else {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 18) {
+                            resultsGroup("CONVERSATIONS", count: convHits.count) {
+                                ForEach(convHits) { hit in conversationRow(hit) }
+                            }
+                            resultsGroup("OPERATIONS", count: opHits.count) {
+                                ForEach(opHits) { op in operationHitRow(op) }
+                            }
+                            resultsGroup("AGENTS", count: agentHits.count) {
+                                ForEach(agentHits) { a in agentHitRow(a) }
+                            }
+                            resultsGroup("MEMORIES", count: memoryHits.count) {
+                                ForEach(memoryHits) { m in memoryHitRow(m) }
+                            }
+                            resultsGroup("SCHEDULES", count: scheduleHits.count) {
+                                ForEach(scheduleHits) { s in scheduleHitRow(s) }
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                    }
+                }
+            }
+            .background(Color.black.ignoresSafeArea())
+            .navigationTitle("Search")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") { onClose() }.foregroundColor(.white.opacity(0.7))
+                }
+            }
+            .onAppear { fieldFocused = true }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    private var placeholder: some View {
+        VStack(spacing: 8) {
+            Spacer().frame(height: 40)
+            Image(systemName: "magnifyingglass.circle")
+                .font(.system(size: 38, weight: .light))
+                .foregroundColor(.white.opacity(0.25))
+            Text("Type 2+ characters to search")
+                .font(.system(size: 12, design: .monospaced))
+                .foregroundColor(.white.opacity(0.45))
+            Text("conversations · operations · agents · memories · schedules")
+                .font(.system(size: 10, design: .monospaced))
+                .foregroundColor(.white.opacity(0.3))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 20)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 6) {
+            Spacer().frame(height: 40)
+            Image(systemName: "questionmark.circle")
+                .font(.system(size: 32, weight: .light))
+                .foregroundColor(.white.opacity(0.3))
+            Text("No matches for \"\(query)\"")
+                .font(.system(size: 13))
+                .foregroundColor(.white.opacity(0.5))
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder
+    private func resultsGroup<Content: View>(_ label: String, count: Int, @ViewBuilder _ rows: () -> Content) -> some View {
+        if count > 0 {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("\(label) · \(count)")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .tracking(2)
+                    .foregroundColor(.white.opacity(0.35))
+                VStack(spacing: 5) { rows() }
+            }
+        }
+    }
+
+    private func conversationRow(_ hit: NexusAPIClient.ConversationSearchHit) -> some View {
+        Button(action: { Haptics.light(); onJumpToTab(.voice); onClose() }) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Image(systemName: "bubble.left.and.bubble.right.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(.blue.opacity(0.85))
+                    Text(hit.title).font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.white.opacity(0.9)).lineLimit(1)
+                    Spacer()
+                    Text(hit.source.uppercased())
+                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                        .tracking(1.5).foregroundColor(.white.opacity(0.4))
+                }
+                if !hit.snippet.isEmpty {
+                    Text(hit.snippet)
+                        .font(.system(size: 11))
+                        .foregroundColor(.white.opacity(0.55))
+                        .lineLimit(2)
+                }
+            }
+            .padding(10).frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.white.opacity(0.03))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func operationHitRow(_ op: NexusAPIClient.OperationSummary) -> some View {
+        Button(action: { Haptics.light(); onJumpToTab(.operations); onClose() }) {
+            hitRow(icon: "square.stack.3d.up.fill", color: .indigo, title: op.name, subtitle: op.status.uppercased())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func agentHitRow(_ a: NexusAPIClient.AgentSummary) -> some View {
+        Button(action: { Haptics.light(); onJumpToTab(.agents); onClose() }) {
+            hitRow(icon: "person.fill", color: .green, title: a.name, subtitle: a.role ?? a.status.uppercased())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func memoryHitRow(_ m: NexusAPIClient.EveMemory) -> some View {
+        Button(action: { Haptics.light(); onJumpToTab(.brain); onClose() }) {
+            hitRow(icon: "brain.head.profile", color: .pink,
+                   title: m.content, subtitle: "\(m.type.uppercased()) · P\(m.priority)")
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func scheduleHitRow(_ s: NexusAPIClient.ScheduleSummary) -> some View {
+        Button(action: { Haptics.light(); onJumpToTab(.schedules); onClose() }) {
+            hitRow(icon: "calendar", color: .blue, title: s.name,
+                   subtitle: "\(s.cron_expression) · \(s.target_type.uppercased())")
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func hitRow(icon: String, color: Color, title: String, subtitle: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(color)
+                .frame(width: 22)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.white.opacity(0.9))
+                    .lineLimit(2)
+                Text(subtitle)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.45))
+                    .lineLimit(1)
+            }
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(.white.opacity(0.25))
+        }
+        .padding(10).frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white.opacity(0.03))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    /// Debounce the search so we don't fan out a request per keystroke.
+    /// 250ms feels responsive without hammering the server when the user
+    /// is mid-typing.
+    private func scheduleSearch() {
+        searchTask?.cancel()
+        let q = query.trimmingCharacters(in: .whitespaces)
+        guard q.count >= 2 else {
+            convHits = []; opHits = []; agentHits = []; memoryHits = []; scheduleHits = []
+            return
+        }
+        searchTask = Task {
+            try? await Task.sleep(nanoseconds: 250_000_000)
+            if Task.isCancelled { return }
+            await runSearch(q: q)
+        }
+    }
+
+    private func runSearch(q: String) async {
+        await MainActor.run { searching = true }
+        // Conversations: server-side fuzzy.
+        async let conv = (try? await NexusAPIClient.shared.searchConversations(q: q)) ?? []
+        // Other surfaces: client-side filter on cached list endpoints. Re-fetch
+        // each time so results stay fresh (cheap — these are small payloads).
+        async let ops = (try? await NexusAPIClient.shared.fetchOperations()) ?? []
+        async let agents = (try? await NexusAPIClient.shared.fetchAgents()) ?? []
+        async let mems = (try? await NexusAPIClient.shared.fetchMemories()) ?? []
+        async let scheds = (try? await NexusAPIClient.shared.fetchSchedules()) ?? []
+
+        let (c, o, a, m, s) = await (conv, ops, agents, mems, scheds)
+        let qLower = q.lowercased()
+        await MainActor.run {
+            convHits = c
+            opHits = o.filter {
+                $0.name.lowercased().contains(qLower)
+                    || ($0.description ?? "").lowercased().contains(qLower)
+                    || $0.status.lowercased().contains(qLower)
+            }
+            agentHits = a.filter {
+                $0.name.lowercased().contains(qLower)
+                    || ($0.role ?? "").lowercased().contains(qLower)
+            }
+            memoryHits = m.filter {
+                $0.content.lowercased().contains(qLower)
+                    || $0.type.lowercased().contains(qLower)
+            }
+            scheduleHits = s.filter {
+                $0.name.lowercased().contains(qLower)
+                    || $0.cron_expression.lowercased().contains(qLower)
+                    || $0.target_type.lowercased().contains(qLower)
+            }
+            searching = false
+        }
+    }
+}
+
+/// Button style that scales the label slightly while pressed. Makes
+/// dashboard tiles feel like physical surfaces — they react under the
+/// finger. Small effect (97% scale, 80ms ease) so it reads as feedback
+/// rather than animation overhead.
+struct PressableTileStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .opacity(configuration.isPressed ? 0.85 : 1.0)
+            .animation(.easeOut(duration: 0.08), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Nexus Map graph (Canvas-rendered, matches Lumen's 3D map visual)
+
+/// 2D port of Lumen's force-directed map. Layout: groups nodes by type
+/// into concentric arcs around the center, then draws edges from
+/// `MapEdge` data as luminous lines. Phone-sized so each cluster
+/// occupies a wedge of the canvas, with edges crossing between clusters
+/// to reveal the system's actual relationship topology.
+///
+/// Not animated/interactive force-sim — that's expensive on a phone and
+/// the user value is "see the shape," not "play with it." Tap a node to
+/// open its detail sheet (cross-tab pivot from there).
+private struct NexusMapGraph: View {
+    let nodes: [NexusAPIClient.MapNode]
+    let allNodes: [NexusAPIClient.MapNode]
+    let edges: [NexusAPIClient.MapEdge]
+    let highlightedType: String?
+    let onTapNode: (NexusAPIClient.MapNode) -> Void
+
+    /// Cached node → position map computed from the canvas size.
+    /// Recomputes on size or node-set change.
+    @State private var positions: [String: CGPoint] = [:]
+    @State private var canvasSize: CGSize = .zero
+
+    private let typeOrder = ["operation", "agent", "record", "research", "topic", "directive", "human", "conversation"]
+
+    private var visibleNodeIds: Set<String> {
+        Set(nodes.map(\.id))
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack {
+                // Subtle starfield-style background so the orbs glow
+                // against something — pure black makes it feel empty.
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.04, green: 0.04, blue: 0.10),
+                        Color(red: 0.02, green: 0.02, blue: 0.05),
+                    ],
+                    startPoint: .top, endPoint: .bottom
+                )
+                .ignoresSafeArea(edges: .bottom)
+
+                // Edges layer
+                Canvas { ctx, size in
+                    for e in edges {
+                        guard let p1 = positions[e.source],
+                              let p2 = positions[e.target] else { continue }
+                        var path = Path()
+                        path.move(to: p1)
+                        path.addLine(to: p2)
+                        let color = edgeColor(for: e.type)
+                        ctx.stroke(path, with: .color(color), lineWidth: 0.6)
+                    }
+                }
+
+                // Nodes layer — interactive (Buttons over precise positions)
+                ForEach(nodes) { node in
+                    if let p = positions[node.id] {
+                        nodeDot(node)
+                            .position(p)
+                    }
+                }
+            }
+            .onAppear { recomputeLayout(in: geo.size) }
+            .onChange(of: geo.size) { _, newSize in recomputeLayout(in: newSize) }
+            .onChange(of: allNodes.count) { _, _ in recomputeLayout(in: geo.size) }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func nodeDot(_ node: NexusAPIClient.MapNode) -> some View {
+        let color = NexusMapView.colorFor(node.type)
+        let isHighlighted = highlightedType == nil || node.type == highlightedType
+        let opacity = isHighlighted ? 1.0 : 0.25
+        return Button(action: { onTapNode(node) }) {
+            ZStack {
+                // Outer glow
+                Circle()
+                    .fill(color.opacity(0.25 * opacity))
+                    .frame(width: 22, height: 22)
+                    .blur(radius: 4)
+                Circle()
+                    .fill(color)
+                    .frame(width: 10, height: 10)
+                    .opacity(opacity)
+                Circle()
+                    .stroke(Color.white.opacity(0.35 * opacity), lineWidth: 0.5)
+                    .frame(width: 10, height: 10)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Compute hub-and-spoke layout: each type sits in a wedge around
+    /// the center, with that type's nodes placed on a circular arc
+    /// inside the wedge. Conversations (usually the noisiest cluster)
+    /// get the outermost ring; operations/agents stay closer to center.
+    private func recomputeLayout(in size: CGSize) {
+        guard size.width > 0, size.height > 0 else { return }
+        canvasSize = size
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        // Leave 24pt margin so glows don't clip
+        let maxRadius = min(size.width, size.height) / 2 - 24
+
+        // Group all nodes by type so layout is stable across filter changes —
+        // hiding the topology would be misleading. Use allNodes for layout,
+        // visibility only changes opacity (via highlightedType).
+        var grouped: [String: [NexusAPIClient.MapNode]] = [:]
+        for n in allNodes { grouped[n.type, default: []].append(n) }
+        let types = typeOrder.filter { (grouped[$0]?.count ?? 0) > 0 }
+        guard !types.isEmpty else { positions = [:]; return }
+
+        // Each type gets a wedge of the circle. Distribute evenly.
+        let wedgeAngle = (2 * .pi) / Double(types.count)
+        var out: [String: CGPoint] = [:]
+
+        // Assign each type a base radius — pull noisy types (conversations,
+        // records) outward so they don't crowd the center.
+        let radiusBy: [String: CGFloat] = [
+            "operation": maxRadius * 0.45,
+            "agent":     maxRadius * 0.50,
+            "human":     maxRadius * 0.40,
+            "directive": maxRadius * 0.55,
+            "topic":     maxRadius * 0.65,
+            "record":    maxRadius * 0.80,
+            "research":  maxRadius * 0.75,
+            "conversation": maxRadius * 0.92,
+        ]
+
+        for (i, t) in types.enumerated() {
+            let mid = Double(i) * wedgeAngle - .pi / 2  // -π/2 = start at top
+            let radius = radiusBy[t] ?? (maxRadius * 0.7)
+            let typeNodes = grouped[t] ?? []
+            let count = typeNodes.count
+            // Spread nodes across roughly 80% of the wedge so adjacent
+            // wedges don't bleed into each other.
+            let spread = wedgeAngle * 0.8
+            let start = mid - spread / 2
+            for (j, node) in typeNodes.enumerated() {
+                let t = count == 1 ? 0.5 : Double(j) / Double(count - 1)
+                let angle = start + spread * t
+                // Slight radial jitter so dense clusters don't perfectly
+                // overlap. Stable per node id so layout doesn't dance
+                // on re-render.
+                let jitter = CGFloat(stableHash(node.id) % 12) - 6
+                let r = radius + jitter
+                let x = center.x + cos(angle) * r
+                let y = center.y + sin(angle) * r
+                out[node.id] = CGPoint(x: x, y: y)
+            }
+        }
+        positions = out
+    }
+
+    /// Stable, non-cryptographic hash for layout jitter. Swift's default
+    /// String.hashValue is randomized per launch which would cause the
+    /// graph to "shuffle" on every cold start. This keeps it deterministic.
+    private func stableHash(_ s: String) -> Int {
+        var h = 5381
+        for b in s.utf8 { h = ((h << 5) &+ h) &+ Int(b) }
+        return abs(h)
+    }
+
+    private func edgeColor(for type: String) -> Color {
+        switch type {
+        case "topic-link":         return Color.orange.opacity(0.35)
+        case "temporal":           return Color.white.opacity(0.12)
+        case "record-belongs-to":  return Color.indigo.opacity(0.35)
+        case "record-source":      return Color.blue.opacity(0.30)
+        case "record-parent":      return Color.teal.opacity(0.35)
+        case "research-on":        return Color.pink.opacity(0.40)
+        case "research-producing": return Color.pink.opacity(0.25)
+        default:                   return Color.white.opacity(0.15)
+        }
+    }
+}
+
+// MARK: - Team list sheet
+
+/// Read-only view of the humans connected to this Nexus. Derived from
+/// the `human`-type nodes the `/api/nexus-map` endpoint already returns
+/// — there's no dedicated `/api/team/members` GET, but the map response
+/// is the source of truth for "who is on Nexus." Management actions
+/// (invite, setup, role change) deliberately route through the portal
+/// for now — phone modals aren't the right surface for permissioning
+/// decisions.
+private struct TeamListSheet: View {
+    let onClose: () -> Void
+
+    @State private var members: [NexusAPIClient.MapNode] = []
+    @State private var loading = true
+    @State private var error: String?
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    if loading {
+                        Text("LOADING…")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .tracking(2)
+                            .foregroundColor(.gray)
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 24)
+                    }
+                    if let error {
+                        Text(error)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundColor(.red.opacity(0.8))
+                            .padding(.horizontal, 20)
+                    }
+                    Text("MEMBERS · \(members.count)")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .tracking(2)
+                        .foregroundColor(.white.opacity(0.35))
+                        .padding(.horizontal, 20)
+                        .padding(.top, 8)
+
+                    if members.isEmpty && !loading {
+                        Text("Just you so far. Invite team members from the portal.")
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.45))
+                            .padding(.horizontal, 20)
+                    }
+
+                    VStack(spacing: 6) {
+                        ForEach(members) { m in memberRow(m) }
+                    }
+                    .padding(.horizontal, 12)
+
+                    Text("Add members or change roles from the web portal.")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.35))
+                        .padding(.horizontal, 20)
+                        .padding(.top, 12)
+                }
+                .padding(.bottom, 36)
+            }
+            .background(Color.black.ignoresSafeArea())
+            .navigationTitle("Team")
+            .navigationBarTitleDisplayMode(.inline)
+            .refreshable { await load() }
+            .task { await load() }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") { onClose() }
+                        .foregroundColor(.white.opacity(0.7))
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    private func memberRow(_ m: NexusAPIClient.MapNode) -> some View {
+        let statusColor: Color = {
+            switch m.status {
+            case "active":   return .green
+            case "invited":  return .yellow
+            case "inactive": return .gray
+            default:         return .white.opacity(0.4)
+            }
+        }()
+        return HStack(spacing: 12) {
+            ZStack {
+                Circle().fill(Color.indigo.opacity(0.25)).frame(width: 36, height: 36)
+                Text(initialOf(m.title))
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white.opacity(0.85))
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(m.title)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.white.opacity(0.92))
+                Text(m.subtitle.isEmpty ? "Member" : m.subtitle)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.55))
+            }
+            Spacer()
+            if let s = m.status {
+                HStack(spacing: 5) {
+                    Circle().fill(statusColor).frame(width: 6, height: 6)
+                    Text(s.uppercased())
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .tracking(1.5)
+                        .foregroundColor(statusColor)
+                }
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white.opacity(0.03))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func initialOf(_ name: String) -> String {
+        let first = name.first ?? "?"
+        return String(first).uppercased()
+    }
+
+    private func load() async {
+        await MainActor.run { loading = true; error = nil }
+        do {
+            let map = try await NexusAPIClient.shared.fetchNexusMap()
+            await MainActor.run {
+                members = map.nodes.filter { $0.type == "human" }
+                loading = false
+            }
+        } catch {
+            await MainActor.run {
+                self.error = "Load failed: \(error.localizedDescription)"
+                loading = false
+            }
         }
     }
 }

@@ -6,7 +6,7 @@
 	<integer>12</integer>
 	<key>logs</key>
 	<dict>
-		<key>7AC13279-BBCB-4BAF-9F53-5A57D58ECD08</key>
+		<key>B846AD59-12B4-4395-B2BA-0A4CA254C087</key>
 		<dict>
 			<key>className</key>
 			<string>IDECommandLineBuildLog</string>
@@ -15,7 +15,7 @@
 			<key>domainType</key>
 			<string>Xcode.IDEActivityLogDomainType.BuildLog</string>
 			<key>fileName</key>
-			<string>7AC13279-BBCB-4BAF-9F53-5A57D58ECD08.xcactivitylog</string>
+			<string>B846AD59-12B4-4395-B2BA-0A4CA254C087.xcactivitylog</string>
 			<key>hasPrimaryLog</key>
 			<true/>
 			<key>primaryObservable</key>
@@ -40,13 +40,13 @@
 			<key>signature</key>
 			<string>Cleaning project lumen-desktop with scheme lumen-desktop and configuration Release</string>
 			<key>timeStartedRecording</key>
-			<real>800229505.12583399</real>
+			<real>800313999.94989896</real>
 			<key>timeStoppedRecording</key>
-			<real>800229505.38784099</real>
+			<real>800314000.18846595</real>
 			<key>title</key>
 			<string>Cleaning project lumen-desktop with scheme lumen-desktop and configuration Release</string>
 			<key>uniqueIdentifier</key>
-			<string>7AC13279-BBCB-4BAF-9F53-5A57D58ECD08</string>
+			<string>B846AD59-12B4-4395-B2BA-0A4CA254C087</string>
 		</dict>
 	</dict>
 </dict>

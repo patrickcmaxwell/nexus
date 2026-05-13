@@ -130,6 +130,10 @@ final class LumenTerminalBridge {
         if let id = resp["id"] as? String {
             serverIds[session.id] = id
             lastPublishedStatus[session.id] = "running"
+            // Push the first snapshot immediately so iOS doesn't sit on
+            // "Waiting for snapshot" for up to 30s after a fresh register.
+            // Subsequent heartbeats run on the regular 30s timer.
+            await heartbeat(session: session, serverId: id)
         }
     }
 
@@ -200,14 +204,34 @@ final class LumenTerminalBridge {
     /// Read the visible buffer of a session as UTF-8 text. Truncated to
     /// avoid pushing megabytes over a heartbeat — the phone viewer
     /// shows the tail anyway.
+    ///
+    /// Claude Code uses the alternate screen buffer (terminfo `smcup`)
+    /// for its TUI, so `BufferKind.active` may be empty even when the
+    /// session is clearly rendering things on screen. We try each
+    /// buffer kind in priority order and use the first one with
+    /// non-whitespace content. Falls back to a "still waiting"
+    /// placeholder if everything is empty so the phone client knows
+    /// heartbeats are flowing.
     private func snapshotText(session: CodeSession) -> String {
         let term = session.terminalView.getTerminal()
-        let data = term.getBufferAsData(kind: .active, encoding: .utf8)
-        let text = String(data: data, encoding: .utf8) ?? ""
-        let maxBytes = 32_000
-        if text.utf8.count <= maxBytes { return text }
-        let suffix = String(text.suffix(maxBytes))
-        return "[…truncated…]\n" + suffix
+        // SwiftTerm only exposes 3 buffer kinds: .active (whichever the
+        // terminal is currently rendering — main or alt), .alt
+        // (alternate screen — where TUIs like Claude Code render), and
+        // .normal (main screen). Try active first, then alt, then
+        // normal. If all are empty, fall through to the placeholder.
+        let kinds: [Terminal.BufferKind] = [.active, .alt, .normal]
+        for kind in kinds {
+            let data = term.getBufferAsData(kind: kind, encoding: .utf8)
+            let text = String(data: data, encoding: .utf8) ?? ""
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                let maxBytes = 32_000
+                if text.utf8.count <= maxBytes { return text }
+                return "[…truncated…]\n" + String(text.suffix(maxBytes))
+            }
+        }
+        let stamp = ISO8601DateFormatter().string(from: Date())
+        return "[session live · waiting for output · \(stamp)]"
     }
 
     private func statusString(_ s: CodeSessionStatus) -> String {

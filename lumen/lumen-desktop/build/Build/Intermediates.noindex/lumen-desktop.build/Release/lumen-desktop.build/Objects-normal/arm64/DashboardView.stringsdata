@@ -7,7 +7,7 @@
         "key": "⌘N — opens Live with a fresh thread",
         "location": {
           "startingColumn": 15,
-          "startingLine": 276
+          "startingLine": 281
         }
       },
       {
@@ -15,7 +15,7 @@
         "key": "MISSION REPORT",
         "location": {
           "startingColumn": 22,
-          "startingLine": 80
+          "startingLine": 85
         }
       },
       {
@@ -23,7 +23,7 @@
         "key": "Refresh briefing",
         "location": {
           "startingColumn": 23,
-          "startingLine": 104
+          "startingLine": 109
         }
       },
       {
@@ -31,7 +31,7 @@
         "key": "No briefing yet — pull when ready.",
         "location": {
           "startingColumn": 22,
-          "startingLine": 112
+          "startingLine": 117
         }
       },
       {
@@ -39,7 +39,7 @@
         "key": "Compiling briefing…",
         "location": {
           "startingColumn": 67,
-          "startingLine": 107
+          "startingLine": 112
         }
       },
       {
@@ -47,7 +47,7 @@
         "key": "Nothing new since last visit.",
         "location": {
           "startingColumn": 22,
-          "startingLine": 154
+          "startingLine": 159
         }
       },
       {
@@ -55,7 +55,7 @@
         "key": "%lld",
         "location": {
           "startingColumn": 18,
-          "startingLine": 164
+          "startingLine": 169
         }
       },
       {
@@ -63,7 +63,7 @@
         "key": "No conversations yet — kick one off below.",
         "location": {
           "startingColumn": 22,
-          "startingLine": 186
+          "startingLine": 191
         }
       },
       {
@@ -71,7 +71,7 @@
         "key": "· %lld MSG%@",
         "location": {
           "startingColumn": 26,
-          "startingLine": 228
+          "startingLine": 233
         }
       },
       {
@@ -79,7 +79,7 @@
         "key": "Start a Fresh Session",
         "location": {
           "startingColumn": 26,
-          "startingLine": 259
+          "startingLine": 264
         }
       },
       {
@@ -87,7 +87,7 @@
         "key": "Open a new live conversation with Eve",
         "location": {
           "startingColumn": 26,
-          "startingLine": 262
+          "startingLine": 267
         }
       }
     ]

@@ -8,6 +8,54 @@ extension Notification.Name {
     static let lumenLockNow              = Notification.Name("lumen.presence.lockNow")
 }
 
+/// Every secondary window — search palette, Eve orb, console, pop-out
+/// chats, detached panels, etc. — must hide its content when Lumen is
+/// either pre-auth (`!auth.isAuthenticated`) OR locked
+/// (`presence.isLocked`). Without this, anyone walking up to a locked
+/// Mac can hit ⌘⇧K, open Eve orb, etc. and read cached conversation
+/// content. The main window has its own dedicated `PresenceLockView`
+/// (which IS the unlock UI); secondary windows get a passive curtain
+/// that just says "use the main window to unlock."
+struct SecondaryWindowCurtain: ViewModifier {
+    @EnvironmentObject var auth: AuthManager
+    @EnvironmentObject var presence: LumenPresenceMonitor
+
+    func body(content: Content) -> some View {
+        ZStack {
+            content
+            if !auth.isAuthenticated || presence.isLocked {
+                ZStack {
+                    Color.black.opacity(0.97).ignoresSafeArea()
+                    VStack(spacing: 8) {
+                        Image(systemName: "lock.shield.fill")
+                            .font(.system(size: 26, weight: .light))
+                            .foregroundColor(.white.opacity(0.55))
+                        Text("LUMEN LOCKED")
+                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .tracking(3)
+                            .foregroundColor(.white.opacity(0.6))
+                        Text("Unlock from the main window")
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundColor(.white.opacity(0.35))
+                    }
+                }
+                .transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.12), value: auth.isAuthenticated)
+        .animation(.easeOut(duration: 0.12), value: presence.isLocked)
+    }
+}
+
+extension View {
+    /// Hide this window's content when the app is unauthenticated or
+    /// presence-locked. Apply to every WindowGroup body except the main
+    /// one (which has its own dedicated unlock UI).
+    func secondaryWindowCurtain() -> some View {
+        modifier(SecondaryWindowCurtain())
+    }
+}
+
 @main
 struct LumenApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
@@ -149,7 +197,9 @@ struct LumenApp: App {
                 .environmentObject(auth)
                 .environmentObject(sync)
                 .environmentObject(apps)
+                .environmentObject(presence)
                 .frame(minWidth: 720, minHeight: 540)
+                .secondaryWindowCurtain()
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 980, height: 720)
@@ -158,7 +208,10 @@ struct LumenApp: App {
             OperationWindow(operationId: operationId ?? "")
                 .environmentObject(store)
                 .environmentObject(sync)
+                .environmentObject(auth)
+                .environmentObject(presence)
                 .frame(minWidth: 900, minHeight: 680)
+                .secondaryWindowCurtain()
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1120, height: 760)
@@ -168,7 +221,10 @@ struct LumenApp: App {
             AgentWindow(agentId: agentId ?? "")
                 .environmentObject(store)
                 .environmentObject(sync)
+                .environmentObject(auth)
+                .environmentObject(presence)
                 .frame(minWidth: 720, minHeight: 600)
+                .secondaryWindowCurtain()
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 980, height: 740)
@@ -182,7 +238,10 @@ struct LumenApp: App {
             ConversationWindow(conversationId: convId ?? "")
                 .environmentObject(store)
                 .environmentObject(sync)
+                .environmentObject(auth)
+                .environmentObject(presence)
                 .frame(minWidth: 520, minHeight: 320)
+                .secondaryWindowCurtain()
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 720, height: 460)
@@ -193,6 +252,8 @@ struct LumenApp: App {
             QuickCaptureWindow()
                 .environmentObject(store)
                 .environmentObject(auth)
+                .environmentObject(presence)
+                .secondaryWindowCurtain()
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
@@ -205,6 +266,8 @@ struct LumenApp: App {
             EveOrbWindow()
                 .environmentObject(store)
                 .environmentObject(auth)
+                .environmentObject(presence)
+                .secondaryWindowCurtain()
         }
         .windowResizability(.contentSize)
         .defaultPosition(.topTrailing)
@@ -220,17 +283,22 @@ struct LumenApp: App {
                 .environmentObject(auth)
                 .environmentObject(authRegistry)
                 .environmentObject(presence)
+                .secondaryWindowCurtain()
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 760, height: 600)
 
         // Global search palette — Cmd-Shift-K opens it from anywhere.
         // Self-contained: the window dismisses itself when the palette
-        // closes (selection or ESC).
+        // closes (selection or ESC). Curtained when locked — pre-2026-05-12
+        // bug: anyone could ⌘⇧K on a locked Mac and see cached snippets.
         Window("Lumen Search", id: "lumen-search") {
             SearchWindow()
                 .environmentObject(store)
                 .environmentObject(sync)
+                .environmentObject(auth)
+                .environmentObject(presence)
+                .secondaryWindowCurtain()
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
@@ -245,6 +313,8 @@ struct LumenApp: App {
                 .environmentObject(store)
                 .environmentObject(auth)
                 .environmentObject(sync)
+                .environmentObject(presence)
+                .secondaryWindowCurtain()
         }
         .menuBarExtraStyle(.window)
     }

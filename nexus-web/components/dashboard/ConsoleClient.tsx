@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
   Activity, Calendar, Database, Settings, Monitor, RefreshCw, Loader2,
-  CheckCircle2, AlertTriangle, ArrowRight, LogOut,
+  CheckCircle2, AlertTriangle, ArrowRight, LogOut, Trash2,
 } from "lucide-react"
 import EndpointsHealth, { NEXUS_WEB_ENDPOINTS } from "@/components/dashboard/EndpointsHealth"
 

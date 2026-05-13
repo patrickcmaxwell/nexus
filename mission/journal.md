@@ -188,3 +188,93 @@ Arena's `/api/task/create` now returns `{ success: false, needs_connection: true
 
 ### Mission docs cleanup
 talkcircles.io references swept to maxnexus.io across state.md / handoff.md / pending-changes.md / arena-platform.md.
+
+---
+
+## 2026-05-09 → 2026-05-12 — Multi-day session (Lumen + Nexus iOS heavy buildout)
+
+**Context:** Long /remote-control session driven by Patrick. iOS app went from "barebones" to feature-complete-on-Phase-1. Lumen got security hardening, full chat-UX rebuild, terminal bridge actually working end-to-end, and a long chase on the "Camera silently denied" issue ending with the right fix in pbxproj signing.
+
+### Cross-device terminal bridge — Phase 2 complete + end-to-end working
+
+- Eve tools `terminal_list` / `terminal_send` / `terminal_close` added to `nexus-web/app/api/eve/route.ts` (~110 lines). Direct supabase access; stale-promotion mirrors the GET route; fuzzy session_match by title/folder.
+- **2026-05-12 — URL mismatch fix**: Lumen's `LumenAPIManager.remoteBase` was hardcoded to legacy `https://nexus.talkcircles.io`; iOS was hardcoded to `https://portal.maxnexus.io`. Different DBs, bridge silently never connected. Migrated Lumen to `portal.maxnexus.io`.
+- **Immediate first heartbeat** after register in `LumenTerminalBridge.register()` — was a 0–30s "(waiting for snapshot…)" lag on first session view from iPhone. Now <1s.
+- **Multi-buffer snapshot fallback** — try `.active` → `.alt` → `.normal` for `snapshotText()`. Claude Code's TUI lives in alt buffer; original code only read `.active` and got empty when Claude was running.
+
+### Lumen security hardening
+
+- **Launch face check is now MANDATORY.** Bug fix in `lumen_desktopApp.swift`: `restoreActiveSession()` no longer flips `isAuthenticated = true`. It still hydrates identity (so AuthGate doesn't ask for email again) but the face/PIN check is required every launch. Patrick reported app letting him in without any check.
+- AuthGate defaults to `.face` mode (was `.passcode`).
+- **`LumenPresenceMonitor`** — periodic silent face re-check (default every 20 min, headless `FaceCaptureSession` — camera blinks, no UI if face matches), idle lock after 5 min focus loss, manual lock via `⌃⌘L`. Lock view overlays MainView; app keeps running underneath (sync, terminal bridge, scheduled jobs all alive).
+- **`PresenceLockView`** — face OR passcode unlock; mic + Eve voice killed when curtain drops.
+- **Settings → PRESENCE & LOCK** panel.
+- **2026-05-12 — Universal lock curtain**: every secondary WindowGroup (search palette, Eve orb, Console, conversation pop-outs, panels, Quick Capture, MenuBarExtra) now applies `.secondaryWindowCurtain()` modifier that drops opaque overlay when `!auth.isAuthenticated || presence.isLocked`. Patrick screenshotted Lumen on AuthGate while ⌘⇧K showed cached conversation snippets — fixed.
+
+### Lumen chat UX
+
+- **ConversationWindow rebuilt** (twice). Final state: 720×460 default with 200pt sidebar that's HIDDEN by default in pop-outs (collapsible). Single-line header (title + tiny "LUMEN · N messages" subtitle), no pill row, sidebar toggle + refresh on edges. Input bar **pinned to bottom** via `.fixedSize(horizontal: false, vertical: true)`; message list grabs `.frame(maxHeight: .infinity)`. Composer auto-grows from 24pt → 96pt (collapsed) or 200pt (expanded). Expand toggle inside the trailing edge of the field. Mic + send are 30pt circles flanking.
+- **MainView right-side ASSISTANT panel** got the same fix in `LiveThreadView` — was the same root cause (composer floating mid-panel). `ComposerBar` is now `.fixedSize` vertically; `ConversationThread` grabs maxHeight infinity.
+- **Header buttons rebuild** — SEARCH / POP OUT / END & NEW were rendering as cramped wrapped text (`tracking(1.5)` + narrow panel = bulbous looking circles with text wrap). Switched to icon-only 28x28 squares with `.help()` tooltips.
+- **Screen-lock curtain on pop-out windows** — `DistributedNotificationCenter` observer for `com.apple.screenIsLocked`/`Unlocked` drops black "LOCKED" overlay on the pop-out content.
+
+### Lumen build pipeline — finally stable signing
+
+- **Root cause of recurring "Camera silently denied":** install pipeline was `ditto → PlistBuddy (CFBundleName) → codesign --force --sign <cert>`. The PlistBuddy step modified Info.plist AFTER xcodebuild signed, then I re-signed. Each install produced a new codesign hash → CoreMediaIO refused camera frames silently.
+- **Fix 1:** Baked `CFBundleName = Lumen` + `CFBundleDisplayName = Lumen` directly into source `lumen-desktop/Info.plist` (was `$(PRODUCT_NAME)` which resolved to `lumen-desktop`). No more PlistBuddy needed.
+- **Fix 2:** Added `DEVELOPMENT_TEAM = 773PKETJ85` to both Debug + Release configs in `lumen-desktop.xcodeproj/project.pbxproj`. Was missing → `CODE_SIGN_STYLE = Automatic` fell back to ad-hoc. Now xcodebuild signs directly with Apple Development cert; no post-build resign.
+- **Install pipeline is now just `ditto build/.../lumen-desktop.app /Applications/Lumen.app && lsregister -f`.** No codesign, no PlistBuddy. Signature stays exactly what xcodebuild produced. Same Team ID + bundle ID across all future rebuilds → CoreMediaIO should persist the camera grant.
+- Patrick may still need `tccutil reset Camera nexus.lumen-desktop` once to clear the stale ad-hoc entries from prior installs.
+
+### Lumen polish
+
+- Dashboard greeting pulls `LumenAPIManager.shared.activeUserFirstName` instead of hardcoded "Director." (Eve's system prompt already forbade honorifics; the UI hadn't gotten the memo.)
+- Endpoint docs entry "Director-defined directives" → "Operator-defined directives".
+
+### Lumen on iPhone — Phase 1 complete + most of Phase 3
+
+Phone app went from ~5 screens to a full operational control surface. **11 tabs**: Eve / Dash / Ops / Agents / Sched / Term / Map / Brain / Connect / Brief / Arena.
+
+**Per-tab scope:**
+- Operations: list (search + +NEW) + detail (status cycle, edit sheet, add record, generate brief, kick research per record, timeline view)
+- Agents: list (search + +NEW) + detail (Run Now, toggle active/standby, edit sheet, activity)
+- Schedules: list (search + +NEW) + per-row enable toggle + Run Now per row
+- Terminals: list (Lumen-spawned PTYs) + detail viewer + command submission
+- Nexus Map: **2D Canvas force-directed graph** (hub-and-spoke by type, edges from `MapEdge` data, colored orbs) — matches Lumen's 3D SceneKit visual; plus list mode toggle for scanning
+- Brain: Memory + Directives — list / search / +NEW / delete (deactivate); directives have per-row enable toggle
+- Connections: read-only Arena OAuth providers
+- Dashboard: 4-tile overview + recent Arena activity rail + active-research banner
+- Briefing: existing
+- Arena: status filter (All/Success/Error) + searchable
+
+**Cross-cutting:**
+- Quick Capture FAB on every non-Eve tab (drops a thought through `voice.sendText`)
+- Global search palette in top bar (⌘ icon next to identity) — multi-source: conversations server-side via `/api/eve/search`, ops/agents/memories/schedules client-side
+- Map node tap → detail sheet with cross-tab pivot
+- Team list sheet (Command Center → Team) — read-only humans from nexus-map
+- Settings deepening: Notifications section + 4 event toggles + permission state, REFRESH CADENCE picker, About (version/build)
+- Active-conversation registration so dashboard Current Focus reflects pop-out windows
+
+**Voice fluidity (Phase 3 win):**
+- **Streaming TTS in `EveVoiceManager`** — sentence-boundary buffer reads streaming deltas; each completed sentence (`. ! ? \n`-terminated, ≥8 chars) fires its own `/api/eve/tts` fetch and queues the MP3. Sequential FIFO playback. First-sentence-spoken-time drops dramatically vs the old "wait for full reply then TTS the whole thing" flow. Feature flag `nexus.tts.streaming` default true.
+
+**Brand:**
+- App renamed from "nexus-ios" → **"Lumen"**. `INFOPLIST_KEY_CFBundleDisplayName = Lumen` in pbxproj for main + watch targets. Camera/Face-ID usage strings updated to "Lumen".
+
+**Bugs fixed:**
+- **Double messages**: `stopListening()` in EveVoiceManager wasn't idempotent. Silence timer fires → cancel recognition task → recognition callback fires error → calls stopListening AGAIN → submits the same transcribedText twice → two user messages. Guard on `recognitionTask != nil`, capture+clear transcribedText before submission.
+- **Face capture orientation**: switched from `.leftMirrored` Vision hint to setting `connection.videoOrientation = .portrait` + `isVideoMirrored = true` on both video data output and photo output connections. More reliable across iOS versions.
+
+### nexus-web
+
+- **Trash2 import added** to `components/dashboard/ConsoleClient.tsx`. Was causing production dashboard render error `ReferenceError: Trash2 is not defined`. **LOCAL ONLY — NOT pushed to git, not deployed.** `portal.maxnexus.io` still shows the error.
+
+### Memory rules locked in this session
+
+Saved to `~/.claude/projects/-Users-shadow/memory/`:
+- `feedback_ios_must_match_desktop.md` — iOS visuals must match Lumen, don't substitute a "phone-native" reimagining without explicit ask.
+- `feedback_lumen_naming.md` — both apps are "Lumen" (no "Lumen iOS"/"Lumen Desktop"/"nexus-ios" user-visible).
+- `feedback_evaluate_all_chat_surfaces.md` — chat UX fixes must touch ALL composer call sites.
+- `feedback_lumen_build_install.md` — never mutate Info.plist after codesign; CoreMediaIO will deny camera every install.
+- `feedback_no_honorifics.md` — no "Director", "sir", "ma'am" in user-visible strings.
+- `feedback_curtain_every_window.md` — every Lumen WindowGroup must apply `.secondaryWindowCurtain()`.

@@ -4,10 +4,18 @@
     "Localizable": [
       {
         "comment": "",
+        "key": "LOCKED",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 91
+        }
+      },
+      {
+        "comment": "",
         "key": "THREADS",
         "location": {
           "startingColumn": 22,
-          "startingLine": 79
+          "startingLine": 136
         }
       },
       {
@@ -15,39 +23,39 @@
         "key": "%lld",
         "location": {
           "startingColumn": 22,
-          "startingLine": 84
+          "startingLine": 141
         }
       },
       {
         "comment": "",
-        "key": "· %lld messages",
-        "location": {
-          "startingColumn": 18,
-          "startingLine": 167
-        }
-      },
-      {
-        "comment": "",
-        "key": "Hide thread list",
+        "key": "Hide threads",
         "location": {
           "startingColumn": 36,
-          "startingLine": 158
+          "startingLine": 221
         }
       },
       {
         "comment": "",
-        "key": "Show thread list",
+        "key": "Show threads",
         "location": {
-          "startingColumn": 57,
-          "startingLine": 158
+          "startingColumn": 53,
+          "startingLine": 221
         }
       },
       {
         "comment": "",
-        "key": "Refresh thread",
+        "key": "Refresh",
         "location": {
           "startingColumn": 19,
-          "startingLine": 182
+          "startingLine": 256
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld message%@",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 237
         }
       },
       {
@@ -55,7 +63,7 @@
         "key": "No messages in this thread yet.",
         "location": {
           "startingColumn": 18,
-          "startingLine": 218
+          "startingLine": 298
         }
       },
       {
@@ -63,7 +71,7 @@
         "key": "Voice mode active in THIS window — tap to stop",
         "location": {
           "startingColumn": 27,
-          "startingLine": 250
+          "startingLine": 340
         }
       },
       {
@@ -71,7 +79,7 @@
         "key": "Voice mode is active in another window",
         "location": {
           "startingColumn": 38,
-          "startingLine": 251
+          "startingLine": 341
         }
       },
       {
@@ -79,39 +87,23 @@
         "key": "Start voice mode for this conversation",
         "location": {
           "startingColumn": 19,
-          "startingLine": 252
+          "startingLine": 342
         }
       },
       {
         "comment": "",
-        "key": "Muted — tap to unmute",
-        "location": {
-          "startingColumn": 41,
-          "startingLine": 269
-        }
-      },
-      {
-        "comment": "",
-        "key": "Mute (let Eve finish without interrupt)",
-        "location": {
-          "startingColumn": 69,
-          "startingLine": 269
-        }
-      },
-      {
-        "comment": "",
-        "key": "Minimize composer",
+        "key": "Collapse composer",
         "location": {
           "startingColumn": 42,
-          "startingLine": 300
+          "startingLine": 376
         }
       },
       {
         "comment": "",
-        "key": "Expand composer for longer messages",
+        "key": "Expand composer (more room for paragraphs)",
         "location": {
           "startingColumn": 64,
-          "startingLine": 300
+          "startingLine": 376
         }
       },
       {
@@ -119,7 +111,7 @@
         "key": "EVE",
         "location": {
           "startingColumn": 22,
-          "startingLine": 443
+          "startingLine": 526
         }
       },
       {
@@ -127,7 +119,7 @@
         "key": "YOU",
         "location": {
           "startingColumn": 22,
-          "startingLine": 510
+          "startingLine": 593
         }
       },
       {
@@ -135,7 +127,7 @@
         "key": "Read Aloud",
         "location": {
           "startingColumn": 27,
-          "startingLine": 492
+          "startingLine": 575
         }
       },
       {
@@ -143,7 +135,7 @@
         "key": "Stop Speaking",
         "location": {
           "startingColumn": 27,
-          "startingLine": 497
+          "startingLine": 580
         }
       },
       {
@@ -151,7 +143,7 @@
         "key": "Copy Message",
         "location": {
           "startingColumn": 27,
-          "startingLine": 505
+          "startingLine": 588
         }
       }
     ]

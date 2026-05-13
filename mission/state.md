@@ -1,6 +1,16 @@
 # Current State
 
-**Snapshot:** 2026-05-08 ~02:45 AM (Patrick-time). Updated by Vera Locke after the overnight design + multi-provider OAuth sweep. Patrick is asleep; this state covers everything shipped between his "get going" sign-off and now.
+**Snapshot:** 2026-05-12 ~16:00. Updated after the multi-day Lumen + Nexus iOS heavy buildout (May 9–12). Patrick is active.
+
+## Latest delta (May 9 → May 12)
+
+| Surface | Status |
+|---|---|
+| **Lumen.app** (Mac) | New build at `/Applications/Lumen.app` 2026-05-12. Properly signed with Apple Development cert (Team `773PKETJ85`). Stable signing pipeline (`ditto + lsregister` install only). |
+| **Lumen on iPhone** | Phase 1 parity COMPLETE. App renamed "Lumen" (was "nexus-ios"). 11 tabs. Full CRUD. Streaming TTS shipped. Needs Xcode pull-and-build to deploy to device. |
+| **Cross-device terminal bridge** | End-to-end working. iPhone Term tab → Mac PTYs. URL alignment + immediate-heartbeat + multi-buffer snapshot fallback. |
+| **Lumen security** | Mandatory face check every launch. Presence monitor (periodic re-verify, idle lock, ⌃⌘L). Universal lock curtain on every window. |
+| **nexus-web `portal.maxnexus.io`** | LIVE BUG: `Trash2 is not defined` dashboard render error. Fix in `ConsoleClient.tsx` local-only. Needs `git push`. |
 
 ## Running
 
@@ -11,7 +21,7 @@
 | **arena.maxnexus.io** (arena-web) | Vercel project `arena-web` | Standalone executor. **4 of 5 providers now have full OAuth**: ClickUp, Notion, GitHub, Slack. Stripe stays manual (intentional). Per-connection settings pages with live data pickers. |
 | nexus-web (dev) | port 3000 | Hot-reload local |
 | **Lumen.app** | `/Applications/Lumen.app` | Native face capture working since 2026-05-07 server-side wasm fix. Multi-user code committed |
-| nexus-ios | committed locally | Multi-user auth code in repo; needs rebuild + install |
+| **Lumen on iPhone** (formerly nexus-ios) | Source updated 2026-05-12; needs Xcode rebuild + install on Patrick's iPhone | Renamed app to "Lumen". 11 tabs, full CRUD on Ops/Agents/Schedules, Brain tab (Memory+Directives), Map graph, Quick Capture FAB, Global Search palette, Streaming TTS, Team list. |
 | Supabase | `rtkzvsqulliaoizutsqz` | Schema migrations 019-024 applied |
 
 ## Active operations
@@ -24,6 +34,9 @@
 | **Operation Calendar** | ✅ Shipped 2026-05-07 evening | Native scheduling, 4 target dispatchers, Eve `schedule_create` tool, full `/dashboard/calendar` UI |
 | **Operation: Apple/Linear design baseline** | ✅ Shipped overnight 2026-05-08 | Theme lock, design system primitives, full HUD scrub, DashboardHome rebuild, auth pages, all dashboard widgets unified. See `mission/nexus-web-polish-2026-05.md` |
 | **Operation Letsgo** | 🟢 Active background | Lumen at /Applications/Lumen.app |
+| **Operation Phone Buildout** | ✅ Shipped Phase 1 (2026-05-09 → 2026-05-12) | Lumen-on-iPhone went from ~5 screens to 11-tab operational control surface. See `project_nexus_ios_parity.md` in Claude memory for the full ledger. |
+| **Operation Terminal Bridge** | ✅ End-to-end working (2026-05-12) | Mac PTYs visible + drivable from iPhone via `terminal_sessions` + `terminal_commands` polling. |
+| **Operation Lumen Security** | ✅ Shipped 2026-05-09 → 2026-05-12 | Mandatory face on launch + presence monitor + universal lock curtain. |
 
 ## Vercel deploys (latest)
 

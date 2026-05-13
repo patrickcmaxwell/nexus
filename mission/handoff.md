@@ -2,17 +2,18 @@
 
 **For the next session that picks this up cold.**
 
-Updated: 2026-05-08 ~02:45 AM (Patrick-time) — by Vera Locke after the overnight design + multi-provider OAuth + per-entity detail routes sweep.
+Updated: 2026-05-12 ~16:00 — after the multi-day Lumen + iOS heavy buildout. Prior overnight design + OAuth + per-entity sweep notes are still valid below; treat the additions as deltas.
 
-## TL;DR — read this first
+## TL;DR (current — 2026-05-12)
 
-- **Apple/Linear design baseline shipped across all of nexus-web + arena-web.** Theme locked to dark+simple. Design system primitives at `components/ui/primitives.tsx`. All HUD chrome (font-mono uppercase tracking-widest, cyan-on-near-black, neon glows, scanlines) gone from every page except Map (canvas viz, intentional). Avatars work everywhere with smart initials fallback.
-- **Per-entity detail routes** for Humans / Agents / Operations — direct response to Patrick's "individual data screen / drill down deeper" feedback. Each is a tabbed full-page view at `/dashboard/{humans,agents,operations}/[id]`.
-- **4 of 5 Arena providers now have full OAuth**: ClickUp, Notion, GitHub, Slack. Each with inline admin setup guide on `/connect/{provider}` + per-connection settings page with live data picker. Stripe stays manual (intentional — payments are high-blast-radius).
-- **Eve handoff when missing connection** — Arena's `/api/task/create` returns `{ needs_connection, connect_url }` instead of silently mocking. Eve's system prompt directs her to surface the connect URL.
-- **Operation Calendar shipped earlier** — native scheduling with Eve tools, runner, full UI.
-- **Domains live**: `maxnexus.io` (splash), `portal.maxnexus.io` (nexus-web), `arena.maxnexus.io` (arena-web). Cross-subdomain cookie auth via `SESSION_COOKIE_DOMAIN=.maxnexus.io`.
-- **Working tree has extensive uncommitted changes.** Patrick needs to commit + push.
+- **Cross-device terminal bridge end-to-end working.** Mac PTYs visible + drivable from iPhone. URL mismatch (Lumen on legacy `nexus.talkcircles.io`, iOS on `portal.maxnexus.io`) was the bridge-blocker — now both on `portal.maxnexus.io`. Multi-buffer snapshot fallback (.active → .alt → .normal) handles Claude Code's alt-screen TUI.
+- **Lumen security hardened.** Face check is now MANDATORY every launch (cookie restore no longer auto-passes). `LumenPresenceMonitor` adds periodic silent re-verify (default 20 min), idle-lock (5 min focus loss), manual `⌃⌘L`. Mic+voice kill on lock. **Universal lock curtain** drops on EVERY secondary window (search palette, Eve orb, console, pop-outs, panels, MenuBarExtra) when locked OR unauth'd — fixes the leak where ⌘⇧K on AuthGate showed cached conversation snippets.
+- **Lumen build pipeline finally stable.** `DEVELOPMENT_TEAM = 773PKETJ85` set in pbxproj so xcodebuild signs with Apple Development cert directly (not ad-hoc). `CFBundleName/DisplayName = Lumen` baked into source Info.plist (no PlistBuddy). Install is now `ditto + lsregister`, nothing else. Same signature across builds → CoreMediaIO should finally persist camera grant. **One-time TCC reset may be needed** to flush stale ad-hoc entries: `tccutil reset Camera nexus.lumen-desktop` then relaunch.
+- **Lumen chat UX rebuilt** after recurring "input takes 50% vertical" complaint. Root cause: `.fixedSize(horizontal: false, vertical: true)` missing on input HStack → composer inherited empty-message-list flex. Fixed in both pop-out `ConversationWindow` AND right-side `LiveThreadView`. Header buttons icon-only (was: cramped wrapping text).
+- **Lumen on iPhone** ("Lumen" — renamed from "nexus-ios"): Phase 1 of parity roadmap COMPLETE. 11 tabs (Eve/Dash/Ops/Agents/Sched/Term/Map/Brain/Connect/Brief/Arena). Full CRUD on Ops/Agents/Schedules. Quick Capture FAB. Global search palette. Nexus Map 2D Canvas graph (matches Lumen's 3D SceneKit visual). Brain tab for Memory + Directives. Operation timeline view. Generate Brief sheet. Edit sheets. Team list. Streaming TTS (sentence-by-sentence playback for snappy voice).
+- **nexus-web Trash2 bug NOT deployed.** Production dashboard render crashes with `ReferenceError: Trash2 is not defined`. Fix is in `components/dashboard/ConsoleClient.tsx` LOCALLY ONLY — needs `git push` + Vercel auto-deploy.
+- **Old TL;DR (still valid):** Apple/Linear design baseline across nexus-web + arena-web. Per-entity detail routes for Humans/Agents/Operations. 4/5 Arena OAuth providers wired (ClickUp/Notion/GitHub/Slack; Stripe manual). Eve handoff for missing connections. Operation Calendar. Domains: `maxnexus.io` / `portal.maxnexus.io` / `arena.maxnexus.io`.
+- **Working tree still has extensive uncommitted changes across nexus-ios + lumen + nexus-web.** Patrick needs to commit + push.
 
 ## When Patrick comes back
 

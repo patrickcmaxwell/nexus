@@ -308,6 +308,30 @@ final class FaceCaptureSession: NSObject, ObservableObject,
         // Still photo output for the high-quality JPEG we send to /face/match.
         if captureSession.canAddOutput(photoOutput) { captureSession.addOutput(photoOutput) }
 
+        // Pin orientation to portrait + selfie mirror on the actual capture
+        // connections. Without this, the device delivers buffers in its
+        // native landscape-right layout and the Vision face detector has to
+        // guess rotation, which it gets wrong often enough to look broken.
+        // Configured BEFORE commitConfiguration so the change takes.
+        if let videoConn = videoOutput.connection(with: .video) {
+            if videoConn.isVideoOrientationSupported {
+                videoConn.videoOrientation = .portrait
+            }
+            if videoConn.isVideoMirroringSupported {
+                videoConn.automaticallyAdjustsVideoMirroring = false
+                videoConn.isVideoMirrored = true
+            }
+        }
+        if let photoConn = photoOutput.connection(with: .video) {
+            if photoConn.isVideoOrientationSupported {
+                photoConn.videoOrientation = .portrait
+            }
+            if photoConn.isVideoMirroringSupported {
+                photoConn.automaticallyAdjustsVideoMirroring = false
+                photoConn.isVideoMirrored = true
+            }
+        }
+
         captureSession.commitConfiguration()
 
         // Run startRunning off the main thread — Apple flags it as blocking
@@ -350,7 +374,11 @@ final class FaceCaptureSession: NSObject, ObservableObject,
             let detected = !((req.results as? [VNFaceObservation])?.isEmpty ?? true)
             Task { @MainActor in self.handleDetection(detected) }
         }
-        let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .leftMirrored, options: [:])
+        // Connection is now pinned to .portrait + mirrored, so the buffer
+        // arrives upright. `.up` is the matching Vision hint. Previously
+        // `.leftMirrored` papered over a missing connection-orientation
+        // setup and broke on some device/iOS combos.
+        let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .up, options: [:])
         try? handler.perform([request])
     }
 

@@ -295,7 +295,7 @@
         "key": "%lld image%@",
         "location": {
           "startingColumn": 26,
-          "startingLine": 1633
+          "startingLine": 1638
         }
       },
       {
@@ -303,7 +303,7 @@
         "key": "Stop listening",
         "location": {
           "startingColumn": 46,
-          "startingLine": 1671
+          "startingLine": 1676
         }
       },
       {
@@ -311,7 +311,7 @@
         "key": "Start listening",
         "location": {
           "startingColumn": 65,
-          "startingLine": 1671
+          "startingLine": 1676
         }
       },
       {
@@ -319,7 +319,7 @@
         "key": "Collapse",
         "location": {
           "startingColumn": 42,
-          "startingLine": 1693
+          "startingLine": 1698
         }
       },
       {
@@ -327,7 +327,7 @@
         "key": "Expand tools",
         "location": {
           "startingColumn": 55,
-          "startingLine": 1693
+          "startingLine": 1698
         }
       },
       {
@@ -335,7 +335,7 @@
         "key": "@ops",
         "location": {
           "startingColumn": 22,
-          "startingLine": 1755
+          "startingLine": 1760
         }
       },
       {
@@ -343,7 +343,7 @@
         "key": "@agents",
         "location": {
           "startingColumn": 22,
-          "startingLine": 1764
+          "startingLine": 1769
         }
       },
       {
@@ -351,7 +351,7 @@
         "key": "code",
         "location": {
           "startingColumn": 22,
-          "startingLine": 1773
+          "startingLine": 1778
         }
       },
       {
@@ -359,7 +359,7 @@
         "key": "VOICE RELAY",
         "location": {
           "startingColumn": 34,
-          "startingLine": 2010
+          "startingLine": 2015
         }
       },
       {
@@ -367,7 +367,7 @@
         "key": "Eve mission console",
         "location": {
           "startingColumn": 74,
-          "startingLine": 2014
+          "startingLine": 2019
         }
       },
       {
@@ -375,7 +375,7 @@
         "key": "Active conversation",
         "location": {
           "startingColumn": 98,
-          "startingLine": 2014
+          "startingLine": 2019
         }
       },
       {
@@ -383,7 +383,7 @@
         "key": "WORKSPACE",
         "location": {
           "startingColumn": 22,
-          "startingLine": 2066
+          "startingLine": 2071
         }
       },
       {
@@ -391,7 +391,7 @@
         "key": "CURRENT THREAD",
         "location": {
           "startingColumn": 22,
-          "startingLine": 2139
+          "startingLine": 2144
         }
       },
       {
@@ -399,7 +399,7 @@
         "key": "Open in new window",
         "location": {
           "startingColumn": 27,
-          "startingLine": 2397
+          "startingLine": 2402
         }
       },
       {
@@ -407,7 +407,7 @@
         "key": "Open in New Window",
         "location": {
           "startingColumn": 24,
-          "startingLine": 2418
+          "startingLine": 2423
         }
       },
       {
@@ -415,7 +415,7 @@
         "key": "EVE",
         "location": {
           "startingColumn": 26,
-          "startingLine": 2487
+          "startingLine": 2492
         }
       },
       {
@@ -423,7 +423,7 @@
         "key": "Sync now (⌘R)",
         "location": {
           "startingColumn": 23,
-          "startingLine": 2545
+          "startingLine": 2550
         }
       },
       {
@@ -431,7 +431,7 @@
         "key": "LOCK",
         "location": {
           "startingColumn": 26,
-          "startingLine": 2551
+          "startingLine": 2556
         }
       },
       {
@@ -439,7 +439,7 @@
         "key": "",
         "location": {
           "startingColumn": 20,
-          "startingLine": 3059
+          "startingLine": 3064
         }
       },
       {
@@ -447,7 +447,7 @@
         "key": "",
         "location": {
           "startingColumn": 20,
-          "startingLine": 2906
+          "startingLine": 2911
         }
       },
       {
@@ -455,7 +455,7 @@
         "key": "%lld SELECTED",
         "location": {
           "startingColumn": 18,
-          "startingLine": 2786
+          "startingLine": 2791
         }
       },
       {
@@ -463,7 +463,7 @@
         "key": "Clear selection",
         "location": {
           "startingColumn": 19,
-          "startingLine": 2838
+          "startingLine": 2843
         }
       },
       {
@@ -471,7 +471,7 @@
         "key": "READ ALOUD",
         "location": {
           "startingColumn": 26,
-          "startingLine": 2795
+          "startingLine": 2800
         }
       },
       {
@@ -479,7 +479,7 @@
         "key": "COPY",
         "location": {
           "startingColumn": 26,
-          "startingLine": 2808
+          "startingLine": 2813
         }
       },
       {
@@ -487,7 +487,7 @@
         "key": "STOP",
         "location": {
           "startingColumn": 26,
-          "startingLine": 2822
+          "startingLine": 2827
         }
       },
       {
@@ -495,7 +495,7 @@
         "key": "Search this thread…",
         "location": {
           "startingColumn": 23,
-          "startingLine": 2860
+          "startingLine": 2865
         }
       },
       {
@@ -503,7 +503,7 @@
         "key": "no matches",
         "location": {
           "startingColumn": 35,
-          "startingLine": 2867
+          "startingLine": 2872
         }
       },
       {
@@ -511,7 +511,7 @@
         "key": "%lld of %lld",
         "location": {
           "startingColumn": 50,
-          "startingLine": 2867
+          "startingLine": 2872
         }
       },
       {
@@ -519,7 +519,7 @@
         "key": "Back to Dashboard",
         "location": {
           "startingColumn": 19,
-          "startingLine": 2981
+          "startingLine": 2986
         }
       },
       {
@@ -527,7 +527,7 @@
         "key": "Search messages in this thread (⌘F)",
         "location": {
           "startingColumn": 23,
-          "startingLine": 3017
+          "startingLine": 3022
         }
       },
       {
@@ -535,7 +535,7 @@
         "key": "Open this thread in its own native window so you can run multiple conversations side by side",
         "location": {
           "startingColumn": 23,
-          "startingLine": 3029
+          "startingLine": 3034
         }
       },
       {
@@ -543,7 +543,7 @@
         "key": "End this conversation and start a fresh thread",
         "location": {
           "startingColumn": 23,
-          "startingLine": 3041
+          "startingLine": 3046
         }
       },
       {
@@ -551,7 +551,7 @@
         "key": "Start a brand-new conversation",
         "location": {
           "startingColumn": 19,
-          "startingLine": 3052
+          "startingLine": 3057
         }
       },
       {
@@ -559,7 +559,7 @@
         "key": "LIVE THREAD",
         "location": {
           "startingColumn": 35,
-          "startingLine": 2989
+          "startingLine": 2994
         }
       },
       {
@@ -567,7 +567,7 @@
         "key": "FRESH START",
         "location": {
           "startingColumn": 51,
-          "startingLine": 2989
+          "startingLine": 2994
         }
       },
       {
@@ -575,7 +575,7 @@
         "key": "·",
         "location": {
           "startingColumn": 18,
-          "startingLine": 3115
+          "startingLine": 3123
         }
       },
       {
@@ -583,7 +583,7 @@
         "key": "HISTORY",
         "location": {
           "startingColumn": 18,
-          "startingLine": 3126
+          "startingLine": 3134
         }
       },
       {
@@ -591,7 +591,7 @@
         "key": "BACK TO LIVE",
         "location": {
           "startingColumn": 26,
-          "startingLine": 3107
+          "startingLine": 3115
         }
       },
       {
@@ -599,7 +599,7 @@
         "key": "Eve is standing by",
         "location": {
           "startingColumn": 18,
-          "startingLine": 3151
+          "startingLine": 3159
         }
       },
       {
@@ -607,7 +607,7 @@
         "key": "Use the mic for voice or type below.",
         "location": {
           "startingColumn": 18,
-          "startingLine": 3154
+          "startingLine": 3162
         }
       },
       {
@@ -615,7 +615,7 @@
         "key": "Pop the orb into its own window (⌘⌥E)",
         "location": {
           "startingColumn": 23,
-          "startingLine": 3272
+          "startingLine": 3280
         }
       },
       {
@@ -623,7 +623,7 @@
         "key": "COMMAND CENTER",
         "location": {
           "startingColumn": 18,
-          "startingLine": 3305
+          "startingLine": 3313
         }
       },
       {
@@ -631,7 +631,7 @@
         "key": "%lld",
         "location": {
           "startingColumn": 22,
-          "startingLine": 3348
+          "startingLine": 3356
         }
       },
       {
@@ -639,7 +639,7 @@
         "key": "%lld",
         "location": {
           "startingColumn": 26,
-          "startingLine": 3436
+          "startingLine": 3444
         }
       },
       {
@@ -647,7 +647,7 @@
         "key": "P%lld",
         "location": {
           "startingColumn": 22,
-          "startingLine": 3461
+          "startingLine": 3469
         }
       },
       {
@@ -655,7 +655,7 @@
         "key": "OPEN AS WINDOW",
         "location": {
           "startingColumn": 30,
-          "startingLine": 3503
+          "startingLine": 3511
         }
       },
       {
@@ -663,7 +663,7 @@
         "key": "Operation not found",
         "location": {
           "startingColumn": 22,
-          "startingLine": 3561
+          "startingLine": 3569
         }
       },
       {
@@ -671,7 +671,7 @@
         "key": "Agent not found",
         "location": {
           "startingColumn": 22,
-          "startingLine": 3567
+          "startingLine": 3575
         }
       },
       {
@@ -679,7 +679,7 @@
         "key": "Directive not found",
         "location": {
           "startingColumn": 22,
-          "startingLine": 3573
+          "startingLine": 3581
         }
       },
       {
@@ -687,7 +687,7 @@
         "key": "DESCRIPTION",
         "location": {
           "startingColumn": 22,
-          "startingLine": 3592
+          "startingLine": 3600
         }
       },
       {
@@ -695,7 +695,7 @@
         "key": "LAST ACTION",
         "location": {
           "startingColumn": 18,
-          "startingLine": 3614
+          "startingLine": 3622
         }
       },
       {
@@ -703,7 +703,7 @@
         "key": "Here's where everything stands. Tap into anything, or open the input below to talk.",
         "location": {
           "startingColumn": 18,
-          "startingLine": 3877
+          "startingLine": 3885
         }
       },
       {
@@ -711,7 +711,7 @@
         "key": "EVE · NEXUS BRIEFING",
         "location": {
           "startingColumn": 22,
-          "startingLine": 3866
+          "startingLine": 3874
         }
       },
       {
@@ -719,7 +719,7 @@
         "key": "→",
         "location": {
           "startingColumn": 26,
-          "startingLine": 3898
+          "startingLine": 3906
         }
       },
       {
@@ -727,7 +727,7 @@
         "key": "%lld MSG%@",
         "location": {
           "startingColumn": 30,
-          "startingLine": 3940
+          "startingLine": 3948
         }
       },
       {
@@ -735,7 +735,7 @@
         "key": "CONTINUE THIS THREAD",
         "location": {
           "startingColumn": 38,
-          "startingLine": 3963
+          "startingLine": 3971
         }
       },
       {
@@ -743,7 +743,7 @@
         "key": "START FRESH",
         "location": {
           "startingColumn": 38,
-          "startingLine": 3976
+          "startingLine": 3984
         }
       },
       {
@@ -751,7 +751,7 @@
         "key": "+ %lld more — open OPERATIONS panel",
         "location": {
           "startingColumn": 26,
-          "startingLine": 4024
+          "startingLine": 4032
         }
       },
       {
@@ -759,7 +759,7 @@
         "key": "·",
         "location": {
           "startingColumn": 30,
-          "startingLine": 4007
+          "startingLine": 4015
         }
       },
       {
@@ -767,7 +767,7 @@
         "key": "%lld",
         "location": {
           "startingColumn": 22,
-          "startingLine": 4070
+          "startingLine": 4078
         }
       },
       {
@@ -775,7 +775,7 @@
         "key": "/ %lld",
         "location": {
           "startingColumn": 26,
-          "startingLine": 4085
+          "startingLine": 4093
         }
       },
       {
@@ -783,7 +783,7 @@
         "key": "Read aloud",
         "location": {
           "startingColumn": 23,
-          "startingLine": 4221
+          "startingLine": 4229
         }
       },
       {
@@ -791,7 +791,7 @@
         "key": "Copy message",
         "location": {
           "startingColumn": 19,
-          "startingLine": 4231
+          "startingLine": 4239
         }
       },
       {
@@ -799,7 +799,7 @@
         "key": "Eve",
         "location": {
           "startingColumn": 26,
-          "startingLine": 4267
+          "startingLine": 4275
         }
       },
       {
@@ -807,7 +807,7 @@
         "key": "%lld ACTION%@",
         "location": {
           "startingColumn": 30,
-          "startingLine": 4274
+          "startingLine": 4282
         }
       },
       {
@@ -815,7 +815,7 @@
         "key": "Reply to This",
         "location": {
           "startingColumn": 23,
-          "startingLine": 4336
+          "startingLine": 4344
         }
       },
       {
@@ -823,7 +823,7 @@
         "key": "Read Aloud",
         "location": {
           "startingColumn": 23,
-          "startingLine": 4342
+          "startingLine": 4350
         }
       },
       {
@@ -831,7 +831,7 @@
         "key": "Stop Speaking",
         "location": {
           "startingColumn": 23,
-          "startingLine": 4347
+          "startingLine": 4355
         }
       },
       {
@@ -839,7 +839,7 @@
         "key": "Copy Message",
         "location": {
           "startingColumn": 23,
-          "startingLine": 4353
+          "startingLine": 4361
         }
       },
       {
@@ -847,7 +847,7 @@
         "key": "FAILED",
         "location": {
           "startingColumn": 30,
-          "startingLine": 4580
+          "startingLine": 4588
         }
       },
       {
@@ -855,7 +855,7 @@
         "key": "COPIED",
         "location": {
           "startingColumn": 39,
-          "startingLine": 4628
+          "startingLine": 4636
         }
       },
       {
@@ -863,7 +863,7 @@
         "key": "COPY",
         "location": {
           "startingColumn": 50,
-          "startingLine": 4628
+          "startingLine": 4636
         }
       },
       {
@@ -871,7 +871,7 @@
         "key": "Read aloud",
         "location": {
           "startingColumn": 27,
-          "startingLine": 4684
+          "startingLine": 4692
         }
       },
       {
@@ -879,7 +879,7 @@
         "key": "Edit this prompt and regenerate Eve's reply",
         "location": {
           "startingColumn": 27,
-          "startingLine": 4693
+          "startingLine": 4701
         }
       },
       {
@@ -887,7 +887,7 @@
         "key": "Copy",
         "location": {
           "startingColumn": 27,
-          "startingLine": 4702
+          "startingLine": 4710
         }
       },
       {
@@ -895,7 +895,7 @@
         "key": "",
         "location": {
           "startingColumn": 35,
-          "startingLine": 4714
+          "startingLine": 4722
         }
       },
       {
@@ -903,7 +903,7 @@
         "key": "Re-send with edits",
         "location": {
           "startingColumn": 35,
-          "startingLine": 4733
+          "startingLine": 4741
         }
       },
       {
@@ -911,7 +911,7 @@
         "key": "Cancel",
         "location": {
           "startingColumn": 35,
-          "startingLine": 4740
+          "startingLine": 4748
         }
       },
       {
@@ -919,7 +919,7 @@
         "key": "Read Aloud",
         "location": {
           "startingColumn": 39,
-          "startingLine": 4758
+          "startingLine": 4766
         }
       },
       {
@@ -927,7 +927,7 @@
         "key": "Stop Speaking",
         "location": {
           "startingColumn": 39,
-          "startingLine": 4763
+          "startingLine": 4771
         }
       },
       {
@@ -935,7 +935,7 @@
         "key": "Edit & Regenerate",
         "location": {
           "startingColumn": 39,
-          "startingLine": 4767
+          "startingLine": 4775
         }
       },
       {
@@ -943,7 +943,7 @@
         "key": "Copy Message",
         "location": {
           "startingColumn": 39,
-          "startingLine": 4772
+          "startingLine": 4780
         }
       },
       {
@@ -951,7 +951,7 @@
         "key": "No matches",
         "location": {
           "startingColumn": 22,
-          "startingLine": 5050
+          "startingLine": 5058
         }
       },
       {
@@ -959,7 +959,7 @@
         "key": "MENTION",
         "location": {
           "startingColumn": 22,
-          "startingLine": 5039
+          "startingLine": 5047
         }
       },
       {
@@ -967,7 +967,7 @@
         "key": "Esc to dismiss",
         "location": {
           "startingColumn": 22,
-          "startingLine": 5043
+          "startingLine": 5051
         }
       },
       {
@@ -975,7 +975,7 @@
         "key": "COMMAND",
         "location": {
           "startingColumn": 22,
-          "startingLine": 5181
+          "startingLine": 5189
         }
       },
       {
@@ -983,7 +983,7 @@
         "key": "Enter to run",
         "location": {
           "startingColumn": 22,
-          "startingLine": 5185
+          "startingLine": 5193
         }
       },
       {
@@ -991,7 +991,7 @@
         "key": "VISION · %lld image%@",
         "location": {
           "startingColumn": 26,
-          "startingLine": 5266
+          "startingLine": 5274
         }
       },
       {
@@ -999,7 +999,7 @@
         "key": "CLEAR",
         "location": {
           "startingColumn": 34,
-          "startingLine": 5274
+          "startingLine": 5282
         }
       },
       {
@@ -1007,7 +1007,7 @@
         "key": "Voice mode is on — tap to stop",
         "location": {
           "startingColumn": 42,
-          "startingLine": 5308
+          "startingLine": 5316
         }
       },
       {
@@ -1015,7 +1015,7 @@
         "key": "Tap to start voice mode",
         "location": {
           "startingColumn": 79,
-          "startingLine": 5308
+          "startingLine": 5316
         }
       },
       {
@@ -1023,7 +1023,7 @@
         "key": "You're muted — tap to unmute",
         "location": {
           "startingColumn": 41,
-          "startingLine": 5326
+          "startingLine": 5334
         }
       },
       {
@@ -1031,7 +1031,7 @@
         "key": "Tap to mute (Eve keeps talking, you stay quiet)",
         "location": {
           "startingColumn": 76,
-          "startingLine": 5326
+          "startingLine": 5334
         }
       },
       {
@@ -1039,7 +1039,7 @@
         "key": "Attach image — Eve uses llava (vision)",
         "location": {
           "startingColumn": 19,
-          "startingLine": 5350
+          "startingLine": 5358
         }
       },
       {
@@ -1047,7 +1047,7 @@
         "key": "%lld",
         "location": {
           "startingColumn": 30,
-          "startingLine": 5338
+          "startingLine": 5346
         }
       },
       {
@@ -1055,7 +1055,7 @@
         "key": "Stop Eve speaking",
         "location": {
           "startingColumn": 27,
-          "startingLine": 5402
+          "startingLine": 5410
         }
       },
       {
@@ -1063,7 +1063,7 @@
         "key": "DIRECTIVE",
         "location": {
           "startingColumn": 26,
-          "startingLine": 5354
+          "startingLine": 5362
         }
       },
       {
@@ -1071,7 +1071,7 @@
         "key": "Send a directive...",
         "location": {
           "startingColumn": 38,
-          "startingLine": 5361
+          "startingLine": 5369
         }
       },
       {
@@ -1079,7 +1079,7 @@
         "key": "",
         "location": {
           "startingColumn": 25,
-          "startingLine": 5359
+          "startingLine": 5367
         }
       },
       {
@@ -1087,7 +1087,7 @@
         "key": "HUB",
         "location": {
           "startingColumn": 30,
-          "startingLine": 5434
+          "startingLine": 5442
         }
       },
       {
@@ -1095,7 +1095,7 @@
         "key": "COMMAND HUB",
         "location": {
           "startingColumn": 22,
-          "startingLine": 5617
+          "startingLine": 5625
         }
       },
       {
@@ -1103,7 +1103,7 @@
         "key": "Open in New Window",
         "location": {
           "startingColumn": 52,
-          "startingLine": 5833
+          "startingLine": 5841
         }
       },
       {
@@ -1111,7 +1111,7 @@
         "key": "Set Standby",
         "location": {
           "startingColumn": 79,
-          "startingLine": 5834
+          "startingLine": 5842
         }
       },
       {
@@ -1119,7 +1119,7 @@
         "key": "Activate",
         "location": {
           "startingColumn": 95,
-          "startingLine": 5834
+          "startingLine": 5842
         }
       },
       {
@@ -1127,7 +1127,7 @@
         "key": "Run Scan",
         "location": {
           "startingColumn": 52,
-          "startingLine": 5835
+          "startingLine": 5843
         }
       },
       {
@@ -1135,7 +1135,7 @@
         "key": "Open in New Window",
         "location": {
           "startingColumn": 48,
-          "startingLine": 5879
+          "startingLine": 5887
         }
       },
       {
@@ -1143,7 +1143,7 @@
         "key": "No activity yet. Run a scan or activate the agent.",
         "location": {
           "startingColumn": 26,
-          "startingLine": 6063
+          "startingLine": 6071
         }
       },
       {
@@ -1151,7 +1151,7 @@
         "key": "ACTIVITY",
         "location": {
           "startingColumn": 26,
-          "startingLine": 6051
+          "startingLine": 6059
         }
       },
       {
@@ -1159,7 +1159,7 @@
         "key": "%lld EVENTS",
         "location": {
           "startingColumn": 26,
-          "startingLine": 6056
+          "startingLine": 6064
         }
       },
       {
@@ -1167,7 +1167,7 @@
         "key": "Open channel to %@. Each agent uses its own persona, role, and directives.",
         "location": {
           "startingColumn": 26,
-          "startingLine": 6106
+          "startingLine": 6114
         }
       },
       {
@@ -1175,7 +1175,7 @@
         "key": "DIRECT COMMS",
         "location": {
           "startingColumn": 26,
-          "startingLine": 6089
+          "startingLine": 6097
         }
       },
       {
@@ -1183,7 +1183,7 @@
         "key": "CLEAR",
         "location": {
           "startingColumn": 34,
-          "startingLine": 6096
+          "startingLine": 6104
         }
       },
       {
@@ -1191,7 +1191,7 @@
         "key": "%@ is responding…",
         "location": {
           "startingColumn": 38,
-          "startingLine": 6116
+          "startingLine": 6124
         }
       },
       {
@@ -1199,7 +1199,7 @@
         "key": "Send to %@…",
         "location": {
           "startingColumn": 31,
-          "startingLine": 6126
+          "startingLine": 6134
         }
       },
       {
@@ -1207,7 +1207,7 @@
         "key": "AGENT",
         "location": {
           "startingColumn": 28,
-          "startingLine": 6203
+          "startingLine": 6211
         }
       },
       {
@@ -1215,7 +1215,7 @@
         "key": "YOU",
         "location": {
           "startingColumn": 38,
-          "startingLine": 6203
+          "startingLine": 6211
         }
       },
       {
@@ -1223,7 +1223,7 @@
         "key": "Open in New Window",
         "location": {
           "startingColumn": 52,
-          "startingLine": 6310
+          "startingLine": 6318
         }
       },
       {
@@ -1231,7 +1231,7 @@
         "key": "Set Active",
         "location": {
           "startingColumn": 52,
-          "startingLine": 6311
+          "startingLine": 6319
         }
       },
       {
@@ -1239,7 +1239,7 @@
         "key": "Set Paused",
         "location": {
           "startingColumn": 52,
-          "startingLine": 6312
+          "startingLine": 6320
         }
       },
       {
@@ -1247,7 +1247,7 @@
         "key": "Set Complete",
         "location": {
           "startingColumn": 52,
-          "startingLine": 6313
+          "startingLine": 6321
         }
       },
       {
@@ -1255,7 +1255,7 @@
         "key": "Open in New Window",
         "location": {
           "startingColumn": 48,
-          "startingLine": 6359
+          "startingLine": 6367
         }
       },
       {
@@ -1263,7 +1263,7 @@
         "key": "Add a record first — Eve needs context to write briefs.",
         "location": {
           "startingColumn": 28,
-          "startingLine": 6601
+          "startingLine": 6609
         }
       },
       {
@@ -1271,7 +1271,7 @@
         "key": "No %@ yet. Tap GENERATE.",
         "location": {
           "startingColumn": 28,
-          "startingLine": 6602
+          "startingLine": 6610
         }
       },
       {
@@ -1279,7 +1279,7 @@
         "key": "EVE BRIEFS",
         "location": {
           "startingColumn": 26,
-          "startingLine": 6540
+          "startingLine": 6548
         }
       },
       {
@@ -1287,7 +1287,7 @@
         "key": "Add at least one record before generating a brief",
         "location": {
           "startingColumn": 45,
-          "startingLine": 6565
+          "startingLine": 6573
         }
       },
       {
@@ -1295,7 +1295,7 @@
         "key": "Generate this brief from records via Grok",
         "location": {
           "startingColumn": 99,
-          "startingLine": 6565
+          "startingLine": 6573
         }
       },
       {
@@ -1303,7 +1303,7 @@
         "key": "GENERATING…",
         "location": {
           "startingColumn": 49,
-          "startingLine": 6554
+          "startingLine": 6562
         }
       },
       {
@@ -1311,7 +1311,7 @@
         "key": "GENERATE",
         "location": {
           "startingColumn": 101,
-          "startingLine": 6554
+          "startingLine": 6562
         }
       },
       {
@@ -1319,7 +1319,7 @@
         "key": "REGENERATE",
         "location": {
           "startingColumn": 114,
-          "startingLine": 6554
+          "startingLine": 6562
         }
       },
       {
@@ -1327,7 +1327,7 @@
         "key": "No records yet. Add intel, findings, or notes.",
         "location": {
           "startingColumn": 26,
-          "startingLine": 6672
+          "startingLine": 6680
         }
       },
       {
@@ -1335,7 +1335,7 @@
         "key": "RECORDS",
         "location": {
           "startingColumn": 26,
-          "startingLine": 6613
+          "startingLine": 6621
         }
       },
       {
@@ -1343,7 +1343,7 @@
         "key": "CLOSE",
         "location": {
           "startingColumn": 48,
-          "startingLine": 6621
+          "startingLine": 6629
         }
       },
       {
@@ -1351,7 +1351,7 @@
         "key": "ADD",
         "location": {
           "startingColumn": 58,
-          "startingLine": 6621
+          "startingLine": 6629
         }
       },
       {
@@ -1359,20 +1359,12 @@
         "key": "Record title",
         "location": {
           "startingColumn": 35,
-          "startingLine": 6632
+          "startingLine": 6640
         }
       },
       {
         "comment": "",
         "key": "",
-        "location": {
-          "startingColumn": 36,
-          "startingLine": 6644
-        }
-      },
-      {
-        "comment": "",
-        "key": "SAVE",
         "location": {
           "startingColumn": 36,
           "startingLine": 6652
@@ -1380,10 +1372,18 @@
       },
       {
         "comment": "",
+        "key": "SAVE",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 6660
+        }
+      },
+      {
+        "comment": "",
         "key": "·",
         "location": {
           "startingColumn": 26,
-          "startingLine": 6785
+          "startingLine": 6793
         }
       },
       {
@@ -1391,7 +1391,7 @@
         "key": "CLOSE",
         "location": {
           "startingColumn": 47,
-          "startingLine": 6887
+          "startingLine": 6895
         }
       },
       {
@@ -1399,7 +1399,7 @@
         "key": "NEW",
         "location": {
           "startingColumn": 57,
-          "startingLine": 6887
+          "startingLine": 6895
         }
       },
       {
@@ -1407,7 +1407,7 @@
         "key": "· P%lld",
         "location": {
           "startingColumn": 26,
-          "startingLine": 6992
+          "startingLine": 7000
         }
       },
       {
@@ -1415,7 +1415,7 @@
         "key": "· OFF",
         "location": {
           "startingColumn": 30,
-          "startingLine": 6996
+          "startingLine": 7004
         }
       },
       {
@@ -1423,7 +1423,7 @@
         "key": "DEACTIVATE",
         "location": {
           "startingColumn": 42,
-          "startingLine": 7053
+          "startingLine": 7061
         }
       },
       {
@@ -1431,7 +1431,7 @@
         "key": "ACTIVATE",
         "location": {
           "startingColumn": 57,
-          "startingLine": 7053
+          "startingLine": 7061
         }
       },
       {
@@ -1439,7 +1439,7 @@
         "key": "Title",
         "location": {
           "startingColumn": 23,
-          "startingLine": 7141
+          "startingLine": 7149
         }
       },
       {
@@ -1447,7 +1447,7 @@
         "key": "Target (e.g. all, eve, agents)",
         "location": {
           "startingColumn": 23,
-          "startingLine": 7148
+          "startingLine": 7156
         }
       },
       {
@@ -1455,7 +1455,7 @@
         "key": "PRIORITY",
         "location": {
           "startingColumn": 22,
-          "startingLine": 7136
+          "startingLine": 7144
         }
       },
       {
@@ -1463,7 +1463,7 @@
         "key": "",
         "location": {
           "startingColumn": 24,
-          "startingLine": 7130
+          "startingLine": 7138
         }
       },
       {
@@ -1471,7 +1471,7 @@
         "key": "%lld",
         "location": {
           "startingColumn": 62,
-          "startingLine": 7137
+          "startingLine": 7145
         }
       },
       {
@@ -1479,7 +1479,7 @@
         "key": "SAVE DIRECTIVE",
         "location": {
           "startingColumn": 24,
-          "startingLine": 7165
+          "startingLine": 7173
         }
       },
       {
@@ -1487,7 +1487,7 @@
         "key": "Search memory…",
         "location": {
           "startingColumn": 31,
-          "startingLine": 7209
+          "startingLine": 7217
         }
       },
       {
@@ -1495,7 +1495,7 @@
         "key": "CLOSE",
         "location": {
           "startingColumn": 47,
-          "startingLine": 7241
+          "startingLine": 7249
         }
       },
       {
@@ -1503,7 +1503,7 @@
         "key": "NEW",
         "location": {
           "startingColumn": 57,
-          "startingLine": 7241
+          "startingLine": 7249
         }
       },
       {
@@ -1511,7 +1511,7 @@
         "key": "PRIORITY",
         "location": {
           "startingColumn": 30,
-          "startingLine": 7264
+          "startingLine": 7272
         }
       },
       {
@@ -1519,7 +1519,7 @@
         "key": "",
         "location": {
           "startingColumn": 32,
-          "startingLine": 7258
+          "startingLine": 7266
         }
       },
       {
@@ -1527,7 +1527,7 @@
         "key": "%lld",
         "location": {
           "startingColumn": 73,
-          "startingLine": 7265
+          "startingLine": 7273
         }
       },
       {
@@ -1535,7 +1535,7 @@
         "key": "SAVE MEMORY",
         "location": {
           "startingColumn": 32,
-          "startingLine": 7279
+          "startingLine": 7287
         }
       },
       {
@@ -1543,7 +1543,7 @@
         "key": "P%lld",
         "location": {
           "startingColumn": 22,
-          "startingLine": 7340
+          "startingLine": 7348
         }
       },
       {
@@ -1551,7 +1551,7 @@
         "key": "Search every thread… (titles + content)",
         "location": {
           "startingColumn": 31,
-          "startingLine": 7423
+          "startingLine": 7431
         }
       },
       {
@@ -1559,7 +1559,7 @@
         "key": "%lld THREAD%@ MATCH \"%@\"",
         "location": {
           "startingColumn": 38,
-          "startingLine": 7462
+          "startingLine": 7470
         }
       },
       {
@@ -1567,7 +1567,7 @@
         "key": "No threads match \"%@\"",
         "location": {
           "startingColumn": 34,
-          "startingLine": 7473
+          "startingLine": 7481
         }
       },
       {
@@ -1575,7 +1575,7 @@
         "key": "NEW CONVERSATION",
         "location": {
           "startingColumn": 30,
-          "startingLine": 7490
+          "startingLine": 7498
         }
       },
       {
@@ -1583,7 +1583,7 @@
         "key": "Open in New Window",
         "location": {
           "startingColumn": 52,
-          "startingLine": 7520
+          "startingLine": 7528
         }
       },
       {
@@ -1591,7 +1591,7 @@
         "key": "Load in Main Chat",
         "location": {
           "startingColumn": 52,
-          "startingLine": 7521
+          "startingLine": 7529
         }
       },
       {
@@ -1599,7 +1599,7 @@
         "key": "%lld",
         "location": {
           "startingColumn": 30,
-          "startingLine": 7954
+          "startingLine": 7962
         }
       },
       {
@@ -1607,7 +1607,7 @@
         "key": "·",
         "location": {
           "startingColumn": 26,
-          "startingLine": 7974
+          "startingLine": 7982
         }
       },
       {
@@ -1615,7 +1615,7 @@
         "key": "Directory",
         "location": {
           "startingColumn": 45,
-          "startingLine": 8010
+          "startingLine": 8018
         }
       },
       {
@@ -1623,7 +1623,7 @@
         "key": "File",
         "location": {
           "startingColumn": 59,
-          "startingLine": 8010
+          "startingLine": 8018
         }
       },
       {
@@ -1631,7 +1631,7 @@
         "key": "No fields available",
         "location": {
           "startingColumn": 22,
-          "startingLine": 8061
+          "startingLine": 8069
         }
       },
       {
@@ -1639,7 +1639,7 @@
         "key": "Eve answers from local Ollama. Falls back to nexus-web Grok if Ollama is down.",
         "location": {
           "startingColumn": 20,
-          "startingLine": 8190
+          "startingLine": 8198
         }
       },
       {
@@ -1647,7 +1647,7 @@
         "key": "Eve answers from nexus-web Grok with full tool calling. Falls back to local Ollama if offline.",
         "location": {
           "startingColumn": 20,
-          "startingLine": 8191
+          "startingLine": 8199
         }
       },
       {
@@ -1655,7 +1655,7 @@
         "key": "BRAIN MODE",
         "location": {
           "startingColumn": 22,
-          "startingLine": 8160
+          "startingLine": 8168
         }
       },
       {
@@ -1663,7 +1663,7 @@
         "key": "LOCAL FIRST",
         "location": {
           "startingColumn": 47,
-          "startingLine": 8165
+          "startingLine": 8173
         }
       },
       {
@@ -1671,7 +1671,7 @@
         "key": "CLOUD FIRST",
         "location": {
           "startingColumn": 63,
-          "startingLine": 8165
+          "startingLine": 8173
         }
       },
       {
@@ -1679,7 +1679,7 @@
         "key": "EVE VOICE",
         "location": {
           "startingColumn": 22,
-          "startingLine": 8273
+          "startingLine": 8281
         }
       },
       {
@@ -1687,7 +1687,7 @@
         "key": "ELEVENLABS",
         "location": {
           "startingColumn": 22,
-          "startingLine": 8278
+          "startingLine": 8286
         }
       },
       {
@@ -1695,7 +1695,7 @@
         "key": "ACTIVE",
         "location": {
           "startingColumn": 38,
-          "startingLine": 8301
+          "startingLine": 8309
         }
       },
       {
@@ -1703,7 +1703,7 @@
         "key": "Scanning installed models…",
         "location": {
           "startingColumn": 22,
-          "startingLine": 8356
+          "startingLine": 8364
         }
       },
       {
@@ -1711,7 +1711,7 @@
         "key": "No models found. Run `ollama pull <name>` from terminal.",
         "location": {
           "startingColumn": 22,
-          "startingLine": 8360
+          "startingLine": 8368
         }
       },
       {
@@ -1719,7 +1719,7 @@
         "key": "LOCAL LLM",
         "location": {
           "startingColumn": 22,
-          "startingLine": 8344
+          "startingLine": 8352
         }
       },
       {
@@ -1727,7 +1727,7 @@
         "key": "OLLAMA · :11434",
         "location": {
           "startingColumn": 22,
-          "startingLine": 8349
+          "startingLine": 8357
         }
       },
       {
@@ -1735,7 +1735,7 @@
         "key": "ACTIVE",
         "location": {
           "startingColumn": 42,
-          "startingLine": 8376
+          "startingLine": 8384
         }
       },
       {
@@ -1743,7 +1743,7 @@
         "key": "Open in new window",
         "location": {
           "startingColumn": 23,
-          "startingLine": 8451
+          "startingLine": 8459
         }
       },
       {
@@ -1751,7 +1751,7 @@
         "key": "ESC",
         "location": {
           "startingColumn": 26,
-          "startingLine": 8559
+          "startingLine": 8567
         }
       },
       {
@@ -1759,7 +1759,7 @@
         "key": "Jump to anything…",
         "location": {
           "startingColumn": 31,
-          "startingLine": 8553
+          "startingLine": 8561
         }
       },
       {
@@ -1767,7 +1767,7 @@
         "key": "No matches.",
         "location": {
           "startingColumn": 34,
-          "startingLine": 8586
+          "startingLine": 8594
         }
       },
       {
@@ -1775,7 +1775,7 @@
         "key": "Locked. Open Lumen to authenticate.",
         "location": {
           "startingColumn": 22,
-          "startingLine": 8719
+          "startingLine": 8727
         }
       },
       {
@@ -1783,7 +1783,7 @@
         "key": "No conversation yet.",
         "location": {
           "startingColumn": 22,
-          "startingLine": 8736
+          "startingLine": 8744
         }
       },
       {
@@ -1791,7 +1791,7 @@
         "key": "EVE",
         "location": {
           "startingColumn": 22,
-          "startingLine": 8705
+          "startingLine": 8713
         }
       },
       {
@@ -1799,7 +1799,7 @@
         "key": "LAST REPLY",
         "location": {
           "startingColumn": 26,
-          "startingLine": 8725
+          "startingLine": 8733
         }
       },
       {
@@ -1807,7 +1807,7 @@
         "key": "Quit Lumen",
         "location": {
           "startingColumn": 24,
-          "startingLine": 8781
+          "startingLine": 8789
         }
       },
       {
@@ -1815,7 +1815,7 @@
         "key": "No panel selected",
         "location": {
           "startingColumn": 32,
-          "startingLine": 8885
+          "startingLine": 8893
         }
       },
       {
@@ -1823,7 +1823,7 @@
         "key": "DETACHED",
         "location": {
           "startingColumn": 18,
-          "startingLine": 8871
+          "startingLine": 8879
         }
       },
       {
@@ -1831,7 +1831,7 @@
         "key": "Operation unavailable",
         "location": {
           "startingColumn": 26,
-          "startingLine": 8974
+          "startingLine": 8982
         }
       },
       {
@@ -1839,7 +1839,7 @@
         "key": "The requested operation is not loaded in the current operations dataset.",
         "location": {
           "startingColumn": 26,
-          "startingLine": 8977
+          "startingLine": 8985
         }
       },
       {
@@ -1847,7 +1847,7 @@
         "key": "%@ · %@",
         "location": {
           "startingColumn": 22,
-          "startingLine": 9004
+          "startingLine": 9012
         }
       }
     ]

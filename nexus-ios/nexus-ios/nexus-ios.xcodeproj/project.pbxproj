@@ -653,8 +653,9 @@
 				DEVELOPMENT_TEAM = 773PKETJ85;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Nexus uses the camera for face authentication and to capture images for Eve.";
-				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to unlock your Nexus session quickly.";
+				INFOPLIST_KEY_CFBundleDisplayName = Lumen;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Lumen uses the camera for face authentication and to capture images for Eve.";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to unlock your Lumen session quickly.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Eve uses your rough location for weather and home/away awareness. Significant-change only — no continuous tracking.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Eve needs your microphone to listen to you.";
 				INFOPLIST_KEY_NSMotionUsageDescription = "Eve disables typing and biases to voice when you're driving.";
@@ -694,8 +695,9 @@
 				DEVELOPMENT_TEAM = 773PKETJ85;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "Nexus uses the camera for face authentication and to capture images for Eve.";
-				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to unlock your Nexus session quickly.";
+				INFOPLIST_KEY_CFBundleDisplayName = Lumen;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Lumen uses the camera for face authentication and to capture images for Eve.";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to unlock your Lumen session quickly.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Eve uses your rough location for weather and home/away awareness. Significant-change only — no continuous tracking.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Eve needs your microphone to listen to you.";
 				INFOPLIST_KEY_NSMotionUsageDescription = "Eve disables typing and biases to voice when you're driving.";
@@ -814,7 +816,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "nexus-watch";
+				INFOPLIST_KEY_CFBundleDisplayName = Lumen;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "nexus.nexus-ios";
 				INFOPLIST_KEY_WKWatchOnly = NO;
@@ -847,7 +849,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "nexus-watch";
+				INFOPLIST_KEY_CFBundleDisplayName = Lumen;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "nexus.nexus-ios";
 				INFOPLIST_KEY_WKWatchOnly = NO;
@@ -876,7 +878,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				INFOPLIST_KEY_CFBundleDisplayName = "nexus-watch";
+				INFOPLIST_KEY_CFBundleDisplayName = Lumen;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "nexus.nexus-watch";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -891,7 +893,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				INFOPLIST_KEY_CFBundleDisplayName = "nexus-watch";
+				INFOPLIST_KEY_CFBundleDisplayName = Lumen;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "nexus.nexus-watch";
 				PRODUCT_NAME = "$(TARGET_NAME)";

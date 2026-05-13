@@ -948,4 +948,504 @@ class NexusAPIClient {
         guard !content.isEmpty else { throw APIError.requestFailed("empty content") }
         return (content, convId)
     }
+
+    // MARK: - Schedules (toggle + run-now)
+
+    /// Toggle a schedule's enabled flag. Backed by PATCH /api/schedules/[id].
+    @discardableResult
+    func setScheduleEnabled(id: String, enabled: Bool) async throws -> Bool {
+        guard let sid = sessionId else { throw APIError.unauthorized }
+        guard let url = URL(string: "\(nexusBase)/api/schedules/\(id)") else { throw APIError.invalidURL }
+        var req = URLRequest(url: url, timeoutInterval: 15)
+        req.httpMethod = "PATCH"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(sid)", forHTTPHeaderField: "Authorization")
+        req.httpBody = try JSONSerialization.data(withJSONObject: ["enabled": enabled])
+        let (_, response) = try await URLSession.shared.data(for: req)
+        return (response as? HTTPURLResponse)?.statusCode == 200
+    }
+
+    /// Fire a schedule immediately, bypassing its cron — POST /api/schedules/[id]/run.
+    @discardableResult
+    func runScheduleNow(id: String) async throws -> Bool {
+        guard let sid = sessionId else { throw APIError.unauthorized }
+        guard let url = URL(string: "\(nexusBase)/api/schedules/\(id)/run") else { throw APIError.invalidURL }
+        var req = URLRequest(url: url, timeoutInterval: 30)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(sid)", forHTTPHeaderField: "Authorization")
+        let (_, response) = try await URLSession.shared.data(for: req)
+        return (response as? HTTPURLResponse)?.statusCode == 200
+    }
+
+    // MARK: - Operation records (create)
+
+    /// Append a record to an operation — POST /api/operations/records.
+    /// `type` is one of: intel | finding | data | alert | note (server defaults to "note").
+    @discardableResult
+    func addOperationRecord(
+        operationId: String,
+        title: String,
+        content: String,
+        type: String = "note",
+        priority: String = "normal"
+    ) async throws -> Bool {
+        guard let sid = sessionId else { throw APIError.unauthorized }
+        guard let url = URL(string: "\(nexusBase)/api/operations/records") else { throw APIError.invalidURL }
+        var req = URLRequest(url: url, timeoutInterval: 15)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(sid)", forHTTPHeaderField: "Authorization")
+        req.httpBody = try JSONSerialization.data(withJSONObject: [
+            "operation_id": operationId,
+            "title": title,
+            "content": content,
+            "type": type,
+            "priority": priority,
+            "source": "ios",
+        ])
+        let (_, response) = try await URLSession.shared.data(for: req)
+        return (response as? HTTPURLResponse)?.statusCode == 200
+    }
+
+    // MARK: - Create operations / agents
+
+    /// POST /api/operations — create a new operation. Returns the new id.
+    @discardableResult
+    func createOperation(
+        name: String,
+        description: String = "",
+        objectives: String = "",
+        priority: String = "medium",
+        status: String = "planning"
+    ) async throws -> String? {
+        guard let sid = sessionId else { throw APIError.unauthorized }
+        guard let url = URL(string: "\(nexusBase)/api/operations") else { throw APIError.invalidURL }
+        var req = URLRequest(url: url, timeoutInterval: 20)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(sid)", forHTTPHeaderField: "Authorization")
+        req.httpBody = try JSONSerialization.data(withJSONObject: [
+            "name": name,
+            "description": description,
+            "objectives": objectives,
+            "priority": priority,
+            "status": status,
+        ])
+        let (data, response) = try await URLSession.shared.data(for: req)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+            throw APIError.requestFailed("create-operation")
+        }
+        let parsed = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        return parsed?["id"] as? String
+    }
+
+    /// POST /api/agents — create a new agent. `capabilities` is a free-form
+    /// list of short labels (e.g. ["research", "writing"]). Returns the id.
+    @discardableResult
+    func createAgent(
+        name: String,
+        role: String,
+        personality: String = "",
+        capabilities: [String] = [],
+        directives: String = "",
+        status: String = "standby"
+    ) async throws -> String? {
+        guard let sid = sessionId else { throw APIError.unauthorized }
+        guard let url = URL(string: "\(nexusBase)/api/agents") else { throw APIError.invalidURL }
+        var req = URLRequest(url: url, timeoutInterval: 20)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(sid)", forHTTPHeaderField: "Authorization")
+        req.httpBody = try JSONSerialization.data(withJSONObject: [
+            "name": name,
+            "role": role,
+            "personality": personality,
+            "capabilities": capabilities,
+            "directives": directives,
+            "status": status,
+        ])
+        let (data, response) = try await URLSession.shared.data(for: req)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+            throw APIError.requestFailed("create-agent")
+        }
+        let parsed = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        return parsed?["id"] as? String
+    }
+
+    /// POST /api/schedules — create a new cron schedule. The web side
+    /// validates the cron expression and computes the first `next_run_at`,
+    /// so we don't have to parse on device.
+    @discardableResult
+    func createSchedule(
+        name: String,
+        cronExpression: String,
+        targetType: String,
+        targetId: String? = nil,
+        timezone: String = "America/Chicago",
+        payload: [String: Any] = [:],
+        enabled: Bool = true,
+        description: String? = nil
+    ) async throws -> String? {
+        guard let sid = sessionId else { throw APIError.unauthorized }
+        guard let url = URL(string: "\(nexusBase)/api/schedules") else { throw APIError.invalidURL }
+        var body: [String: Any] = [
+            "name": name,
+            "cron_expression": cronExpression,
+            "timezone": timezone,
+            "target_type": targetType,
+            "payload": payload,
+            "enabled": enabled,
+        ]
+        if let targetId, !targetId.isEmpty { body["target_id"] = targetId }
+        if let description, !description.isEmpty { body["description"] = description }
+
+        var req = URLRequest(url: url, timeoutInterval: 20)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(sid)", forHTTPHeaderField: "Authorization")
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (data, response) = try await URLSession.shared.data(for: req)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            // Server returns 400 with { error: "..." } on validation failure;
+            // surface that message instead of a generic "create-schedule".
+            let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+            let msg = (json?["error"] as? String) ?? "create-schedule status \((response as? HTTPURLResponse)?.statusCode ?? 0)"
+            throw APIError.requestFailed(msg)
+        }
+        let parsed = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        return parsed?["id"] as? String
+    }
+
+    // MARK: - Cross-thread search
+
+    struct ConversationSearchHit: Decodable, Identifiable {
+        let conversation_id: String
+        let title: String
+        let source: String
+        let snippet: String
+        let matchType: String
+        let role: String?
+        let created_at: String?
+        let updated_at: String?
+        var id: String { conversation_id }
+    }
+
+    /// GET /api/eve/search?q=… — matches conversation titles AND message
+    /// content. Returns one hit per conversation with an excerpt snippet.
+    /// Empty/short queries (<2 chars) return [].
+    func searchConversations(q: String) async throws -> [ConversationSearchHit] {
+        guard let sid = sessionId else { throw APIError.unauthorized }
+        let trimmed = q.trimmingCharacters(in: .whitespaces)
+        guard trimmed.count >= 2,
+              var comps = URLComponents(string: "\(nexusBase)/api/eve/search")
+        else { return [] }
+        comps.queryItems = [URLQueryItem(name: "q", value: trimmed)]
+        guard let url = comps.url else { return [] }
+        var req = URLRequest(url: url, timeoutInterval: 15)
+        req.setValue("Bearer \(sid)", forHTTPHeaderField: "Authorization")
+        let (data, response) = try await URLSession.shared.data(for: req)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+            throw APIError.requestFailed("search")
+        }
+        struct Wrap: Decodable { let results: [ConversationSearchHit] }
+        return (try? JSONDecoder().decode(Wrap.self, from: data).results) ?? []
+    }
+
+    // MARK: - Eve Memory bank
+
+    struct EveMemory: Decodable, Identifiable {
+        let id: String
+        let type: String          // fact | preference | event | reference | etc.
+        let content: String
+        let priority: Int
+        let source: String?
+        let created_at: String?
+        let updated_at: String?
+    }
+
+    /// GET /api/eve/memory — fetch Eve's active memory bank.
+    func fetchMemories() async throws -> [EveMemory] {
+        guard let sid = sessionId else { throw APIError.unauthorized }
+        guard let url = URL(string: "\(nexusBase)/api/eve/memory") else { throw APIError.invalidURL }
+        var req = URLRequest(url: url, timeoutInterval: 15)
+        req.setValue("Bearer \(sid)", forHTTPHeaderField: "Authorization")
+        let (data, response) = try await URLSession.shared.data(for: req)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw APIError.requestFailed("memories") }
+        struct Wrap: Decodable { let memories: [EveMemory] }
+        return (try? JSONDecoder().decode(Wrap.self, from: data).memories) ?? []
+    }
+
+    @discardableResult
+    func addMemory(type: String, content: String, priority: Int = 5) async throws -> Bool {
+        guard let sid = sessionId else { throw APIError.unauthorized }
+        guard let url = URL(string: "\(nexusBase)/api/eve/memory") else { throw APIError.invalidURL }
+        var req = URLRequest(url: url, timeoutInterval: 15)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(sid)", forHTTPHeaderField: "Authorization")
+        req.httpBody = try JSONSerialization.data(withJSONObject: [
+            "type": type,
+            "content": content,
+            "priority": priority,
+            "source": "ios",
+        ])
+        let (_, response) = try await URLSession.shared.data(for: req)
+        return (response as? HTTPURLResponse)?.statusCode == 200
+    }
+
+    /// DELETE deactivates (sets is_active=false) — server keeps the row.
+    @discardableResult
+    func deleteMemory(id: String) async throws -> Bool {
+        guard let sid = sessionId else { throw APIError.unauthorized }
+        guard let url = URL(string: "\(nexusBase)/api/eve/memory") else { throw APIError.invalidURL }
+        var req = URLRequest(url: url, timeoutInterval: 15)
+        req.httpMethod = "DELETE"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(sid)", forHTTPHeaderField: "Authorization")
+        req.httpBody = try JSONSerialization.data(withJSONObject: ["id": id])
+        let (_, response) = try await URLSession.shared.data(for: req)
+        return (response as? HTTPURLResponse)?.statusCode == 200
+    }
+
+    // MARK: - Eve Directives
+
+    struct EveDirective: Decodable, Identifiable {
+        let id: String
+        let type: String          // directive | protocol
+        let title: String
+        let content: String
+        let priority: Int
+        let target: String?
+        let is_active: Bool
+        let created_at: String?
+        let updated_at: String?
+    }
+
+    /// GET /api/eve/directives — fetch the Director-defined directives and
+    /// protocols that override Eve's defaults.
+    func fetchDirectives() async throws -> [EveDirective] {
+        guard let sid = sessionId else { throw APIError.unauthorized }
+        guard let url = URL(string: "\(nexusBase)/api/eve/directives") else { throw APIError.invalidURL }
+        var req = URLRequest(url: url, timeoutInterval: 15)
+        req.setValue("Bearer \(sid)", forHTTPHeaderField: "Authorization")
+        let (data, response) = try await URLSession.shared.data(for: req)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw APIError.requestFailed("directives") }
+        struct Wrap: Decodable { let directives: [EveDirective] }
+        return (try? JSONDecoder().decode(Wrap.self, from: data).directives) ?? []
+    }
+
+    @discardableResult
+    func addDirective(type: String, title: String, content: String, priority: Int = 0, target: String = "all") async throws -> Bool {
+        guard let sid = sessionId else { throw APIError.unauthorized }
+        guard let url = URL(string: "\(nexusBase)/api/eve/directives") else { throw APIError.invalidURL }
+        var req = URLRequest(url: url, timeoutInterval: 15)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(sid)", forHTTPHeaderField: "Authorization")
+        req.httpBody = try JSONSerialization.data(withJSONObject: [
+            "type": type, "title": title, "content": content, "priority": priority, "target": target,
+        ])
+        let (_, response) = try await URLSession.shared.data(for: req)
+        return (response as? HTTPURLResponse)?.statusCode == 200
+    }
+
+    @discardableResult
+    func setDirectiveActive(id: String, isActive: Bool) async throws -> Bool {
+        guard let sid = sessionId else { throw APIError.unauthorized }
+        guard let url = URL(string: "\(nexusBase)/api/eve/directives") else { throw APIError.invalidURL }
+        var req = URLRequest(url: url, timeoutInterval: 15)
+        req.httpMethod = "PATCH"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(sid)", forHTTPHeaderField: "Authorization")
+        req.httpBody = try JSONSerialization.data(withJSONObject: ["id": id, "is_active": isActive])
+        let (_, response) = try await URLSession.shared.data(for: req)
+        return (response as? HTTPURLResponse)?.statusCode == 200
+    }
+
+    @discardableResult
+    func deleteDirective(id: String) async throws -> Bool {
+        guard let sid = sessionId else { throw APIError.unauthorized }
+        guard let url = URL(string: "\(nexusBase)/api/eve/directives") else { throw APIError.invalidURL }
+        var req = URLRequest(url: url, timeoutInterval: 15)
+        req.httpMethod = "DELETE"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(sid)", forHTTPHeaderField: "Authorization")
+        req.httpBody = try JSONSerialization.data(withJSONObject: ["id": id])
+        let (_, response) = try await URLSession.shared.data(for: req)
+        return (response as? HTTPURLResponse)?.statusCode == 200
+    }
+
+    /// PATCH /api/operations — update arbitrary fields on an existing
+    /// operation. Send only the fields you want changed (id is required;
+    /// everything else is optional, server merges). On 200 returns the
+    /// full row but for the iOS flow we just need pass/fail.
+    @discardableResult
+    func updateOperation(
+        id: String,
+        name: String? = nil,
+        description: String? = nil,
+        objectives: String? = nil,
+        priority: String? = nil,
+        status: String? = nil
+    ) async throws -> Bool {
+        guard let sid = sessionId else { throw APIError.unauthorized }
+        guard let url = URL(string: "\(nexusBase)/api/operations") else { throw APIError.invalidURL }
+        var body: [String: Any] = ["id": id]
+        if let name        { body["name"] = name }
+        if let description { body["description"] = description }
+        if let objectives  { body["objectives"] = objectives }
+        if let priority    { body["priority"] = priority }
+        if let status      { body["status"] = status }
+
+        var req = URLRequest(url: url, timeoutInterval: 20)
+        req.httpMethod = "PATCH"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(sid)", forHTTPHeaderField: "Authorization")
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (_, response) = try await URLSession.shared.data(for: req)
+        return (response as? HTTPURLResponse)?.statusCode == 200
+    }
+
+    /// PATCH /api/agents — update arbitrary fields on an existing agent.
+    /// Same semantics as updateOperation.
+    @discardableResult
+    func updateAgent(
+        id: String,
+        name: String? = nil,
+        role: String? = nil,
+        personality: String? = nil,
+        capabilities: [String]? = nil,
+        directives: String? = nil,
+        status: String? = nil
+    ) async throws -> Bool {
+        guard let sid = sessionId else { throw APIError.unauthorized }
+        guard let url = URL(string: "\(nexusBase)/api/agents") else { throw APIError.invalidURL }
+        var body: [String: Any] = ["id": id]
+        if let name         { body["name"] = name }
+        if let role         { body["role"] = role }
+        if let personality  { body["personality"] = personality }
+        if let capabilities { body["capabilities"] = capabilities }
+        if let directives   { body["directives"] = directives }
+        if let status       { body["status"] = status }
+
+        var req = URLRequest(url: url, timeoutInterval: 20)
+        req.httpMethod = "PATCH"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(sid)", forHTTPHeaderField: "Authorization")
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (_, response) = try await URLSession.shared.data(for: req)
+        return (response as? HTTPURLResponse)?.statusCode == 200
+    }
+
+    /// POST /api/operations/[id]/briefs — ask Eve to generate a brief of
+    /// a specific kind. Server returns the new `OperationBrief` row;
+    /// surface the failure reason if Eve refuses (e.g. no records yet).
+    @discardableResult
+    func generateBrief(operationId: String, kind: String) async throws -> OperationBrief? {
+        guard let sid = sessionId else { throw APIError.unauthorized }
+        guard let url = URL(string: "\(nexusBase)/api/operations/\(operationId)/briefs")
+        else { throw APIError.invalidURL }
+        var req = URLRequest(url: url, timeoutInterval: 90)  // analyst call — slow
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(sid)", forHTTPHeaderField: "Authorization")
+        req.httpBody = try JSONSerialization.data(withJSONObject: ["kind": kind])
+        let (data, response) = try await URLSession.shared.data(for: req)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+            let msg = (json?["error"] as? String) ?? "generate-brief status \((response as? HTTPURLResponse)?.statusCode ?? 0)"
+            throw APIError.requestFailed(msg)
+        }
+        return try? JSONDecoder().decode(OperationBrief.self, from: data)
+    }
+
+    /// POST /api/operations/records/[id]/research — kick off a research job
+    /// against an existing record. Eve will dispatch the configured research
+    /// brain to produce child findings. Returns true on accept.
+    @discardableResult
+    func runRecordResearch(recordId: String) async throws -> Bool {
+        guard let sid = sessionId else { throw APIError.unauthorized }
+        guard let url = URL(string: "\(nexusBase)/api/operations/records/\(recordId)/research")
+        else { throw APIError.invalidURL }
+        var req = URLRequest(url: url, timeoutInterval: 25)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(sid)", forHTTPHeaderField: "Authorization")
+        let (_, response) = try await URLSession.shared.data(for: req)
+        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+        return (200...299).contains(code)
+    }
+
+    // MARK: - Arena connections
+
+    struct ArenaConnection: Decodable, Identifiable {
+        let provider: String
+        let label: String?
+        let status: String
+        let last_used_at: String?
+        let last_error: String?
+        var id: String { "\(provider)-\(label ?? "")" }
+    }
+
+    /// User's connected providers (ClickUp, Notion, GitHub, etc.). Used for
+    /// the Connections screen — read-only visibility, no auth flow on device.
+    func fetchConnections() async throws -> [ArenaConnection] {
+        guard let sid = sessionId else { throw APIError.unauthorized }
+        guard let url = URL(string: "\(nexusBase)/api/arena/connections") else { throw APIError.invalidURL }
+        var req = URLRequest(url: url, timeoutInterval: 15)
+        req.setValue("Bearer \(sid)", forHTTPHeaderField: "Authorization")
+        let (data, response) = try await URLSession.shared.data(for: req)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+            throw APIError.requestFailed("connections")
+        }
+        struct Wrap: Decodable { let connections: [ArenaConnection] }
+        if let wrap = try? JSONDecoder().decode(Wrap.self, from: data) {
+            return wrap.connections
+        }
+        return (try? JSONDecoder().decode([ArenaConnection].self, from: data)) ?? []
+    }
+
+    // MARK: - Nexus Map
+
+    struct MapNode: Decodable, Identifiable {
+        let id: String
+        let type: String        // conversation | agent | operation | topic | record | research | directive | human
+        let title: String
+        let subtitle: String
+        let preview: String
+        let tags: [String]
+        let status: String?
+        let priority: String?
+        let messageCount: Int
+        let createdAt: String
+        let updatedAt: String
+    }
+
+    struct MapEdge: Decodable, Hashable {
+        let source: String
+        let target: String
+        let type: String         // topic-link | temporal | record-belongs-to | …
+    }
+
+    struct MapResponse: Decodable {
+        let nodes: [MapNode]
+        let edges: [MapEdge]?
+        let activeResearch: Int?
+    }
+
+    /// Pull the entire Nexus Map graph (all entity types). The web/Lumen
+    /// surface renders this as a force-directed graph; on iPhone we group
+    /// by node `type` and let the user browse counts + drill in.
+    func fetchNexusMap() async throws -> MapResponse {
+        guard let sid = sessionId else { throw APIError.unauthorized }
+        guard let url = URL(string: "\(nexusBase)/api/nexus-map") else { throw APIError.invalidURL }
+        var req = URLRequest(url: url, timeoutInterval: 30)
+        req.setValue("Bearer \(sid)", forHTTPHeaderField: "Authorization")
+        let (data, response) = try await URLSession.shared.data(for: req)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+            throw APIError.requestFailed("nexus-map")
+        }
+        return try JSONDecoder().decode(MapResponse.self, from: data)
+    }
 }

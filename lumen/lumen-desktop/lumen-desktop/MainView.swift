@@ -1587,13 +1587,18 @@ struct LiveThreadView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // Conversation grabs all available vertical space so the
+            // composer can't drift up into the middle of the panel.
             ConversationThread(store: store)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Composer hugs the bottom; .fixedSize keeps its height = content.
             ComposerBar(
                 text: $inputText,
                 inputFocused: $inputFocused,
                 store: store,
                 onSubmit: onSubmit
             )
+            .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
@@ -3064,7 +3069,11 @@ struct ConversationThread: View {
         )
     }
 
-    /// Small, dense button for the thread header.
+    /// Icon-only header action button. Label moves into the tooltip so
+    /// the buttons stay legible in narrow panels (the right-side
+    /// ASSISTANT panel is ~320pt — wide text labels with tracking get
+    /// crammed and wrap to look like awkward circles). Industry-standard
+    /// chat headers use icon-only utility buttons with hover tooltips.
     private func threadHeaderButton(
         label: String,
         icon: String,
@@ -3072,17 +3081,16 @@ struct ConversationThread: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            HStack(spacing: 5) {
-                Image(systemName: icon).font(.system(size: 10, weight: .bold))
-                Text(label).font(.system(size: 10, weight: .bold, design: .monospaced)).tracking(1.5)
-            }
-            .foregroundColor(color)
-            .padding(.horizontal, 10).padding(.vertical, 7)
-            .background(color.opacity(0.10))
-            .overlay(Capsule().strokeBorder(color.opacity(0.22), lineWidth: 1))
-            .clipShape(Capsule())
+            Image(systemName: icon)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(color)
+                .frame(width: 28, height: 28)
+                .background(color.opacity(0.10))
+                .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(color.opacity(0.18), lineWidth: 1))
+                .clipShape(RoundedRectangle(cornerRadius: 7))
         }
         .buttonStyle(.plain)
+        .help(label.capitalized)
     }
 
     private var threadTitle: String {

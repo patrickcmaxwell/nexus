@@ -27,19 +27,33 @@ struct ConversationWindow: View {
     @State private var title: String = "Conversation"
     @FocusState private var inputFocused: Bool
 
-    /// Sidebar visibility — Director can collapse to maximize the message
-    /// area, or expand to browse + switch threads. Defaults to visible
-    /// because the #1 ask for pop-out was "show me my conversations."
-    @State private var sidebarVisible: Bool = true
+    /// Sidebar visibility — Director can expand to browse + switch
+    /// threads. Defaults to HIDDEN because a pop-out window is for
+    /// focused single-thread work; the sidebar is opt-in via the
+    /// sidebar-left icon in the header.
+    @State private var sidebarVisible: Bool = false
 
     /// Composer expansion. Defaults to false — chat input must NEVER eat
-    /// half the window. Tapping the expand chevron flips to a taller mode
-    /// that grows upward into the message area for paragraph composition.
+    /// half the window. Auto-grows from one line up to `composerMaxHeight`
+    /// as the user types; the expand button just widens the ceiling.
     @State private var composerExpanded: Bool = false
 
-    // Compact: ~3 lines, fits a sentence comfortably without dominating
-    // the window. Expanded: up to ~12 lines, paragraph-friendly.
-    private var composerMaxHeight: CGFloat { composerExpanded ? 240 : 88 }
+    /// True while the macOS screen is locked. Blanks the message thread
+    /// + composer so a casual observer who walks up to the locked Mac
+    /// can't read or screenshot active conversations. Pop-out windows
+    /// don't get hidden by Mission Control when the lock screen lands,
+    /// so we have to handle this ourselves. NSDistributedNotificationCenter
+    /// fires `com.apple.screenIsLocked` on lock and `…IsUnlocked` on
+    /// unlock — observed in .task at view appear.
+    @State private var screenLocked: Bool = false
+
+    // Single line resting state. Auto-grows to compact ceiling (~3 lines)
+    // as the user types newlines/wraps. Expand button raises the ceiling
+    // to ~10 lines for paragraph composition — still leaves the message
+    // area visible. The composer NEVER takes more than its needed
+    // intrinsic height (pinned to bottom of the window).
+    private var composerMinHeight: CGFloat { 24 }
+    private var composerMaxHeight: CGFloat { composerExpanded ? 200 : 96 }
 
     init(conversationId: String) {
         self.initialConversationId = conversationId
@@ -62,7 +76,28 @@ struct ConversationWindow: View {
                     inputBar
                 }
             }
+            // Screen-lock curtain — opaque overlay drops over the entire
+            // window the instant macOS reports the screen is locked, so
+            // a passer-by can't read the active conversation. Lifts when
+            // the screen unlocks. Pop-out windows are not auto-hidden by
+            // the macOS lock screen so we have to do this ourselves.
+            if screenLocked {
+                ZStack {
+                    Color.black.ignoresSafeArea()
+                    VStack(spacing: 8) {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 28, weight: .light))
+                            .foregroundColor(.white.opacity(0.55))
+                        Text("LOCKED")
+                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .tracking(3)
+                            .foregroundColor(.white.opacity(0.6))
+                    }
+                }
+                .transition(.opacity)
+            }
         }
+        .animation(.easeOut(duration: 0.15), value: screenLocked)
         .task(id: conversationId) {
             // Re-runs whenever the user clicks a different thread in the
             // sidebar. Also runs once on first appear.
@@ -70,6 +105,28 @@ struct ConversationWindow: View {
             await loadHistory()
             store.registerActiveConversation(id: conversationId, title: title)
         }
+        .onAppear(perform: installLockObserver)
+        .onDisappear(perform: removeLockObserver)
+    }
+
+    @State private var lockObservers: [NSObjectProtocol] = []
+
+    private func installLockObserver() {
+        let center = DistributedNotificationCenter.default()
+        let lock = center.addObserver(forName: Notification.Name("com.apple.screenIsLocked"), object: nil, queue: .main) { _ in
+            screenLocked = true
+        }
+        let unlock = center.addObserver(forName: Notification.Name("com.apple.screenIsUnlocked"), object: nil, queue: .main) { _ in
+            screenLocked = false
+        }
+        lockObservers = [lock, unlock]
+    }
+
+    private func removeLockObserver() {
+        for obs in lockObservers {
+            DistributedNotificationCenter.default().removeObserver(obs)
+        }
+        lockObservers.removeAll()
     }
 
     // ── Sidebar ───────────────────────────────────────────────────────────
@@ -144,49 +201,71 @@ struct ConversationWindow: View {
     }
 
     // ── Header ────────────────────────────────────────────────────────────
+    //
+    // Industry-standard chat header: single line. Title in the middle,
+    // utility buttons on the edges. No pill rows, no double-row clutter.
+    // Subtitle line (source · message count) sits compactly under the
+    // title, the same way iMessage/Slack do for context.
     private var header: some View {
-        HStack(spacing: 10) {
+        let conv = store.conversations.first { $0.id == conversationId }
+        return HStack(spacing: 10) {
+            // Sidebar toggle — opens the thread switcher panel.
             Button(action: { withAnimation(.easeOut(duration: 0.18)) { sidebarVisible.toggle() } }) {
-                Image(systemName: sidebarVisible ? "sidebar.left" : "sidebar.left")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(sidebarVisible ? C.eve : .secondary)
-                    .frame(width: 26, height: 26)
-                    .background(Color.secondary.opacity(sidebarVisible ? 0.0 : 0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 5))
+                Image(systemName: "sidebar.left")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(sidebarVisible ? C.eve : .secondary.opacity(0.75))
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help(sidebarVisible ? "Hide thread list" : "Show thread list")
+            .help(sidebarVisible ? "Hide threads" : "Show threads")
 
-            Image(systemName: "bubble.left.and.bubble.right.fill")
-                .font(.system(size: 12))
-                .foregroundColor(C.eve)
-            Text(title)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.primary.opacity(0.9))
-                .lineLimit(1)
-            Text("· \(messages.count) messages")
-                .font(.system(size: 10, design: .monospaced))
-                .foregroundColor(.secondary)
+            // Title + tiny subtitle (source · count). Tightly stacked,
+            // no large block of pills.
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.primary.opacity(0.92))
+                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    if let source = conv?.source, !source.isEmpty {
+                        Text(source.uppercased())
+                            .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                            .tracking(1.2)
+                            .foregroundColor(.secondary.opacity(0.75))
+                    }
+                    Text("\(messages.count) message\(messages.count == 1 ? "" : "s")")
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary)
+                }
+            }
+
             Spacer()
+
             if loading || sending {
                 ProgressView().controlSize(.mini).tint(C.eve)
             }
             Button(action: { Task { await loadHistory() } }) {
-                Image(systemName: "arrow.clockwise").font(.system(size: 11))
-                    .foregroundColor(.secondary)
-                    .frame(width: 26, height: 26)
-                    .background(Color.secondary.opacity(0.1))
-                    .clipShape(Circle())
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary.opacity(0.7))
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help("Refresh thread")
+            .help("Refresh")
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 12)
-        .overlay(Rectangle().frame(height: 1).foregroundColor(.secondary.opacity(0.15)), alignment: .bottom)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .overlay(Rectangle().frame(height: 0.5).foregroundColor(.secondary.opacity(0.18)), alignment: .bottom)
     }
 
     // ── Messages ──────────────────────────────────────────────────────────
+    //
+    // Takes maxHeight: .infinity so the message scroll area grabs the
+    // entire vertical space NOT occupied by the header and the input
+    // bar. The input bar is `.fixedSize` vertically — so leftover space
+    // always goes to messages, never to the composer.
     private var messageList: some View {
         ScrollViewReader { proxy in
             ScrollView {
@@ -202,6 +281,7 @@ struct ConversationWindow: View {
                 .padding(.horizontal, 18)
                 .padding(.vertical, 14)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onChange(of: messages.count) { _, _ in
                 withAnimation(.easeOut(duration: 0.18)) {
                     proxy.scrollTo("bottom", anchor: .bottom)
@@ -229,20 +309,30 @@ struct ConversationWindow: View {
     }
 
     // ── Input ─────────────────────────────────────────────────────────────
+    //
+    // Standard chat-app layout: a single composer row pinned to the bottom
+    // of the window. Composer starts one line tall (≈24pt), auto-grows
+    // up to `composerMaxHeight` (96pt collapsed, 200pt expanded) as the
+    // user types. Mic claim + send button bookend the composer; the
+    // expand toggle sits inside the composer's trailing edge so it
+    // doesn't reserve extra horizontal real estate.
+    //
+    // The whole bar uses `.fixedSize(horizontal: false, vertical: true)`
+    // so the bar never inherits leftover vertical space from the parent
+    // VStack. Without that, an empty message list can hand 50% of the
+    // window's height to the input — which is what Patrick was seeing.
     private var inputBar: some View {
         let claimed = (store.voiceClaimedBy == conversationId)
         let claimedElsewhere = (store.voiceClaimedBy != nil && !claimed)
-        return HStack(spacing: 10) {
+        return HStack(alignment: .bottom, spacing: 8) {
             // Mic — claims voice for THIS window's conversation
             Button(action: toggleVoiceClaim) {
-                ZStack {
-                    Circle().fill(claimed ? C.listen.opacity(0.18) : Color.secondary.opacity(0.08))
-                    Circle().stroke(claimed ? C.listen.opacity(0.5) : Color.secondary.opacity(0.18), lineWidth: 1)
-                    Image(systemName: claimed ? "mic.fill" : "mic")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(claimed ? C.listen : (claimedElsewhere ? .secondary.opacity(0.3) : .secondary.opacity(0.7)))
-                }
-                .frame(width: 32, height: 32)
+                Image(systemName: claimed ? "mic.fill" : "mic")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(claimed ? C.listen : (claimedElsewhere ? .secondary.opacity(0.3) : .secondary.opacity(0.7)))
+                    .frame(width: 30, height: 30)
+                    .background(Color.secondary.opacity(claimed ? 0.18 : 0.06))
+                    .clipShape(Circle())
             }
             .buttonStyle(.plain)
             .disabled(claimedElsewhere)
@@ -252,68 +342,61 @@ struct ConversationWindow: View {
                 : "Start voice mode for this conversation"
             )
 
-            // Mute — visible only when this window owns voice
-            if claimed {
-                Button(action: { store.toggleUserMute() }) {
-                    let muted = store.userMuted
-                    ZStack {
-                        Circle().fill(muted ? C.danger.opacity(0.18) : Color.secondary.opacity(0.08))
-                        Circle().stroke(muted ? C.danger.opacity(0.5) : Color.secondary.opacity(0.18), lineWidth: 1)
-                        Image(systemName: muted ? "mic.slash.fill" : "speaker.wave.2.fill")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(muted ? C.danger : .secondary.opacity(0.6))
-                    }
-                    .frame(width: 28, height: 28)
-                }
-                .buttonStyle(.plain)
-                .help(store.userMuted ? "Muted — tap to unmute" : "Mute (let Eve finish without interrupt)")
-                .transition(.opacity.combined(with: .scale))
-            }
-
-            ZStack(alignment: .topTrailing) {
+            // Composer field — auto-grows. Expand toggle is overlaid in
+            // the trailing edge of the field itself.
+            ZStack(alignment: .bottomTrailing) {
                 ChatComposerField(
                     text: $input,
-                    placeholder: "Send to this thread…  (⇧↩ for newline)",
-                    minHeight: 22,
+                    placeholder: "Message…  (⇧↩ for newline)",
+                    minHeight: composerMinHeight,
                     maxHeight: composerMaxHeight,
                     fontSize: 13,
                     onSubmit: { Task { await submit() } }
                 )
-                .frame(minHeight: 22)
-                .padding(8)
-                .padding(.trailing, 22) // leave room for the expand chevron
+                .padding(.leading, 10)
+                .padding(.trailing, 32)  // room for the expand chevron
+                .padding(.vertical, 6)
                 .background(Color.secondary.opacity(0.08))
-                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.secondary.opacity(0.18), lineWidth: 1))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18)
+                        .strokeBorder(Color.secondary.opacity(0.18), lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 18))
 
                 Button(action: { withAnimation(.easeOut(duration: 0.14)) { composerExpanded.toggle() } }) {
                     Image(systemName: composerExpanded ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundColor(.secondary.opacity(0.7))
-                        .frame(width: 18, height: 18)
-                        .background(Color.secondary.opacity(0.12))
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.secondary.opacity(0.75))
+                        .frame(width: 22, height: 22)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .padding(.top, 4)
                 .padding(.trailing, 4)
-                .help(composerExpanded ? "Minimize composer" : "Expand composer for longer messages")
+                .padding(.bottom, 4)
+                .help(composerExpanded ? "Collapse composer" : "Expand composer (more room for paragraphs)")
             }
 
+            // Send — small clean button at the bottom-right.
             Button(action: { Task { await submit() } }) {
                 Image(systemName: sending ? "hourglass" : "arrow.up")
                     .font(.system(size: 12, weight: .bold))
                     .foregroundColor(.white)
-                    .frame(width: 32, height: 32)
-                    .background(input.trimmingCharacters(in: .whitespaces).isEmpty || sending ? Color.secondary.opacity(0.4) : C.eve)
+                    .frame(width: 30, height: 30)
+                    .background(input.trimmingCharacters(in: .whitespaces).isEmpty || sending ? Color.secondary.opacity(0.35) : C.eve)
                     .clipShape(Circle())
             }
             .buttonStyle(.plain)
             .disabled(input.trimmingCharacters(in: .whitespaces).isEmpty || sending)
+            .keyboardShortcut(.return, modifiers: [])
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .overlay(Rectangle().frame(height: 1).foregroundColor(.secondary.opacity(0.15)), alignment: .top)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial)
+        .overlay(Rectangle().frame(height: 1).foregroundColor(.secondary.opacity(0.12)), alignment: .top)
+        // KEY: the bar sizes to content vertically. Without this, an
+        // empty message list flexes and gives the bar 50% of the window.
+        .fixedSize(horizontal: false, vertical: true)
+        .animation(.easeOut(duration: 0.18), value: composerExpanded)
     }
 
     /// Claim or release the voice mic for THIS window's conversation. When

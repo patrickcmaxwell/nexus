@@ -4,10 +4,26 @@
     "Localizable": [
       {
         "comment": "",
+        "key": "LUMEN LOCKED",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 33
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unlock from the main window",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 37
+        }
+      },
+      {
+        "comment": "",
         "key": "Operation",
         "location": {
           "startingColumn": 21,
-          "startingLine": 157
+          "startingLine": 207
         }
       },
       {
@@ -15,7 +31,7 @@
         "key": "Agent",
         "location": {
           "startingColumn": 21,
-          "startingLine": 167
+          "startingLine": 220
         }
       },
       {
@@ -23,7 +39,7 @@
         "key": "Conversation",
         "location": {
           "startingColumn": 21,
-          "startingLine": 181
+          "startingLine": 237
         }
       },
       {
@@ -31,7 +47,7 @@
         "key": "Quick Capture",
         "location": {
           "startingColumn": 16,
-          "startingLine": 192
+          "startingLine": 251
         }
       },
       {
@@ -39,7 +55,7 @@
         "key": "Eve",
         "location": {
           "startingColumn": 16,
-          "startingLine": 204
+          "startingLine": 265
         }
       },
       {
@@ -47,7 +63,7 @@
         "key": "Lumen Console",
         "location": {
           "startingColumn": 16,
-          "startingLine": 216
+          "startingLine": 279
         }
       },
       {
@@ -55,7 +71,7 @@
         "key": "Lumen Search",
         "location": {
           "startingColumn": 16,
-          "startingLine": 230
+          "startingLine": 295
         }
       },
       {
@@ -63,7 +79,7 @@
         "key": "Eve",
         "location": {
           "startingColumn": 22,
-          "startingLine": 243
+          "startingLine": 311
         }
       },
       {
@@ -71,7 +87,7 @@
         "key": "Lock Now",
         "location": {
           "startingColumn": 24,
-          "startingLine": 134
+          "startingLine": 182
         }
       },
       {
@@ -79,7 +95,7 @@
         "key": "Panels",
         "location": {
           "startingColumn": 21,
-          "startingLine": 259
+          "startingLine": 329
         }
       },
       {
@@ -87,7 +103,7 @@
         "key": "Quick Capture…",
         "location": {
           "startingColumn": 20,
-          "startingLine": 260
+          "startingLine": 330
         }
       },
       {
@@ -95,7 +111,7 @@
         "key": "Eve Orb Window",
         "location": {
           "startingColumn": 20,
-          "startingLine": 264
+          "startingLine": 334
         }
       },
       {
@@ -103,7 +119,7 @@
         "key": "Lumen Console…",
         "location": {
           "startingColumn": 20,
-          "startingLine": 268
+          "startingLine": 338
         }
       },
       {
@@ -111,7 +127,7 @@
         "key": "Search Everything…",
         "location": {
           "startingColumn": 20,
-          "startingLine": 272
+          "startingLine": 342
         }
       },
       {
@@ -119,7 +135,7 @@
         "key": "Command Palette…",
         "location": {
           "startingColumn": 20,
-          "startingLine": 276
+          "startingLine": 346
         }
       },
       {
@@ -127,7 +143,7 @@
         "key": "Agents",
         "location": {
           "startingColumn": 20,
-          "startingLine": 281
+          "startingLine": 351
         }
       },
       {
@@ -135,7 +151,7 @@
         "key": "Operations",
         "location": {
           "startingColumn": 20,
-          "startingLine": 283
+          "startingLine": 353
         }
       },
       {
@@ -143,7 +159,7 @@
         "key": "Directives",
         "location": {
           "startingColumn": 20,
-          "startingLine": 285
+          "startingLine": 355
         }
       },
       {
@@ -151,7 +167,7 @@
         "key": "Memory Bank",
         "location": {
           "startingColumn": 20,
-          "startingLine": 287
+          "startingLine": 357
         }
       },
       {
@@ -159,7 +175,7 @@
         "key": "Conversations",
         "location": {
           "startingColumn": 20,
-          "startingLine": 289
+          "startingLine": 359
         }
       },
       {
@@ -167,7 +183,7 @@
         "key": "Nexus Map",
         "location": {
           "startingColumn": 20,
-          "startingLine": 291
+          "startingLine": 361
         }
       },
       {
@@ -175,7 +191,7 @@
         "key": "Files",
         "location": {
           "startingColumn": 20,
-          "startingLine": 294
+          "startingLine": 364
         }
       },
       {
@@ -183,7 +199,7 @@
         "key": "System",
         "location": {
           "startingColumn": 20,
-          "startingLine": 296
+          "startingLine": 366
         }
       },
       {
@@ -191,7 +207,7 @@
         "key": "Settings",
         "location": {
           "startingColumn": 20,
-          "startingLine": 298
+          "startingLine": 368
         }
       }
     ]
