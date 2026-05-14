@@ -2,9 +2,19 @@
 
 **For the next session that picks this up cold.**
 
-Updated: 2026-05-12 ~16:00 — after the multi-day Lumen + iOS heavy buildout. Prior overnight design + OAuth + per-entity sweep notes are still valid below; treat the additions as deltas.
+Updated: 2026-05-13 ~23:30. The May 12 entry below is still accurate as a snapshot of where the multi-day Lumen + iOS buildout landed. Today's deltas:
 
-## TL;DR (current — 2026-05-12)
+## TL;DR (current — 2026-05-13)
+
+- **Repo is portable.** Launchd plists / Vera CLI / `Claude-Vera.command` no longer hardcode `/Users/shadow/...`. Templates with placeholders are sed-substituted at `vera install` time. `.env.example` files for nexus-web + arena added. Bootstrap section in README. Committed as `b949b81`. Result: a friend can clone `patrickcmaxwell/nexus` anywhere and run `vera install` to get a working setup.
+- **B-1 (Vercel/o-nexus) decision logged: Option A.** Patrick to repoint `nexus-web` Vercel project Git source from `patrickcmaxwell/o-nexus` → `patrickcmaxwell/nexus`, root `nexus-web/`. Dashboard work only; no code change. Until done, prod deploys still come from `o-nexus`.
+- **Full audit done.** Top items in `mission/blockers.md` §0 — Supabase service-role JWT hardcoded in `lumen/.../SupabaseClient.swift` (rotate + Keychain); `next.config.mjs ignoreBuildErrors: true` (flip); ~10 nexus-web API routes missing auth guards; Eve's system prompt promises a `web_search` tool that isn't in `toolDefs`; Arena single shared `ARENA_SECRET`.
+- **Face auth Phase 1 shipped (uncommitted in tree).** `/api/security/face/match` and `/api/security/face` now auto-learn from confident matches — appends probe to `face_descriptors[]` when distance ≤ 0.4 + diversity ≥ 0.15, cap 20. Fire-and-forget. Maxwell's row had only one 16-day-old descriptor before this; auto-learn will fill in real variations over normal use. Diagnosis: server pipeline (face-api WASM + sharp + 3-source matching) is sound — failure was stale single-frame enrollment plus camera-environment shift (system-preferred camera is now the NexiGo external, likely different from enrollment camera).
+- **Phase 2 face evolution planned, not shipped.** Client captures yaw/pitch/roll via `VNDetectFaceLandmarksRequest`; server stores `face_descriptor_meta` JSONB sibling; matching uses orientation as a tiebreaker. Full task in `mission/pending-changes.md`.
+- **`mission/path-to-live.md` is the canonical sequenced runbook** to take Nexus + Arena from current state to fully live. 8 stages. Use as reference, not mandate.
+- **Working tree has uncommitted face auto-learn + audit doc updates** (6 modified, 1 new untracked at `mission/path-to-live.md`). Not pushed.
+
+## TL;DR (snapshot — 2026-05-12)
 
 - **Cross-device terminal bridge end-to-end working.** Mac PTYs visible + drivable from iPhone. URL mismatch (Lumen on legacy `nexus.talkcircles.io`, iOS on `portal.maxnexus.io`) was the bridge-blocker — now both on `portal.maxnexus.io`. Multi-buffer snapshot fallback (.active → .alt → .normal) handles Claude Code's alt-screen TUI.
 - **Lumen security hardened.** Face check is now MANDATORY every launch (cookie restore no longer auto-passes). `LumenPresenceMonitor` adds periodic silent re-verify (default 20 min), idle-lock (5 min focus loss), manual `⌃⌘L`. Mic+voice kill on lock. **Universal lock curtain** drops on EVERY secondary window (search palette, Eve orb, console, pop-outs, panels, MenuBarExtra) when locked OR unauth'd — fixes the leak where ⌘⇧K on AuthGate showed cached conversation snippets.

@@ -1,6 +1,16 @@
 # Current State
 
-**Snapshot:** 2026-05-12 ~16:00. Updated after the multi-day Lumen + Nexus iOS heavy buildout (May 9–12). Patrick is active.
+**Snapshot:** 2026-05-13 ~23:30. Patrick is active.
+
+## Latest delta (2026-05-13)
+
+| Area | Status |
+|---|---|
+| **Repo portability cleanup** | ✅ Committed as `b949b81` ("fixed local"). Launchd plists templated with `__REPO_ROOT__`/`__LOG_DIR__`/`__USER__`; `vera install` substitutes at copy time. `Claude-Vera.command` derives REPO_ROOT from its own location. `.env.example` files for nexus-web + arena added. README has a "Bootstrap on a new Mac" section. Stray `nexus-web/README 2.md` (auto-copied o-nexus v0 README) deleted. |
+| **B-1 decision (Vercel/o-nexus)** | Decision: **Option A** — repoint Vercel `nexus-web` project from `patrickcmaxwell/o-nexus` to `patrickcmaxwell/nexus` (root `nexus-web/`). Patrick-owned dashboard work; no code change needed. Trigger was a friend's `vercel` CLI bouncing on missing o-nexus access. |
+| **Full-project audit** | Five-agent parallel survey done 2026-05-13. Findings logged in `mission/blockers.md` §0 (security debt) + `mission/pending-changes.md` (audit-driven backlog) + `PROJECT-STATUS.md`. Top issues: hardcoded Supabase JWT in `lumen/.../SupabaseClient.swift`; `next.config.mjs` `typescript.ignoreBuildErrors: true`; ~10 nexus-web API routes lack auth; Eve's `web_search` tool promised in system prompt but not wired; Arena single shared `ARENA_SECRET`. |
+| **Face auth audit + Phase 1 evolution** | Diagnosed: Maxwell row had ONE 16-day-old `face_descriptor` (no `face_descriptors[]`, no `seed_face_descriptor`) vs Siggy's 5 frames. Plus camera-environment shift (NexiGo HD external is system-preferred camera now). **Phase 1 shipped (uncommitted in working tree):** `/api/security/face/match` and `/api/security/face` now auto-append the live probe to `face_descriptors[]` on confident matches (distance ≤ 0.4, diversity ≥ 0.15, cap 20). Fire-and-forget; never blocks auth response. Every successful login from Lumen now grows the reference set with the user's real variations (lighting, angles, glasses, beard, hat). |
+| **Path to Live runbook** | Drafted at `mission/path-to-live.md`. 8 stages from current state to fully live (commit working tree → repoint Vercel → add prod env vars → smoke test → ClickUp OAuth → point native apps at prod → remaining 3 providers → security debt sweep). Use as reference, not mandate. |
 
 ## Latest delta (May 9 → May 12)
 

@@ -280,6 +280,13 @@ ollama pull qwen2.5:14b   # any model name
 
 ## Blockers / Known Issues
 
+**Security debt surfaced in 2026-05-13 full audit — see `mission/blockers.md` §0 for the full list:**
+- Hardcoded Supabase service-role JWT in `lumen/.../SupabaseClient.swift` (committed to git history; rotate + move to Keychain).
+- `nexus-web/next.config.mjs` has `typescript: { ignoreBuildErrors: true }` — runtime type errors ship to prod silently.
+- ~10 nexus-web API routes lack `checkAuth`/`checkDesktopAuth` guards.
+- Eve's system prompt promises `web_search` but the tool isn't in `toolDefs`.
+- Arena uses one shared `ARENA_SECRET` with self-declared caller IDs — gated; don't invite non-Directors until B-track auth lands.
+
 - QStash prod keys not yet added to Vercel — autonomous agent scheduling runs in dev-fallback mode in prod.
 - Vercel watches wrong repo (`o-nexus` not `nexus`) — prod deployments not picking up latest nexus-web changes. (Resolution in progress — see `mission/blockers.md` #1.)
 - Lumen macOS: Must rebuild in Xcode (`Cmd+R`) to pick up all Swift changes from this session.

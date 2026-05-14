@@ -34,6 +34,20 @@ import { sessionCookieOptions } from "@/lib/auth/cookie"
 
 const MATCH_THRESHOLD = 0.6
 
+// Auto-learn: when a match is *confident* (well under the mismatch threshold)
+// AND the new probe descriptor adds diversity to the stored reference set, append
+// the probe to face_descriptors[]. Over time the user's reference set grows to
+// cover different lighting, angles, glasses-on/off, beard-grown, hat, etc.
+// without ever asking them to re-enroll.
+//
+// Tunables — kept conservative so we never learn off a mediocre match:
+//   - AUTO_APPEND_THRESHOLD: only learn from matches clearly inside the gate
+//   - DIVERSITY_MIN_DISTANCE: skip a probe too similar to existing refs (no value)
+//   - MAX_STORED_DESCRIPTORS: cap the array so it can't grow unbounded
+const AUTO_APPEND_THRESHOLD = 0.4
+const DIVERSITY_MIN_DISTANCE = 0.15
+const MAX_STORED_DESCRIPTORS = 20
+
 function getServiceClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -209,6 +223,50 @@ export async function POST(req: NextRequest) {
       nearest: bestNearMiss ? { name: bestNearMiss.name, distance: Number(bestNearMiss.distance.toFixed(3)) } : null,
       threshold: MATCH_THRESHOLD,
     }, { status: 401 })
+  }
+
+  // Auto-learn: if this match is well inside the gate, fire-and-forget append
+  // the live probe to the matched human's face_descriptors[] so future matches
+  // have more reference variety (angles, lighting, attire). We do this AFTER
+  // bestMatch is decided and BEFORE the session mint so the work happens during
+  // the network roundtrip of the session insert below. Errors here never block
+  // the auth response — worst case we silently fail to learn this frame.
+  if (descriptor && bestMatch.distance <= AUTO_APPEND_THRESHOLD) {
+    const probe = descriptor
+    const matched = bestMatch
+    ;(async () => {
+      try {
+        const { data: current } = await supabase
+          .from("humans")
+          .select("face_descriptors")
+          .eq("id", matched.id)
+          .single()
+        const existing: Descriptor[] = Array.isArray(current?.face_descriptors)
+          ? (current!.face_descriptors as unknown[]).filter(isValidDescriptor)
+          : []
+        if (existing.length >= MAX_STORED_DESCRIPTORS) return
+        // Skip if the new probe is too similar to anything already stored —
+        // no learning value, just bloat.
+        const minDistToExisting = existing.length === 0
+          ? Infinity
+          : Math.min(...existing.map((e) => euclideanDistance(probe, e)))
+        if (minDistToExisting <= DIVERSITY_MIN_DISTANCE) return
+        const next = [...existing, probe]
+        const { error: updateError } = await supabase
+          .from("humans")
+          .update({ face_descriptors: next })
+          .eq("id", matched.id)
+        if (updateError) {
+          console.error("[face] auto-learn append failed:", updateError.message)
+        } else {
+          console.log(
+            `[face] auto-learned ${matched.name}: ${next.length} frames (added at distance ${matched.distance.toFixed(3)}, diversity ${minDistToExisting === Infinity ? "first" : minDistToExisting.toFixed(3)})`
+          )
+        }
+      } catch (err) {
+        console.error("[face] auto-learn unexpected error:", err)
+      }
+    })()
   }
 
   // Mint a session for the matched human. Same shape as the other auth

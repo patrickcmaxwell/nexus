@@ -4,6 +4,65 @@ Proposed code changes waiting on a condition. Each entry has a **trigger** that 
 
 ---
 
+## (2026-05-13): Face evolution Phase 2 — capture and store face orientation
+
+**Trigger:** Phase 1 (auto-learn on confident matches) is shipped and live. Phase 2 makes "angles" structural rather than statistical.
+
+**What's needed:**
+
+1. **Client (Lumen)** — `NativeFaceCaptureView.swift`: upgrade from `VNDetectFaceRectanglesRequest` to `VNDetectFaceLandmarksRequest` so each captured frame includes `yaw`, `roll`, `pitch`. Send these as `orientation: {yaw, pitch, roll}` in the JSON body of the POST to `/api/security/face/match`.
+
+2. **Schema** — additive migration:
+   ```sql
+   ALTER TABLE humans ADD COLUMN IF NOT EXISTS face_descriptor_meta JSONB DEFAULT '[]'::jsonb;
+   ```
+   Parallel array to `face_descriptors[]`. Each entry: `{capturedAt: ISO, yaw: float, pitch: float, roll: float, sourceDistance: float, source: "match" | "enroll"}`.
+
+3. **Server (`face/match/route.ts` + `face/route.ts`)** — accept optional `orientation` in the request body. When auto-appending, append a matching entry to `face_descriptor_meta`. Optionally weight `bestMatch` selection by `1 + 0.05 * orientation_dissimilarity` (small penalty when stored ref's orientation diverges from probe's) as a soft tiebreaker.
+
+4. **Match query** — read `face_descriptor_meta` alongside `face_descriptors` when scoring.
+
+**Risk:** Schema migration is additive and reversible. Client change is local to one file. Server change preserves existing behavior when `orientation` is missing (Lumen running an older build still works). Web verify path can be upgraded next.
+
+**Why deferred:** Phase 1 alone delivers the bulk of the "evolve over time" feature. Phase 2 makes angle-awareness explicit. Doing them in sequence so each can be observed in isolation.
+
+---
+
+## (2026-05-13): Audit-driven backlog from full-project evaluation
+
+The full-project audit run on 2026-05-13 surfaced these. See `mission/blockers.md` §0 for the critical security items; these are the smaller backlog items.
+
+### iOS chat-UX parity gaps (per `client-parity.md`)
+11 features Lumen has that iOS doesn't: mention chip rendering, mention autocomplete on `@`, slash command popup on `/`, markdown rendering (bold/italic/lists/code), per-message hover actions (copy/timestamp/TTS), multi-select, edit-and-regenerate, thread search (Cmd-F equiv), cross-thread search, briefing dashboard, "what changed since last visit" delta.
+**Suggested scope to land parity v1:** brain badge + mention chips + slash commands. Rest in v2.
+**Trigger:** iOS focus block; Xcode free.
+
+### `/dashboard/missions` page is an orphan stub
+**Where:** `nexus-web/app/dashboard/missions/page.tsx`. Tries to fetch from a `missions` table; no creation/mutation endpoint exists; no link in sidebar nav.
+**Fix:** Either build it (missions feature) or delete the route + table reference.
+
+### Hardcoded Patrick UUID in `LumenStore.swift`
+**Where:** `lumen/lumen-desktop/lumen-desktop/LumenStore.swift` — `e9d9a15b-0e5a-4631-9b50-6225ee03a44f`.
+**Risk:** Breaks the moment multi-user lands or another Director uses Lumen.
+**Fix:** Pull from active human via `LumenAuthRegistry.activeHuman?.id`.
+
+### iOS `SupabaseManager` placeholder credentials
+**Where:** `nexus-ios/.../SupabaseManager.swift` — `YOUR_PROJECT_URL`, `YOUR_ANON_KEY_HERE`.
+**Risk:** "Hey Sync" voice command and any iOS-direct-Supabase code will crash at runtime if invoked.
+**Fix:** Either initialize from a config file at launch, or remove the SupabaseManager entirely (the iOS app talks to Supabase through nexus-web's API, doesn't need direct Supabase SDK).
+
+### Terminal bridge polling overhead
+**Where:** `LumenTerminalBridge.swift` polls every 5s. At 3+ terminals × 10 users = 600+ reqs/min hitting `/api/terminal/commands`.
+**Fix:** Upgrade to Supabase Realtime channel on `terminal_commands` table. Foundation in place per LumenTerminalBridge comments.
+**Trigger:** After Vercel reconnect (so prod can prove the new flow).
+
+### HMAC signature verification on Arena webhooks
+**Where:** `arena-web/app/api/webhooks/[id]/[secret]/route.ts`. Gates on path token only. Per-provider signatures (GitHub `X-Hub-Signature-256`, Stripe `stripe-signature`) not validated.
+**Risk:** Attacker can spoof inbound webhooks and log false task updates.
+**Trigger:** Before routing any critical production flows through webhooks.
+
+---
+
 ## ⭐ NEW TOP PRIORITY (2026-05-12): Push nexus-web Trash2 fix to production
 
 **Trigger:** ASAP. Production `portal.maxnexus.io` dashboard currently crashes with `ReferenceError: Trash2 is not defined` on render.

@@ -299,3 +299,24 @@ Saved to `~/.claude/projects/-Users-shadow/memory/`:
 - **B-1 decision: Option A.** Patrick to repoint Vercel's `nexus-web` project at `patrickcmaxwell/nexus` (root `nexus-web/`). Vercel dashboard work only; no code change needed. After ~1 week healthy, archive `o-nexus` on GitHub.
 
 **Owner of remaining work:** Patrick — Vercel dashboard repoint per `mission/blockers.md` #1.
+
+---
+
+## 2026-05-13 (later) — Face auth evolution: auto-learn on confident matches
+
+**Trigger:** Patrick: "face recognition still not working properly. mission fix face auth nothing else matters." Then: "evolve it so people check in with new ones so the system recognition software learns the persons face with different angles or attire. Also angles should matter."
+
+**Diagnosis (audit-only, full report in conversation):** Patrick's `humans` row had **one** stored descriptor (`face_descriptor` column), enrolled 16 days ago (2026-04-27), with **0** entries in `face_descriptors[]` and **null** `seed_face_descriptor`. Compare to Siggy (5 frames + seed). Single stale descriptor + camera change (NexiGo external is the user-preferred camera; enrollment was likely on a different camera) pushes match distance over the 0.6 mismatch threshold often enough to feel "still not working." Server pipeline (face-api WASM + sharp + 3-source matching + threshold 0.6) is sound; failure is in the data.
+
+**Phase 1 shipped:**
+- `nexus-web/app/api/security/face/match/route.ts` — on a confident match (distance ≤ 0.4, well inside the 0.6 gate), fire-and-forget append the live probe descriptor to the matched human's `face_descriptors[]` if (a) array has < 20 entries AND (b) probe is at least 0.15 distance from every existing reference (diversity guard). Errors never block the auth response.
+- Same logic added to `nexus-web/app/api/security/face/route.ts` (web verify path).
+- No schema migration. No client changes. Existing JSONB column reused.
+- Effect: every successful login from Lumen / web grows the reference set with whatever Patrick's face looked like at that moment (lighting, angle, glasses, beard, hat). Over time the set covers his real variations without him going through enrollment again.
+
+**Tunables in code:**
+- `AUTO_APPEND_THRESHOLD = 0.4` — only learn from clearly-good matches
+- `DIVERSITY_MIN_DISTANCE = 0.15` — don't bloat with near-duplicates
+- `MAX_STORED_DESCRIPTORS = 20` — cap so the JSONB array can't grow unbounded
+
+**Phase 2 planned (not shipped):** Client captures face yaw/pitch/roll via Vision landmark detection, sends with the match request. Server stores it in a sibling `face_descriptor_meta` JSONB column (additive migration). Matching uses orientation similarity as a tiebreaker. See `mission/pending-changes.md` for the full task.

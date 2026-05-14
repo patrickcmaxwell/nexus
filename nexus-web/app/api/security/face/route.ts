@@ -17,6 +17,13 @@ function euclideanDistance(a: number[], b: number[]): number {
 
 const MATCH_THRESHOLD = 0.6
 
+// Auto-learn tunables — mirrors /api/security/face/match. On a confident
+// verify, append the probe to face_descriptors[] so the user's reference set
+// grows with their natural variations (angles, lighting, glasses, beard, hat).
+const AUTO_APPEND_THRESHOLD = 0.4
+const DIVERSITY_MIN_DISTANCE = 0.15
+const MAX_STORED_DESCRIPTORS = 20
+
 type Descriptor = number[]
 
 function isValidDescriptor(d: unknown): d is Descriptor {
@@ -166,6 +173,45 @@ export async function POST(req: NextRequest) {
         nearest: bestNearMiss ? { name: bestNearMiss.name, distance: Number(bestNearMiss.distance.toFixed(3)) } : null,
         threshold: MATCH_THRESHOLD,
       }, { status: 401 })
+    }
+
+    // Auto-learn: same logic as /api/security/face/match — on a confident match,
+    // fire-and-forget append the probe to face_descriptors[] so the reference
+    // set grows with the user's real-world variations.
+    if (bestMatch.distance <= AUTO_APPEND_THRESHOLD) {
+      const probeDescriptor = probe
+      const matched = bestMatch
+      ;(async () => {
+        try {
+          const { data: current } = await supabase
+            .from("humans")
+            .select("face_descriptors")
+            .eq("id", matched.id)
+            .single()
+          const existing: Descriptor[] = Array.isArray(current?.face_descriptors)
+            ? (current!.face_descriptors as unknown[]).filter(isValidDescriptor)
+            : []
+          if (existing.length >= MAX_STORED_DESCRIPTORS) return
+          const minDistToExisting = existing.length === 0
+            ? Infinity
+            : Math.min(...existing.map((e) => euclideanDistance(probeDescriptor, e)))
+          if (minDistToExisting <= DIVERSITY_MIN_DISTANCE) return
+          const next = [...existing, probeDescriptor]
+          const { error: updateError } = await supabase
+            .from("humans")
+            .update({ face_descriptors: next })
+            .eq("id", matched.id)
+          if (updateError) {
+            console.error("[face] auto-learn append failed:", updateError.message)
+          } else {
+            console.log(
+              `[face] auto-learned ${matched.name} (web): ${next.length} frames (added at distance ${matched.distance.toFixed(3)}, diversity ${minDistToExisting === Infinity ? "first" : minDistToExisting.toFixed(3)})`
+            )
+          }
+        } catch (err) {
+          console.error("[face] auto-learn unexpected error:", err)
+        }
+      })()
     }
 
     return await createHumanSession(
