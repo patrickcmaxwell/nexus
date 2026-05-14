@@ -320,3 +320,75 @@ Saved to `~/.claude/projects/-Users-shadow/memory/`:
 - `MAX_STORED_DESCRIPTORS = 20` — cap so the JSONB array can't grow unbounded
 
 **Phase 2 planned (not shipped):** Client captures face yaw/pitch/roll via Vision landmark detection, sends with the match request. Server stores it in a sibling `face_descriptor_meta` JSONB column (additive migration). Matching uses orientation similarity as a tiebreaker. See `mission/pending-changes.md` for the full task.
+
+---
+
+## 2026-05-13 (late) — Deep security + UX/UI + supply-chain audits
+
+**Trigger:** Patrick: "you sure you full audit everything from good UX practices and UI and security. i mean security."
+
+**Three parallel agents ran. Findings logged in `mission/blockers.md` §0 (security) and noted in this entry.**
+
+**Application-layer security — FIVE new CRITICAL findings:**
+- **0-NEW-A.** `/api/groups/route.ts:12` lets any signed-in user enumerate/modify/delete ANY group. Multi-tenancy hole.
+- **0-NEW-B.** PIN hash is `crypto.createHash("sha256")` — no salt, no bcrypt/argon2. 4-digit PIN space = 10K SHA256s, fully precomputable.
+- **0-NEW-C.** PIN comparison uses `!==` — not timing-safe.
+- **0-NEW-D.** Zero rate limiting on `/api/security/{pin,face/match,passphrase/check}`. `ip_blocklist` table exists but never written.
+- **0-NEW-E.** Next.js 16.2.0 has 8 active HIGH-severity CVEs (middleware bypass, SSRF, cache poisoning). Upgrade to 16.2.6+.
+- Plus 8 more HIGH/MEDIUM items (invite-token expiry, webhook plaintext, cookie sameSite, session refresh, EXIF strip, Eve LLM data disclosure, postcss XSS, Eve tool-arg validation).
+
+**UX/UI:** No central toast/notification system. No confirm dialogs on delete actions. Loading skeletons missing on operations/map/humans dashboards. Forms missing `autocomplete`/`autoFocus`. iOS/Lumen touch targets below 44pt in several places. `muted-foreground` text contrast ~2.5:1 (WCAG AA needs 4.5:1). 23 `aria-label` instances across 200+ TSX files.
+
+**Dependencies:** 16 vulns total in nexus-web (8 HIGH, 6 MODERATE, 2 LOW). Next.js bump clears 8 CVEs. PostCSS transitive XSS = `pnpm update` fix. No GPL/AGPL, no typosquats, lockfiles clean.
+
+**Stopship for prod:** The groups multi-tenancy hole + SHA256 PINs + zero rate limiting together constitute a complete account-takeover kit. Do not invite anyone else onto the platform until at least 0-NEW-A, B, C, D are fixed. `mission/path-to-live.md` Stage 7 expanded scope substantially.
+
+**No code changes shipped this round** — audit-only per directive.
+
+---
+
+## 2026-05-13 (later still) — Bundles 1, 2, 4 shipped (security hardening)
+
+**Trigger:** Patrick: "i trust you why are you not full auto, get going. tell me if there is a dilema."
+
+**Shipped (Bundle 1 — Trivial wins):**
+- `nexus-web/package.json`: Next.js 16.2.0 → ^16.2.6. Same upgrade picked up automatically in arena-web + maxnexus-public (already `^16.2.0`). Clears 8 HIGH-severity CVEs (CVE-2026-23869 / 44575 / 44573 / 45109 + cache poisoning + SSRF variants).
+- `pnpm update postcss --latest` across all three Next.js projects → ^8.5.14. Clears CVE-2026-41305 (XSS in CSS stringify).
+- **PIN compare timing-safe:** new `nexus-web/lib/auth/pin.ts` exports `hashPin()` + `timingSafePinEqual()`. Rewired:
+  - `app/api/security/pin/route.ts`
+  - `app/api/security/reverify/route.ts`
+  - `app/api/auth/switch/route.ts`
+  - `app/api/auth/change-pin/route.ts`
+- **Sign-up form a11y:** `app/auth/sign-up/page.tsx` — added `id` + `htmlFor`, `autoFocus` on email field, `autoComplete="email"`/`new-password`, `inputMode="email"`. Password managers now fill the form.
+- **Dark-theme contrast:** `globals.css:28` — `--muted-foreground` bumped `oklch(0.55 0.02 210)` → `oklch(0.72 0.02 210)`. Pushes body-text contrast over WCAG AA 4.5:1.
+
+**Shipped (Bundle 2 — Groups multi-tenancy):**
+- `app/api/groups/route.ts` rewritten. GET now returns only groups the caller created OR is a member of (no workspace-wide enumeration). PATCH + DELETE check `created_by === currentHumanId` first, return 403 otherwise.
+
+**Shipped (Bundle 4 — Rate limiting):**
+- New `nexus-web/lib/auth/ratelimit.ts`. Uses `@upstash/ratelimit` + `@upstash/redis` (newly added deps). Per-endpoint sliding windows: PIN 10/5min, face 30/5min, passphrase 20/5min, generic 60/5min. Per-IP keyed via X-Forwarded-For.
+- Wired into:
+  - `app/api/security/pin/route.ts` (POST)
+  - `app/api/security/face/match/route.ts` (POST)
+  - `app/api/security/face/route.ts` (POST — verify + enroll paths)
+- Degrades to no-op when `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` are not set; logs one boot warning. Prod must set both. `/api/passphrase` is already disabled (HTTP 410) so not wired.
+
+**Deferred (Bundle 3 — PIN bcrypt rotation):**
+- Migrating from SHA256 → bcrypt requires (a) installing bcrypt, (b) accepting both hash formats during a transition window, (c) rehashing on next successful PIN entry, (d) eventually dropping the SHA256 path. Patrick is currently authenticated via the SHA256 path; misimplementation = lockout. Holding for a session where Patrick can verify each step before we cut over.
+
+**Smoke-tested after shipping:**
+- `/api/security/pin` → UNKNOWN_EMAIL (correct, route compiles)
+- `/api/groups` → 401 unauth (correct, gate intact)
+- `/api/security/face/match` → 400 missing body (correct, ratelimit doesn't fire on first request)
+- `[ratelimit] UPSTASH_REDIS_REST_URL/_TOKEN not set — rate limiting DISABLED` warning seen as expected.
+
+**What this resolves from `mission/blockers.md` §0:**
+- 0-NEW-A (groups multi-tenancy) — FIXED
+- 0-NEW-C (PIN timing-safe compare) — FIXED
+- 0-NEW-D (no rate limiting) — INFRASTRUCTURE LANDED, awaits Upstash Redis env vars in prod to actually engage
+- 0-NEW-E (Next.js 16.2.0 CVEs) — FIXED (16.2.6)
+- 0-NEW-L (PostCSS XSS) — FIXED (8.5.14)
+
+**Still open as critical:** 0-NEW-B (SHA256 PIN hash — needs bcrypt migration).
+
+**Working tree:** 11 modified files + 2 new files (`lib/auth/pin.ts`, `lib/auth/ratelimit.ts`). Not committed, not pushed. Patrick to decide whether to commit + push (and let Vercel deploy after he repoints Stage 1).

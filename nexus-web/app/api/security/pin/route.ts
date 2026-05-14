@@ -14,6 +14,8 @@ import { createClient } from "@supabase/supabase-js"
 import crypto from "crypto"
 import { sessionCookieOptions } from "@/lib/auth/cookie"
 import { fingerprintFromRequest } from "@/lib/auth/device"
+import { hashPin, timingSafePinEqual } from "@/lib/auth/pin"
+import { checkRateLimit } from "@/lib/auth/ratelimit"
 
 function getServiceClient() {
   return createClient(
@@ -32,6 +34,14 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const rl = await checkRateLimit(req, { key: "pin" })
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "RATE_LIMITED", retryAfterSeconds: rl.retryAfter },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+    )
+  }
+
   const { email, pin, remember } = await req.json()
 
   if (!email || !pin) {
@@ -39,7 +49,7 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = getServiceClient()
-  const pinHash = crypto.createHash("sha256").update(pin).digest("hex")
+  const pinHash = hashPin(pin)
 
   // Identity-first: pin down a single row by email, THEN verify hash.
   // Email match is case-insensitive (.ilike treats the value as a pattern,
@@ -66,7 +76,7 @@ export async function POST(req: NextRequest) {
   if (human.status !== "active") {
     return NextResponse.json({ error: "ACCOUNT_INACTIVE" }, { status: 401 })
   }
-  if (human.pin_hash !== pinHash) {
+  if (!timingSafePinEqual(human.pin_hash, pinHash)) {
     return NextResponse.json({ error: "WRONG_PIN" }, { status: 401 })
   }
 

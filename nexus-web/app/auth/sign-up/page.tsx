@@ -60,10 +60,14 @@ export default function SignUpPage() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="font-mono text-xs text-muted-foreground tracking-widest">OPERATOR EMAIL</label>
+            <label htmlFor="signup-email" className="font-mono text-xs text-muted-foreground tracking-widest">OPERATOR EMAIL</label>
             <input
+              id="signup-email"
               type="email"
               required
+              autoFocus
+              autoComplete="email"
+              inputMode="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
               className="bg-background hud-border px-4 py-3 font-mono text-sm text-foreground focus:outline-none focus:border-[oklch(0.75_0.18_75)] transition-colors"
@@ -72,10 +76,12 @@ export default function SignUpPage() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="font-mono text-xs text-muted-foreground tracking-widest">ACCESS CODE</label>
+            <label htmlFor="signup-password" className="font-mono text-xs text-muted-foreground tracking-widest">ACCESS CODE</label>
             <input
+              id="signup-password"
               type="password"
               required
+              autoComplete="new-password"
               value={password}
               onChange={e => setPassword(e.target.value)}
               className="bg-background hud-border px-4 py-3 font-mono text-sm text-foreground focus:outline-none focus:border-[oklch(0.75_0.18_75)] transition-colors"
@@ -84,10 +90,12 @@ export default function SignUpPage() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="font-mono text-xs text-muted-foreground tracking-widest">CONFIRM ACCESS CODE</label>
+            <label htmlFor="signup-confirm" className="font-mono text-xs text-muted-foreground tracking-widest">CONFIRM ACCESS CODE</label>
             <input
+              id="signup-confirm"
               type="password"
               required
+              autoComplete="new-password"
               value={confirm}
               onChange={e => setConfirm(e.target.value)}
               className="bg-background hud-border px-4 py-3 font-mono text-sm text-foreground focus:outline-none focus:border-[oklch(0.75_0.18_75)] transition-colors"

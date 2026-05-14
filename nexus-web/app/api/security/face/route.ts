@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { sessionCookieOptions } from "@/lib/auth/cookie"
 import { fingerprintFromRequest } from "@/lib/auth/device"
+import { checkRateLimit } from "@/lib/auth/ratelimit"
 
 function getServiceClient() {
   return createClient(
@@ -50,6 +51,14 @@ function collectReferences(human: {
 }
 
 export async function POST(req: NextRequest) {
+  const rl = await checkRateLimit(req, { key: "face" })
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "RATE_LIMITED", retryAfterSeconds: rl.retryAfter },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+    )
+  }
+
   const body = await req.json()
   const { action } = body
   const supabase = getServiceClient()

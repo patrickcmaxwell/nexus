@@ -13,7 +13,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { getActiveHuman } from "@/lib/auth/session"
-import crypto from "crypto"
+import { hashPin, timingSafePinEqual } from "@/lib/auth/pin"
 
 function getServiceClient() {
   return createClient(
@@ -55,12 +55,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "User not found" }, { status: 404 })
   }
 
-  const currentHash = crypto.createHash("sha256").update(currentPin).digest("hex")
-  if (row.pin_hash !== currentHash) {
+  const currentHash = hashPin(currentPin)
+  if (!timingSafePinEqual(row.pin_hash, currentHash)) {
     return NextResponse.json({ error: "Current PIN incorrect" }, { status: 401 })
   }
 
-  const newHash = crypto.createHash("sha256").update(newPin).digest("hex")
+  const newHash = hashPin(newPin)
   const { error: updateErr } = await supabase
     .from("humans")
     .update({ pin_hash: newHash })

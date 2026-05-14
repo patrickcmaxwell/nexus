@@ -25,7 +25,9 @@ html.dark[data-ui="futuristic"] {
   --secondary-foreground:oklch(0.85 0.01 200);
 
   --muted:             oklch(0.14 0.018 240);
-  --muted-foreground:  oklch(0.55 0.02 210);
+  /* Bumped 0.55 → 0.72 (2026-05-13 audit) — pushes contrast on dark theme
+     above WCAG AA 4.5:1 for body text. */
+  --muted-foreground:  oklch(0.72 0.02 210);
 
   --accent:            oklch(0.75 0.18 195);
   --accent-foreground: oklch(0.05 0.01 240);

@@ -13,8 +13,8 @@
 // session — re-auth is presence/freshness only.
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
-import crypto from "crypto"
 import { getActiveHuman } from "@/lib/auth/session"
+import { hashPin, timingSafePinEqual } from "@/lib/auth/pin"
 
 function getServiceClient() {
   return createClient(
@@ -46,8 +46,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "PIN_NOT_SET" }, { status: 401 })
   }
 
-  const pinHash = crypto.createHash("sha256").update(pin).digest("hex")
-  if (pinHash !== human.pin_hash) {
+  const pinHash = hashPin(pin)
+  if (!timingSafePinEqual(human.pin_hash, pinHash)) {
     return NextResponse.json({ error: "INVALID_PIN" }, { status: 401 })
   }
 

@@ -31,6 +31,7 @@ import { createClient } from "@supabase/supabase-js"
 import { fingerprintFromRequest } from "@/lib/auth/device"
 import path from "node:path"
 import { sessionCookieOptions } from "@/lib/auth/cookie"
+import { checkRateLimit } from "@/lib/auth/ratelimit"
 
 const MATCH_THRESHOLD = 0.6
 
@@ -123,6 +124,14 @@ function decodeDataUrl(dataUrl: string): Buffer | null {
 }
 
 export async function POST(req: NextRequest) {
+  const rl = await checkRateLimit(req, { key: "face" })
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "RATE_LIMITED", retryAfterSeconds: rl.retryAfter },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+    )
+  }
+
   const { imageDataUrl } = await req.json().catch(() => ({}))
 
   if (typeof imageDataUrl !== "string") {

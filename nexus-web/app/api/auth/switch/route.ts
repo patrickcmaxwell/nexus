@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { getActiveHuman } from "@/lib/auth/session"
 import { sessionCookieOptions } from "@/lib/auth/cookie"
-import crypto from "crypto"
+import { hashPin, timingSafePinEqual } from "@/lib/auth/pin"
 
 const COOKIE = "nx_session"
 const SESSION_MINUTES = 60 * 24 * 14 // 14 days, matches proxy.ts
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = getServiceClient()
-  const pinHash = crypto.createHash("sha256").update(pin).digest("hex")
+  const pinHash = hashPin(pin)
 
   // Identity-first lookup: find the target human by email, THEN verify PIN.
   // Eliminates the PIN-collision bug from the old single-column lookup.
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   if (!target || target.status !== "active") {
     return NextResponse.json({ error: "User not found" }, { status: 404 })
   }
-  if (target.pin_hash !== pinHash) {
+  if (!timingSafePinEqual(target.pin_hash, pinHash)) {
     return NextResponse.json({ error: "Invalid PIN" }, { status: 401 })
   }
 
