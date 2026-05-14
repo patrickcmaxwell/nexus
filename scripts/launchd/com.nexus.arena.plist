@@ -7,15 +7,15 @@
 
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/shadow/code/nexus/scripts/launchd/with-node.sh</string>
-    <string>/Users/shadow/code/nexus/arena</string>
+    <string>__REPO_ROOT__/scripts/launchd/with-node.sh</string>
+    <string>__REPO_ROOT__/arena</string>
     <string>npm</string>
     <string>run</string>
     <string>dev</string>
   </array>
 
   <key>WorkingDirectory</key>
-  <string>/Users/shadow/code/nexus/arena</string>
+  <string>__REPO_ROOT__/arena</string>
 
   <key>RunAtLoad</key>
   <true/>
@@ -32,10 +32,10 @@
   <integer>10</integer>
 
   <key>StandardOutPath</key>
-  <string>/Users/shadow/Library/Logs/Nexus/arena.log</string>
+  <string>__LOG_DIR__/arena.log</string>
 
   <key>StandardErrorPath</key>
-  <string>/Users/shadow/Library/Logs/Nexus/arena.log</string>
+  <string>__LOG_DIR__/arena.log</string>
 
   <key>ProcessType</key>
   <string>Interactive</string>

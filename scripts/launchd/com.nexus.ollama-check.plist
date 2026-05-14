@@ -7,7 +7,7 @@
 
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/shadow/code/nexus/scripts/launchd/ollama-check.sh</string>
+    <string>__REPO_ROOT__/scripts/launchd/ollama-check.sh</string>
   </array>
 
   <!-- Run daily at 09:00. Also runs once at load if missed (StartCalendarInterval semantics). -->
@@ -24,10 +24,10 @@
   <false/>
 
   <key>StandardOutPath</key>
-  <string>/Users/shadow/Library/Logs/Nexus/ollama-check.log</string>
+  <string>__LOG_DIR__/ollama-check.log</string>
 
   <key>StandardErrorPath</key>
-  <string>/Users/shadow/Library/Logs/Nexus/ollama-check.log</string>
+  <string>__LOG_DIR__/ollama-check.log</string>
 
   <key>EnvironmentVariables</key>
   <dict>

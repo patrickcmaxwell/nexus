@@ -12,7 +12,7 @@
 | Code | Path | Tech | Owner of canonical UX |
 |---|---|---|---|
 | **lumen** | `lumen/lumen-desktop/` | SwiftUI macOS native | feature R&D happens here first today |
-| **web** | `nexus-web/app/` | Next.js + React + Tailwind | needs to catch up; deployed via o-nexus split |
+| **web** | `nexus-web/app/` | Next.js + React + Tailwind | needs to catch up; Vercel source being repointed from `o-nexus` to this repo (see `mission/blockers.md` #1) |
 | **electron** | `desktop/` | Electron + React + Vite | parked per Director (do not propose work) |
 | **ios** | `nexus-ios/` | SwiftUI iOS | early; planned to move next |
 | **quick-capture** | `lumen/.../QuickCaptureWindow.swift` | floating mini-window | derives from lumen — should keep up |

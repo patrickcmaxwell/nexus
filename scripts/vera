@@ -337,6 +337,8 @@ cmd_install() {
   ok "Created $LOG_DIR"
   ok "Created $STATE_DIR"
 
+  # Plists ship as templates with __REPO_ROOT__ and __LOG_DIR__ placeholders so
+  # the same source works on any machine. Substitute at install time.
   local installed=0 missing=()
   for svc in "${SERVICES[@]}"; do
     local src dst
@@ -346,10 +348,23 @@ cmd_install() {
       missing+=("$svc")
       continue
     fi
-    cp "$src" "$dst"
+    sed -e "s|__REPO_ROOT__|$REPO_ROOT|g" \
+        -e "s|__LOG_DIR__|$LOG_DIR|g" \
+        "$src" > "$dst"
     ok "Installed $(basename "$dst")"
     installed=$((installed+1))
   done
+
+  # Materialize newsyslog template into the state dir. Installation into
+  # /etc/newsyslog.d/ needs sudo; we print the one-liner instead of running it.
+  local newsyslog_src="$PLIST_SRC/newsyslog-nexus.conf"
+  local newsyslog_out="$STATE_DIR/newsyslog-nexus.conf"
+  if [ -f "$newsyslog_src" ]; then
+    sed -e "s|__LOG_DIR__|$LOG_DIR|g" \
+        -e "s|__USER__|$(id -un)|g" \
+        "$newsyslog_src" > "$newsyslog_out"
+    ok "Rendered $newsyslog_out"
+  fi
 
   if [ "${#missing[@]}" -gt 0 ]; then
     warn "Missing plist source(s): ${missing[*]}"
@@ -384,6 +399,12 @@ cmd_install() {
   info "Manual step: add Lumen.app to Login Items"
   say "  System Settings → General → Login Items → '+' → /Applications/Lumen.app"
   echo ""
+  if [ -f "$newsyslog_out" ]; then
+    info "Optional: enable log rotation (keeps web.log from growing unbounded)"
+    say "  sudo cp $newsyslog_out /etc/newsyslog.d/nexus.conf"
+    say "  sudo newsyslog -nv   # dry-run to confirm"
+    echo ""
+  fi
   info "Verify:"
   say "  which vera        # should print $HOME/bin/vera"
   say "  vera status       # see service state"

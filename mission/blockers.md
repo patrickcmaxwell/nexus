@@ -6,20 +6,19 @@ Things blocking progress, with current workaround and what would unblock them.
 
 ## 1. Two separate repos — Vercel deploys the wrong one for nexus-web work
 
-**What:** `nexus` (this repo) and `o-nexus` (`/Users/shadow/code/o-nexus`) are **not** fork/stale — they are two active codebases:
-- `github.com/patrickcmaxwell/nexus` — multi-surface canonical (this repo). Vercel does not watch it.
-- `github.com/patrickcmaxwell/o-nexus` — v0.app Next.js app with 70+ merged v0 PRs. **This is what Vercel deploys.**
+**Status (2026-05-13):** Decision made — **Option A**. Patrick is repointing the Vercel `nexus-web` project at `github.com/patrickcmaxwell/nexus` (root `nexus-web/`). Accept loss of v0's auto-deploy flow. Trigger: friend tried `vercel` CLI from a clone and was bounced because the project's Git source is `o-nexus`, which he doesn't have access to.
 
-So nexus-web work in this repo does not reach prod. Naively pushing this repo's history to o-nexus would fail or destroy v0 work — do not do it.
+**What:** `nexus` (this repo) and `o-nexus` (`~/code/ops/o-nexus`) were two active codebases:
+- `github.com/patrickcmaxwell/nexus` — multi-surface canonical (this repo).
+- `github.com/patrickcmaxwell/o-nexus` — v0.app Next.js app with 70+ merged v0 PRs. **Currently** the repo Vercel's `nexus-web` project is wired to.
 
-**Workaround:** None automatic. To get nexus-web changes to prod today, you'd have to mirror the relevant files into `/Users/shadow/code/o-nexus`, push from there.
+**Resolution steps:**
+1. Vercel dashboard → `nexus-web` project → Settings → Git → Disconnect, then connect to `patrickcmaxwell/nexus` with root directory `nexus-web/`.
+2. While there, add the QStash + CRON env vars from blocker #2.
+3. Trigger a deploy from `main` of `nexus` to confirm it picks up the new source.
+4. Once healthy for ~1 week, archive `patrickcmaxwell/o-nexus` on GitHub (keep history for reference).
 
-**Unblock — architectural decision Patrick owns:**
-- Option A: Repoint Vercel at `nexus`, accept losing `o-nexus`'s v0-friendly deploy flow.
-- Option B: Keep `o-nexus` as the deployed face; treat `nexus` as the system-of-record and merge web changes into o-nexus periodically.
-- Option C: Retire one entirely.
-
-**Owner:** Patrick.
+**Owner:** Patrick — Vercel dashboard work only, no code change needed in this repo.
 
 ## 2. QStash keys not in Vercel env
 
@@ -34,8 +33,6 @@ So nexus-web work in this repo does not reach prod. Naively pushing this repo's 
 **Workaround:** Queue changes in `pending-changes.md` and apply when Xcode is closed.
 **Unblock:** Patrick stops the Xcode debug session.
 
-## 4. `.obsidian/workspace.json` and `graph.json` keep showing as dirty
+## 4. ~~`.obsidian/workspace.json` and `graph.json` keep showing as dirty~~ — RESOLVED
 
-**What:** Obsidian writes layout state to these files constantly. They're tracked in git and pollute every diff.
-**Workaround:** Ignore in `git status` mentally.
-**Unblock:** Add to `.gitignore` and `git rm --cached` them. Safe — they're per-machine UI state. (Will be done in cleanup.)
+Resolved by `.gitignore` entries (`**/.obsidian/workspace.json`, `graph.json`, `cache`). Confirmed 2026-05-13: those files no longer appear in `git status`.

@@ -6,7 +6,7 @@
 # alias (or pinned version), then execs the requested command.
 #
 # Usage: with-node.sh <working-dir> <command> [args...]
-# Example: with-node.sh /Users/shadow/code/nexus/nexus-web npm run dev
+# Example: with-node.sh "$REPO_ROOT/nexus-web" npm run dev
 
 set -euo pipefail
 

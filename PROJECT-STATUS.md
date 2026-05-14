@@ -173,7 +173,7 @@ ollama pull qwen2.5:14b   # any model name
 **Known limits:**
 - Tool calling not exposed on the local route — 3B models can't reliably do it. Use `/api/eve` (Grok) for tool flows.
 - iOS can't reach `localhost:11434` from the phone; `/api/eve/local` is the iOS path to local inference (proxied through nexus-web on the LAN).
-- Vercel still watches the wrong repo (`o-nexus`), so the new endpoints aren't live in prod yet. iOS works fully on home wifi pointed at the LAN Mac; cloud usage requires Vercel reconnect first.
+- Vercel still watches the wrong repo (`o-nexus`), so the new endpoints aren't live in prod yet. iOS works fully on home wifi pointed at the LAN Mac; cloud usage requires Vercel reconnect first. (Decision 2026-05-13: repoint at `nexus` — see `mission/blockers.md` #1.)
 
 ---
 
@@ -239,7 +239,7 @@ ollama pull qwen2.5:14b   # any model name
 
 1. **Rebuild Lumen in Xcode** — pick up all Swift changes (3-tier brain, Bearer auth on dashboard, title generation, memory loading, Supabase key fix).
 2. **Add QStash keys to Vercel** — `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`, `NEXT_PUBLIC_APP_URL` from console.upstash.com. Also add `CRON_SECRET`.
-3. **Vercel deployment** — nexus-web lives in `patrickcmaxwell/nexus` repo but Vercel watches `patrickcmaxwell/o-nexus`. Reconnect Vercel project or push to o-nexus. Add `ANTHROPIC_API_KEY` to Vercel env vars.
+3. **Vercel deployment** — Repoint the `nexus-web` Vercel project from `patrickcmaxwell/o-nexus` to `patrickcmaxwell/nexus` (root `nexus-web/`). Add `ANTHROPIC_API_KEY` to Vercel env vars at the same time. After ~1 week of healthy deploys, archive `o-nexus` on GitHub. See `mission/blockers.md` #1.
 4. **Operations Alerts** — Real-time UI toast/badge when agents surface new intel via Supabase Realtime.
 5. **Nexus Map — Human Nodes** — Show humans on the map with public/shared data profiles and group affiliations.
 6. **Robot / Jetson** — Nexus brain going into physical robot (Short Circuit style). Jetson Orin NX target. Ollama replacing LM Studio for on-device inference.
@@ -281,7 +281,7 @@ ollama pull qwen2.5:14b   # any model name
 ## Blockers / Known Issues
 
 - QStash prod keys not yet added to Vercel — autonomous agent scheduling runs in dev-fallback mode in prod.
-- Vercel watches wrong repo (`o-nexus` not `nexus`) — prod deployments not picking up latest nexus-web changes.
+- Vercel watches wrong repo (`o-nexus` not `nexus`) — prod deployments not picking up latest nexus-web changes. (Resolution in progress — see `mission/blockers.md` #1.)
 - Lumen macOS: Must rebuild in Xcode (`Cmd+R`) to pick up all Swift changes from this session.
 - Lumen `SourceKit` cross-file "cannot find type" warnings — single-file analysis artifact, resolves at Xcode build time.
 - `conversationId` from nexus-web Eve API may return null for desktop-sourced messages — persistence via nexus-web may not be threading correctly for desktop source.

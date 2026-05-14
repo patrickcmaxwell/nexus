@@ -278,3 +278,24 @@ Saved to `~/.claude/projects/-Users-shadow/memory/`:
 - `feedback_lumen_build_install.md` — never mutate Info.plist after codesign; CoreMediaIO will deny camera every install.
 - `feedback_no_honorifics.md` — no "Director", "sir", "ma'am" in user-visible strings.
 - `feedback_curtain_every_window.md` — every Lumen WindowGroup must apply `.secondaryWindowCurtain()`.
+
+
+---
+
+## 2026-05-13 — Portability cleanup + B-1 decision
+
+**Trigger:** Patrick tried running Nexus on a friend's Mac. Friend's `vercel` CLI bounced asking for `o-nexus` access (his GitHub doesn't have it).
+
+**Diagnosis:** Two unrelated portability issues:
+1. **Hardcoded `/Users/shadow/...` paths** in `scripts/launchd/*.plist`, `Claude-Vera.command`, and `newsyslog-nexus.conf`. `vera install` was copying these verbatim into `~/Library/LaunchAgents/`, so they only ever worked on Patrick's machine.
+2. **Vercel "nexus-web" project's Git source is `patrickcmaxwell/o-nexus`** (the legacy v0.app repo) instead of this repo. So any `vercel deploy` from a clone authenticates against the wrong repo. This is the long-standing blocker B-1.
+
+**Done in this session:**
+- Plists + newsyslog conf templated with `__REPO_ROOT__` / `__LOG_DIR__` / `__USER__`; `vera install` now `sed`-substitutes at copy time. Same rendered output on Patrick's machine (byte-identical), works on anyone else's.
+- `Claude-Vera.command` derives `REPO_ROOT` from its own location instead of hardcoding `cd /Users/shadow/code/nexus`.
+- Added `.env.example` for `nexus-web/` and `arena/` (keys + grouping, no values). `arena-web/.env.example` already existed.
+- README gained a "Bootstrap on a new Mac" section.
+- Deleted stray `nexus-web/README 2.md` (was the auto-generated o-nexus v0 README accidentally copied in).
+- **B-1 decision: Option A.** Patrick to repoint Vercel's `nexus-web` project at `patrickcmaxwell/nexus` (root `nexus-web/`). Vercel dashboard work only; no code change needed. After ~1 week healthy, archive `o-nexus` on GitHub.
+
+**Owner of remaining work:** Patrick — Vercel dashboard repoint per `mission/blockers.md` #1.

@@ -205,12 +205,12 @@ Hits `/health`, `/task/create` (with disposable test list in ClickUp), `/task/up
 
 ## Cross-cutting blockers
 
-### B-1: Vercel watches `o-nexus`, not `nexus`
+### B-1: Vercel watches `o-nexus`, not `nexus` — RESOLVING (2026-05-13)
 **See:** `mission/blockers.md` #1.
 
-**Impact on Arena launch:** nexus-web's Eve tools (`arena_task_create` etc.) live in this repo. They don't reach prod until Vercel is repointed. Local Arena → local nexus-web works today; remote-anything is blocked on this decision.
+**Impact on Arena launch:** nexus-web's Eve tools (`arena_task_create` etc.) live in this repo. They don't reach prod until Vercel is repointed. Local Arena → local nexus-web works today; remote-anything is blocked on this.
 
-**Patrick-owned decision.** No code change can route around it.
+**Status:** Decision made — Option A (repoint Vercel at `nexus`). Vercel dashboard work is in Patrick's hands; no code change needed in this repo.
 
 ### B-2: ClickUp credentials
 **Required before A1:** API key + a real list id to write into. Director's call which workspace/list to point at first.

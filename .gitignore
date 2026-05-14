@@ -16,6 +16,8 @@ xcuserdata/
 *.xcuserstate
 *.xcbuilddata
 DerivedData/
+# Xcode build dir — caches, ModuleCache, SourcePackages checkouts
+lumen/lumen-desktop/build/
 
 # Binary document formats (use PDF or markdown for docs in repo)
 *.pages

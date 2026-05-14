@@ -7,15 +7,15 @@
 
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/shadow/code/nexus/scripts/launchd/with-node.sh</string>
-    <string>/Users/shadow/code/nexus/nexus-web</string>
+    <string>__REPO_ROOT__/scripts/launchd/with-node.sh</string>
+    <string>__REPO_ROOT__/nexus-web</string>
     <string>npm</string>
     <string>run</string>
     <string>dev</string>
   </array>
 
   <key>WorkingDirectory</key>
-  <string>/Users/shadow/code/nexus/nexus-web</string>
+  <string>__REPO_ROOT__/nexus-web</string>
 
   <key>RunAtLoad</key>
   <true/>
@@ -32,10 +32,10 @@
   <integer>10</integer>
 
   <key>StandardOutPath</key>
-  <string>/Users/shadow/Library/Logs/Nexus/web.log</string>
+  <string>__LOG_DIR__/web.log</string>
 
   <key>StandardErrorPath</key>
-  <string>/Users/shadow/Library/Logs/Nexus/web.log</string>
+  <string>__LOG_DIR__/web.log</string>
 
   <key>EnvironmentVariables</key>
   <dict>
