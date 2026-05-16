@@ -157,6 +157,18 @@ Aim for 4-8 findings. Prioritize unique insights over restating the question.`,
         progress_note: `Delivered ${findings.length} findings${questions.length ? ` and ${questions.length} open questions` : ""}.`,
       })
       .eq("id", jobId)
+
+    // Push notify the record owner. USER_ID is the legacy Patrick-only
+    // authId; once research jobs are multi-user this will move to the
+    // job-owner column. Lazy import + fire-and-forget so push errors
+    // never derail the job finalization.
+    const { sendPushToAuthUser } = await import("@/lib/push/dispatch")
+    void sendPushToAuthUser(USER_ID, "research.done", {
+      title: "Research complete",
+      body: parent.title.length > 60 ? parent.title.slice(0, 60) + "…" : parent.title,
+      link: `nexus://operations/${parent.operation_id}/records/${parent.id}`,
+      extra: { recordId: parent.id, operationId: parent.operation_id, findingsCount: findings.length },
+    }).catch(() => {})
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Research job failed"
     await supabase

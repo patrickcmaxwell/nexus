@@ -1391,7 +1391,7 @@ export default function MaxwellClient({
                   </div>
                 )}
 
-                <div className="flex items-end gap-1.5 lg:gap-3 bg-card border border-border rounded-2xl px-2.5 lg:px-4 py-2 lg:py-3 focus-within:border-accent/50 focus-within:ring-2 focus-within:ring-accent/20 transition-all">
+                <div className="flex items-end gap-1 sm:gap-1.5 lg:gap-3 bg-card border border-border rounded-2xl px-2 sm:px-2.5 lg:px-4 py-1.5 sm:py-2 lg:py-3 focus-within:border-accent/50 focus-within:ring-2 focus-within:ring-accent/20 transition-all">
                   <MentionInput
                     ref={inputRef}
                     value={input}
@@ -1408,23 +1408,25 @@ export default function MaxwellClient({
                       inputRef.current?.clear()
                       submitMessage(text)
                     }}
-                    placeholder="Message Eve… (@ to mention operations, records, agents)"
+                    placeholder="Message Eve…"
                     disabled={isLoading}
                     unstyled
                     minHeightClass="min-h-[28px]"
-                    maxHeightClass="max-h-[96px]"
+                    maxHeightClass="max-h-[88px] sm:max-h-[96px]"
                     expandable
                     expandedMaxHeightClass="max-h-[55vh]"
-                    className="flex-1 pr-8"
+                    className="flex-1 min-w-0 pr-2 sm:pr-4 lg:pr-8 text-sm"
                   />
 
-                  <div className="flex items-center gap-1.5 lg:gap-2 flex-shrink-0 pb-0.5">
-                    {/* Tag topic button */}
+                  <div className="flex items-center gap-0.5 sm:gap-1 lg:gap-2 flex-shrink-0 pb-0.5">
+                    {/* Tag topic button — hidden on phone (≤640px) to save room.
+                        Power-user feature; accessible via the conversation
+                        header menu on small viewports. */}
                     {activeConversationId && (
                       <button
                         type="button"
                         onClick={() => setShowAddTopic(!showAddTopic)}
-                        className={`w-11 h-11 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center transition-all ${showAddTopic ? "bg-accent/20 text-accent" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
+                        className={`hidden sm:flex w-9 h-9 lg:w-10 lg:h-10 rounded-xl items-center justify-center transition-all ${showAddTopic ? "bg-accent/20 text-accent" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
                         title="Mark topic in conversation"
                       >
                         <Tag size={18} />
@@ -1437,12 +1439,12 @@ export default function MaxwellClient({
                         type="button"
                         onMouseDown={e => e.preventDefault()}
                         onClick={toggleMic}
-                        className={`w-11 h-11 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center transition-all ${isMicOn
+                        className={`w-9 h-9 sm:w-10 sm:h-10 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center transition-all ${isMicOn
                           ? "bg-accent text-accent-foreground shadow-lg shadow-accent/30 scale-105"
                           : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
                         title={isMicOn ? "Stop listening" : "Start voice input"}
                       >
-                        {isMicOn ? <MicOff size={18} /> : <Mic size={18} />}
+                        {isMicOn ? <MicOff size={17} /> : <Mic size={17} />}
                       </button>
                     )}
 
@@ -1451,10 +1453,10 @@ export default function MaxwellClient({
                       type="button"
                       onClick={handleSubmit}
                       disabled={isLoading || !input.trim()}
-                      className="w-11 h-11 lg:w-10 lg:h-10 rounded-xl bg-accent text-accent-foreground flex items-center justify-center hover:bg-accent/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-accent/20"
+                      className="w-9 h-9 sm:w-10 sm:h-10 lg:w-10 lg:h-10 rounded-xl bg-accent text-accent-foreground flex items-center justify-center hover:bg-accent/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-accent/20"
                       title="Send message"
                     >
-                      <Send size={17} />
+                      <Send size={16} />
                     </button>
                   </div>
                 </div>

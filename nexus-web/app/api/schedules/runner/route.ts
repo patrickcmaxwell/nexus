@@ -17,6 +17,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/service"
 import { nextRunAt } from "@/lib/schedules/parser"
 import { dispatch } from "@/lib/schedules/dispatchers"
+import { sendPushToAuthUser } from "@/lib/push/dispatch"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -170,6 +171,14 @@ async function processOne(
         updated_at: new Date().toISOString(),
       })
       .eq("id", row.id)
+    // Push notify schedule owner. Fire-and-forget — push delivery failure
+    // is logged in push_log and should never derail the run audit trail.
+    void sendPushToAuthUser(row.user_id, "schedule.fired", {
+      title: "Schedule fired",
+      body: row.name,
+      link: `nexus://schedules/${row.id}`,
+      extra: { scheduleId: row.id, targetType: row.target_type },
+    }).catch(() => {})
     return { status: "success" }
   } else {
     await recordRun(supabase, row.id, "error", null, dispatchResult.error, durationMs)

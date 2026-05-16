@@ -327,7 +327,7 @@ export default function EveCommand({ greeting, suggestions, lastConversation, ac
 
             {/* Bottom — text input */}
             <div style={{ borderTop: "1px solid rgba(0,200,255,0.1)" }}>
-              <form onSubmit={onSessionSubmit} className="flex items-center gap-3 px-8 py-4">
+              <form onSubmit={onSessionSubmit} className="flex items-center gap-2 sm:gap-3 px-4 sm:px-8 py-3 sm:py-4">
                 <input
                   type="text"
                   value={sessionInput}
@@ -335,7 +335,7 @@ export default function EveCommand({ greeting, suggestions, lastConversation, ac
                   placeholder="Type a command…"
                   disabled={sending}
                   autoComplete="off"
-                  className="flex-1 bg-transparent outline-none text-[13px] pb-1"
+                  className="flex-1 min-w-0 bg-transparent outline-none text-[13px] pb-1"
                   style={{
                     borderBottom: "1px solid rgba(0,200,255,0.2)",
                     color: "rgba(255,255,255,0.8)",
@@ -345,12 +345,13 @@ export default function EveCommand({ greeting, suggestions, lastConversation, ac
                 <button
                   type="submit"
                   disabled={!sessionInput.trim() || sending}
+                  className="flex-shrink-0"
                   style={{ color: "#00c8ff", opacity: sessionInput.trim() ? 1 : 0.25 }}
                 >
                   <Send size={14} />
                 </button>
               </form>
-              <div className="px-8 pb-3 flex items-center gap-4" style={{ color: "rgba(255,255,255,0.18)", fontSize: "9px", letterSpacing: "3px" }}>
+              <div className="px-4 sm:px-8 pb-3 flex items-center gap-2 sm:gap-4 flex-wrap" style={{ color: "rgba(255,255,255,0.18)", fontSize: "9px", letterSpacing: "3px" }}>
                 <span>VOICE ACTIVE</span>
                 <span>·</span>
                 <span>SPEAK NATURALLY</span>

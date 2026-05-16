@@ -346,6 +346,15 @@ struct ContentView: View {
     private func submitTypedMessage() {
         let text = composeText
         guard !text.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        // Don't fire while Eve is still streaming the prior turn —
+        // re-entrant askHomeBrain calls were the source of doubled
+        // bubbles. The voice manager also guards this server-side, but
+        // dropping it at the UI layer means the user gets immediate
+        // feedback instead of a silent no-op.
+        guard !voice.isAwaitingReply else {
+            Haptics.error()
+            return
+        }
         Haptics.tap()
         composeText = ""
         composeFocused = false
@@ -1447,6 +1456,7 @@ private struct SettingsView: View {
 
     @State private var notifPermStatus: String = "unknown"
     @State private var savedToast: String = ""
+    @State private var pushTestResult: String = ""
 
     var body: some View {
         NavigationStack {
@@ -1485,21 +1495,59 @@ private struct SettingsView: View {
                 Section {
                     Toggle("Enable notifications", isOn: $notifyEnabled)
                         .onChange(of: notifyEnabled) { _, newVal in
-                            if newVal { requestNotificationPermission() }
+                            Task {
+                                if newVal {
+                                    let granted = await NexusPushClient.shared.enable()
+                                    if !granted { notifyEnabled = false }
+                                    refreshPermissionStatus()
+                                } else {
+                                    await NexusPushClient.shared.unregister()
+                                }
+                            }
                         }
                     if notifyEnabled {
                         Toggle("Agent finished a run", isOn: $notifyAgentDone)
+                            .onChange(of: notifyAgentDone) { _, _ in Task { await NexusPushClient.shared.syncPreferences() } }
                         Toggle("Schedule fired", isOn: $notifyScheduleFired)
+                            .onChange(of: notifyScheduleFired) { _, _ in Task { await NexusPushClient.shared.syncPreferences() } }
                         Toggle("Research job complete", isOn: $notifyResearchDone)
+                            .onChange(of: notifyResearchDone) { _, _ in Task { await NexusPushClient.shared.syncPreferences() } }
                         Toggle("Operation status changed", isOn: $notifyOpUpdated)
+                            .onChange(of: notifyOpUpdated) { _, _ in Task { await NexusPushClient.shared.syncPreferences() } }
+                        Button("Send test push") {
+                            Task {
+                                do {
+                                    let r = try await NexusPushClient.shared.sendTestPush()
+                                    pushTestResult = "Sent: \(r.sent) · skipped: \(r.skipped) · failed: \(r.failed)"
+                                } catch {
+                                    pushTestResult = "Failed: \(error.localizedDescription)"
+                                }
+                            }
+                        }
+                        if !pushTestResult.isEmpty {
+                            Text(pushTestResult)
+                                .font(.caption.monospaced())
+                                .foregroundColor(.indigo)
+                        }
                     }
                     Text(notifPermStatus.isEmpty ? "Permission state will appear here." : "iOS permission: \(notifPermStatus)")
                         .font(.caption)
                         .foregroundColor(.secondary)
+                    if let token = NexusPushClient.shared.deviceTokenHex {
+                        Text("Device token: \(String(token.prefix(12)))…")
+                            .font(.caption.monospaced())
+                            .foregroundColor(.secondary)
+                            .textSelection(.enabled)
+                    }
+                    if let err = NexusPushClient.shared.lastError {
+                        Text("Last error: \(err)")
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    }
                 } header: {
                     Text("NOTIFICATIONS")
                 } footer: {
-                    Text("Toggles persist your intent; server-side push delivery is wired up separately. The system permission prompt fires once when you enable.")
+                    Text("Toggles your intent and registers this device with nexus-web. APNs delivery requires the server-side cert to be configured — the test button will show 'skipped: 1 / APNS_NOT_CONFIGURED' until that's wired.")
                 }
                 Section {
                     Picker("List refresh cadence", selection: $listCadenceSec) {
@@ -1572,15 +1620,6 @@ private struct SettingsView: View {
         Haptics.success()
         savedToast = "Saved."
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { savedToast = "" }
-    }
-
-    private func requestNotificationPermission() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
-            DispatchQueue.main.async {
-                if !granted { notifyEnabled = false }
-                refreshPermissionStatus()
-            }
-        }
     }
 
     private func refreshPermissionStatus() {

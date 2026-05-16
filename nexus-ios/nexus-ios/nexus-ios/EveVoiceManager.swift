@@ -460,10 +460,21 @@ class EveVoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate, AVSpee
     /// 3. Default → nexus-web `/api/eve` (Grok with tool calling)
     func askHomeBrain(_ message: String) async {
         let api = NexusAPIClient.shared
-        // Mark this request in flight so silence-detection in
-        // conversation mode won't double-submit while we're waiting on
-        // Eve. Released in defer so it always clears, even on throw.
-        await MainActor.run { self.isAwaitingReply = true }
+        // Re-entrancy guard. Without this, a second send fired while the
+        // first is still streaming would (a) append a second user bubble,
+        // (b) append a second empty Eve bubble, and (c) cause the first
+        // stream's chunks to land in the wrong (second) bubble — the
+        // classic "doubled messages" symptom. Returning early is preferable
+        // to interleaving two turns, since interleaving corrupts both.
+        let alreadyInFlight = await MainActor.run { () -> Bool in
+            if self.isAwaitingReply { return true }
+            self.isAwaitingReply = true
+            return false
+        }
+        if alreadyInFlight {
+            await MainActor.run { self.statusMessage = "Eve is still responding…" }
+            return
+        }
         defer {
             Task { @MainActor in self.isAwaitingReply = false }
         }
@@ -558,14 +569,21 @@ class EveVoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate, AVSpee
                 // content in place so the user sees the reply build up.
                 // Also fire a Live Activity so the Dynamic Island /
                 // Lock Screen reflect Eve's state without the app open.
-                await MainActor.run {
+                //
+                // Track the bubble by UUID instead of `messages.last`. If the
+                // user (or another code path) appends to `messages` between
+                // now and the next chunk, indices-based lookup would point at
+                // the wrong row and corrupt both bubbles.
+                let bubbleId: UUID = await MainActor.run {
                     var turn = ChatTurn(role: .eve, content: "")
                     turn.brain = replyBrain
+                    let id = turn.id
                     self.messages.append(turn)
                     self.statusMessage = "Eve…"
                     _ = EveLiveActivityController.shared.startThinking(
                         conversationId: self.conversationId ?? "new"
                     )
+                    return id
                 }
 
                 // Begin a fresh streaming-TTS window. Anything still in
@@ -581,27 +599,27 @@ class EveVoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate, AVSpee
                     conversationId: conversationId,
                     onChunk: { [weak self] chunk in
                         guard let self else { return }
-                        if let last = self.messages.indices.last, self.messages[last].role == .eve {
-                            self.messages[last].content += chunk
+                        if let idx = self.messages.firstIndex(where: { $0.id == bubbleId }) {
+                            self.messages[idx].content += chunk
+                            // Feed the chunk into the sentence-boundary buffer.
+                            // Complete sentences are immediately handed off to
+                            // TTS so playback can start mid-generation.
+                            self.consumeStreamingChunkForTTS(chunk, requestId: currentRequestId)
+                            // Stream into the Live Activity body so the Lock
+                            // Screen / Dynamic Island reflects what Eve is
+                            // saying as she says it.
+                            let preview = String(self.messages[idx].content.suffix(140))
+                            EveLiveActivityController.shared.update(
+                                stage: .streaming,
+                                headline: "Eve speaking",
+                                body: preview
+                            )
                         }
-                        // Feed the chunk into the sentence-boundary buffer.
-                        // Complete sentences are immediately handed off to
-                        // TTS so playback can start mid-generation.
-                        self.consumeStreamingChunkForTTS(chunk, requestId: currentRequestId)
-                        // Stream into the Live Activity body so the Lock
-                        // Screen / Dynamic Island reflects what Eve is
-                        // saying as she says it.
-                        let preview = String((self.messages.last?.content ?? "").suffix(140))
-                        EveLiveActivityController.shared.update(
-                            stage: .streaming,
-                            headline: "Eve speaking",
-                            body: preview
-                        )
                     },
                     onToolCall: { [weak self] tc in
                         guard let self else { return }
-                        if let last = self.messages.indices.last, self.messages[last].role == .eve {
-                            self.messages[last].toolCalls.append(tc)
+                        if let idx = self.messages.firstIndex(where: { $0.id == bubbleId }) {
+                            self.messages[idx].toolCalls.append(tc)
                         }
                         EveLiveActivityController.shared.update(
                             stage: .tool,
@@ -622,12 +640,12 @@ class EveVoiceManager: NSObject, ObservableObject, AVAudioPlayerDelegate, AVSpee
                     // Flush any trailing fragment without a sentence end —
                     // e.g. a reply that doesn't end in punctuation.
                     self.flushPendingSentenceForTTS(requestId: currentRequestId)
-                    // Make sure the final bubble has the canonical content
-                    // and full tool-call list (deltas may have arrived
-                    // out-of-order with the `done` event).
-                    if let last = self.messages.indices.last, self.messages[last].role == .eve {
-                        self.messages[last].content = replyContent
-                        self.messages[last].toolCalls = replyTools
+                    // Set the canonical content + tool-call list on the
+                    // bubble we created for THIS turn. Looked up by UUID so
+                    // we never accidentally overwrite a different bubble.
+                    if let idx = self.messages.firstIndex(where: { $0.id == bubbleId }) {
+                        self.messages[idx].content = replyContent
+                        self.messages[idx].toolCalls = replyTools
                     }
                     EveLiveActivityController.shared.end(
                         stage: .done,

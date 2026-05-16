@@ -194,6 +194,19 @@ async function finalize(
     findings_created:      totalFindings,
     is_first_run:          isFirstRun,
   })
+
+  // Push the owner. Lazy-imported to avoid loading the push module on
+  // routes that never reach a completion (early returns, errors).
+  const { sendPushToAuthUser } = await import("@/lib/push/dispatch")
+  const body = totalFindings === 0
+    ? `${agent.name}: scanned ${conversationsScanned} conversation${conversationsScanned === 1 ? "" : "s"}, no new findings.`
+    : `${agent.name}: ${totalFindings} new finding${totalFindings === 1 ? "" : "s"} across ${conversationsScanned} conversation${conversationsScanned === 1 ? "" : "s"}.`
+  void sendPushToAuthUser(userId, "agent.done", {
+    title: "Agent finished a run",
+    body,
+    link: `nexus://agents/${agentId}`,
+    extra: { agentId, totalFindings, conversationsScanned },
+  }).catch(() => {})
 }
 
 async function saveFindings(

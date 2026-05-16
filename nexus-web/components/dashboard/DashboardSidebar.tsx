@@ -6,7 +6,7 @@ import { useState, useEffect } from "react"
 import {
   LayoutDashboard, MessageSquare, Workflow, Bot,
   Map, Users, Brain, LogOut, Palette, X,
-  ChevronRight, Activity, Shield, Globe, Settings, Terminal, Zap, CalendarClock,
+  ChevronRight, Activity, Shield, Globe, Settings, Terminal, Zap, CalendarClock, Cpu,
 } from "lucide-react"
 import ThemePicker from "@/components/dashboard/ThemePicker"
 import { useTheme } from "@/hooks/useTheme"
@@ -23,6 +23,7 @@ const NAV = [
   { label: "Groups",     href: "/dashboard/groups",     icon: Globe,           shortLabel: "Groups" },
   { label: "Directives", href: "/dashboard/directives", icon: Brain,           shortLabel: "Rules" },
   { label: "Calendar",   href: "/dashboard/calendar",   icon: CalendarClock,   shortLabel: "Cal" },
+  { label: "Partybot",   href: "/dashboard/partybot",   icon: Cpu,             shortLabel: "Bot" },
   { label: "Console",    href: "/dashboard/console",    icon: Terminal,        shortLabel: "Console" },
 ]
 
