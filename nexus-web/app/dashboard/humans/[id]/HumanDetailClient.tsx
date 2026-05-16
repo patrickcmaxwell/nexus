@@ -8,7 +8,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import {
   Mail, Shield, Calendar, Lock, RotateCcw, Trash2, AlertTriangle,
-  CheckCircle2, Loader2, MessageSquare, Workflow,
+  CheckCircle2, Loader2, MessageSquare, Workflow, Unlock, ScanFace, Link2, Copy, Check,
 } from "lucide-react"
 import { UserAvatar } from "@/components/ui/UserAvatar"
 import { Card, Button, Pill, Section, Tabs, EmptyState } from "@/components/ui/primitives"
@@ -51,6 +51,8 @@ export default function HumanDetailClient({
   const [tab, setTab] = useState("profile")
   const [actionMsg, setActionMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [acting, setActing] = useState(false)
+  const [resetLink, setResetLink] = useState<{ url: string; name: string } | null>(null)
+  const [linkCopied, setLinkCopied] = useState(false)
 
   async function lockMember() {
     if (!confirm(`Lock ${member.display_name}? They'll be signed out and unable to sign back in until you unlock them.`)) return
@@ -60,7 +62,7 @@ export default function HumanDetailClient({
       const res = await fetch("/api/admin/lock-user", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ humanId: member.id }),
+        body: JSON.stringify({ targetHumanId: member.id }),
       })
       const data = await res.json().catch(() => ({}))
       setActionMsg(res.ok
@@ -80,15 +82,66 @@ export default function HumanDetailClient({
       const res = await fetch("/api/admin/reset-credentials", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ humanId: member.id }),
+        body: JSON.stringify({ targetHumanId: member.id }),
       })
       const data = await res.json().catch(() => ({}))
-      setActionMsg(res.ok
-        ? { ok: true, text: "Reset link generated" }
-        : { ok: false, text: data.error ?? `HTTP ${res.status}` })
+      if (res.ok) {
+        setResetLink({ url: data.inviteUrl, name: data.targetDisplayName })
+        setActionMsg({ ok: true, text: "Reset link generated — copy below" })
+        router.refresh()
+      } else {
+        setActionMsg({ ok: false, text: data.error ?? `HTTP ${res.status}` })
+      }
     } finally {
       setActing(false)
     }
+  }
+
+  async function unlockMember() {
+    if (!confirm(`Unlock ${member.display_name}? Their existing PIN + face will work again.`)) return
+    setActing(true)
+    setActionMsg(null)
+    try {
+      const res = await fetch("/api/admin/unlock-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetHumanId: member.id }),
+      })
+      const data = await res.json().catch(() => ({}))
+      setActionMsg(res.ok
+        ? { ok: true, text: "Unlocked" }
+        : { ok: false, text: data.error ?? `HTTP ${res.status}` })
+      if (res.ok) router.refresh()
+    } finally {
+      setActing(false)
+    }
+  }
+
+  async function clearFace() {
+    if (!confirm(`Clear ${member.display_name}'s face data? They can keep using their PIN and upload a new face from Settings.`)) return
+    setActing(true)
+    setActionMsg(null)
+    try {
+      const res = await fetch("/api/admin/clear-face", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetHumanId: member.id }),
+      })
+      const data = await res.json().catch(() => ({}))
+      setActionMsg(res.ok
+        ? { ok: true, text: "Face data cleared" }
+        : { ok: false, text: data.error ?? `HTTP ${res.status}` })
+      if (res.ok) router.refresh()
+    } finally {
+      setActing(false)
+    }
+  }
+
+  async function copyResetLink() {
+    if (!resetLink) return
+    await navigator.clipboard.writeText(resetLink.url)
+    setLinkCopied(true)
+    setTimeout(() => setLinkCopied(false), 2000)
   }
 
   return (
@@ -142,13 +195,22 @@ export default function HumanDetailClient({
 
           {canManage && !member.is_owner && !isSelf && (
             <Card tone="danger">
-              <Section title="Admin actions" description="Reversible. The member can rejoin after a reset; locking simply blocks sign-in.">
+              <Section title="Admin actions" description="Lock blocks sign-in. Unlock restores. Reset issues a fresh invite link (new PIN + face). Clear face keeps the PIN but wipes the stored face data.">
                 <div className="flex flex-wrap gap-2 mt-4">
+                  {member.status === "disabled" ? (
+                    <Button variant="secondary" size="sm" iconLeft={<Unlock size={13} />} onClick={unlockMember} loading={acting}>
+                      Unlock account
+                    </Button>
+                  ) : (
+                    <Button variant="danger" size="sm" iconLeft={<Lock size={13} />} onClick={lockMember} loading={acting}>
+                      Lock account
+                    </Button>
+                  )}
                   <Button variant="secondary" size="sm" iconLeft={<RotateCcw size={13} />} onClick={resetCredentials} loading={acting}>
                     Reset PIN + face
                   </Button>
-                  <Button variant="danger" size="sm" iconLeft={<Lock size={13} />} onClick={lockMember} loading={acting}>
-                    Lock account
+                  <Button variant="secondary" size="sm" iconLeft={<ScanFace size={13} />} onClick={clearFace} loading={acting}>
+                    Clear face only
                   </Button>
                 </div>
                 {actionMsg && (
@@ -156,6 +218,19 @@ export default function HumanDetailClient({
                     {actionMsg.ok ? <CheckCircle2 size={14} className="inline mr-1.5" /> : <AlertTriangle size={14} className="inline mr-1.5" />}
                     {actionMsg.text}
                   </p>
+                )}
+                {resetLink && (
+                  <div className="mt-4 flex items-center gap-2 p-3 rounded-xl bg-background border border-border">
+                    <Link2 size={14} className="text-muted-foreground flex-shrink-0" />
+                    <code className="flex-1 text-xs text-foreground/80 truncate font-mono">{resetLink.url}</code>
+                    <button
+                      type="button"
+                      onClick={copyResetLink}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/30 text-xs font-semibold text-primary hover:bg-primary/20 transition-all flex-shrink-0"
+                    >
+                      {linkCopied ? <><Check size={12} /> Copied!</> : <><Copy size={12} /> Copy</>}
+                    </button>
+                  </div>
                 )}
               </Section>
             </Card>

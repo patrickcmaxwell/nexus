@@ -20,6 +20,7 @@
 //   - Cannot reset yourself — use /api/auth/change-pin while logged in
 import { NextRequest, NextResponse } from "next/server"
 import { requireAdmin, getServiceClient, logAdminAction } from "@/lib/auth/admin"
+import { publicOrigin } from "@/lib/auth/origin"
 import crypto from "crypto"
 
 export async function POST(req: NextRequest) {
@@ -69,8 +70,7 @@ export async function POST(req: NextRequest) {
     .update({ invalidated: true })
     .eq("team_member_id", targetHumanId)
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-  const inviteUrl = `${baseUrl}/invite/${inviteToken}`
+  const inviteUrl = `${publicOrigin(req)}/invite/${inviteToken}`
 
   await logAdminAction({
     event: "admin.reset_credentials",

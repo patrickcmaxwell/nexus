@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { createClient } from "@supabase/supabase-js"
 import { sendInviteEmail } from "@/lib/email/sendInvite"
+import { publicOrigin } from "@/lib/auth/origin"
 import crypto from "crypto"
 
 function getServiceClient() {
@@ -105,8 +106,7 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-  const inviteUrl = `${baseUrl}/invite/${inviteToken}`
+  const inviteUrl = `${publicOrigin(req)}/invite/${inviteToken}`
 
   // Best-effort email send. Failure surfaces in the response so the inviter
   // can fall back to copy/paste, but doesn't roll back the row creation —

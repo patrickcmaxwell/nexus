@@ -7,6 +7,7 @@ import {
   CheckCircle2, ShieldAlert, Monitor, KeyRound,
 } from "lucide-react"
 import FaceReenrollModal from "@/components/security/FaceReenrollModal"
+import FacePhotoUploadModal from "@/components/security/FacePhotoUploadModal"
 import { UserAvatar } from "@/components/ui/UserAvatar"
 import ConnectionsPanel from "@/components/dashboard/settings/ConnectionsPanel"
 
@@ -52,6 +53,7 @@ export default function SettingsClient({ initial }: { initial: Initial }) {
 
   // ── Face card state ──────────────────────────────────────────────────────
   const [faceModalOpen, setFaceModalOpen] = useState(false)
+  const [facePhotoOpen, setFacePhotoOpen] = useState(false)
   const [faceMsg, setFaceMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
   // ── Sessions card state ──────────────────────────────────────────────────
@@ -361,21 +363,31 @@ export default function SettingsClient({ initial }: { initial: Initial }) {
       {/* FACE */}
       <Card title="Face recognition" icon={<Scan size={16} />}>
         <p className="text-xs text-muted-foreground mb-3 max-w-md">
-          Re-enroll captures five fresh angles. Helps when lighting changes,
-          you grow a beard, or recognition has been flaky.
+          Re-enroll captures five fresh webcam angles. Photo upload adds a
+          known-good still — handy when the camera isn&apos;t handy or
+          recognition has been flaky.
         </p>
         {faceMsg && (
           <p className={`text-sm mb-3 ${faceMsg.ok ? "text-nexus-success" : "text-nexus-danger"}`}>
             {faceMsg.text}
           </p>
         )}
-        <button
-          type="button"
-          onClick={() => setFaceModalOpen(true)}
-          className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity flex items-center gap-2"
-        >
-          <Camera size={14} /> Re-enroll face
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setFaceModalOpen(true)}
+            className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity flex items-center gap-2"
+          >
+            <Camera size={14} /> Re-enroll from webcam
+          </button>
+          <button
+            type="button"
+            onClick={() => setFacePhotoOpen(true)}
+            className="px-4 py-2 text-sm font-medium rounded-lg border border-border text-foreground hover:bg-muted transition-colors flex items-center gap-2"
+          >
+            <Upload size={14} /> Upload a photo
+          </button>
+        </div>
       </Card>
 
       {/* SESSIONS */}
@@ -457,6 +469,20 @@ export default function SettingsClient({ initial }: { initial: Initial }) {
         open={faceModalOpen}
         onClose={() => setFaceModalOpen(false)}
         onSuccess={(n) => setFaceMsg({ ok: true, text: `${n} frame${n === 1 ? "" : "s"} enrolled` })}
+      />
+
+      <FacePhotoUploadModal
+        open={facePhotoOpen}
+        onClose={() => setFacePhotoOpen(false)}
+        onSuccess={({ framesTotal, avatarUpdated }) => {
+          setFaceMsg({
+            ok: true,
+            text: avatarUpdated
+              ? `Photo added (${framesTotal} frames stored) and avatar updated`
+              : `Photo added (${framesTotal} frames stored)`,
+          })
+          if (avatarUpdated) router.refresh()
+        }}
       />
     </div>
   )

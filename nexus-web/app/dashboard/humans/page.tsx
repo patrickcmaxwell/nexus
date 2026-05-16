@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import {
   UserPlus, Users, Copy, Check, Trash2, Loader2,
   Shield, ShieldCheck, ShieldAlert, Upload, X, RefreshCw,
-  Scan, CheckCircle2, Link2, KeyRound, Lock, RotateCcw, ScrollText,
+  Scan, CheckCircle2, Link2, KeyRound, Lock, Unlock, RotateCcw, ScrollText, ScanFace,
 } from "lucide-react"
 import { UserAvatar } from "@/components/ui/UserAvatar"
 
@@ -705,11 +705,20 @@ function KeyHolderActions({ member, onChanged }: {
   member: Member
   onChanged: () => void
 }) {
-  const [busy, setBusy] = useState<"lock" | "reset" | null>(null)
+  const [busy, setBusy] = useState<"lock" | "unlock" | "reset" | "face" | null>(null)
   const [resetResult, setResetResult] = useState<{ inviteUrl: string; targetDisplayName: string } | null>(null)
   const [error, setError] = useState("")
 
-  async function lock() {
+  // Stop the <a href> wrapping the row from navigating when an action button
+  // inside it is clicked. Without this, clicking lock/reset jumps to the
+  // detail page mid-fetch.
+  function stop(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  async function lock(e: React.MouseEvent) {
+    stop(e)
     if (!confirm(`Lock ${member.display_name}? Their sessions will be invalidated and account disabled.`)) return
     setBusy("lock"); setError("")
     try {
@@ -726,7 +735,26 @@ function KeyHolderActions({ member, onChanged }: {
     }
   }
 
-  async function reset() {
+  async function unlock(e: React.MouseEvent) {
+    stop(e)
+    if (!confirm(`Unlock ${member.display_name}? Their existing PIN + face will work again.`)) return
+    setBusy("unlock"); setError("")
+    try {
+      const res = await fetch("/api/admin/unlock-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetHumanId: member.id }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) setError(data.error ?? "Unlock failed")
+      else onChanged()
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function reset(e: React.MouseEvent) {
+    stop(e)
     if (!confirm(`Reset credentials for ${member.display_name}? They'll go through onboarding again.`)) return
     setBusy("reset"); setError("")
     try {
@@ -747,15 +775,54 @@ function KeyHolderActions({ member, onChanged }: {
     }
   }
 
+  async function clearFace(e: React.MouseEvent) {
+    stop(e)
+    if (!confirm(`Clear ${member.display_name}'s face data? PIN keeps working; they can upload a new face from Settings.`)) return
+    setBusy("face"); setError("")
+    try {
+      const res = await fetch("/api/admin/clear-face", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetHumanId: member.id }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) setError(data.error ?? "Clear face failed")
+      else onChanged()
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const locked = member.status === "disabled"
+
   return (
     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      {locked ? (
+        <button
+          onClick={unlock}
+          disabled={busy !== null}
+          className="p-2 text-muted-foreground/40 hover:text-emerald-400 transition-all rounded-lg disabled:opacity-30"
+          title="Unlock account (restore status to active)"
+        >
+          {busy === "unlock" ? <Loader2 size={14} className="animate-spin" /> : <Unlock size={14} />}
+        </button>
+      ) : (
+        <button
+          onClick={lock}
+          disabled={busy !== null}
+          className="p-2 text-muted-foreground/40 hover:text-amber-400 transition-all rounded-lg disabled:opacity-30"
+          title="Lock account (invalidate sessions + disable)"
+        >
+          {busy === "lock" ? <Loader2 size={14} className="animate-spin" /> : <Lock size={14} />}
+        </button>
+      )}
       <button
-        onClick={lock}
+        onClick={clearFace}
         disabled={busy !== null}
-        className="p-2 text-muted-foreground/40 hover:text-amber-400 transition-all rounded-lg disabled:opacity-30"
-        title="Lock account (invalidate sessions + disable)"
+        className="p-2 text-muted-foreground/40 hover:text-primary transition-all rounded-lg disabled:opacity-30"
+        title="Clear face data only (PIN stays)"
       >
-        {busy === "lock" ? <Loader2 size={14} className="animate-spin" /> : <Lock size={14} />}
+        {busy === "face" ? <Loader2 size={14} className="animate-spin" /> : <ScanFace size={14} />}
       </button>
       <button
         onClick={reset}

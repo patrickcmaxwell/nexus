@@ -100,21 +100,31 @@ export async function POST(req: NextRequest) {
       targetId = owner.id
     }
 
-    // Multi-frame replaces the array wholesale; single-frame appends.
+    // Multi-frame replaces the array wholesale (treated as a full re-enroll
+    // from the guided 5-angle wizard). Single-frame APPENDS to the existing
+    // array — this is the "I uploaded a new photo of myself" flow, and the
+    // user expects that new photo to actually be available for matching, not
+    // silently dropped because legacy code only wrote to a deprecated column.
     const update: Record<string, unknown> = {}
     if (incomingArray.length > 1) {
       update.face_descriptors = incomingArray
       update.face_descriptor = incomingArray[0]  // mirror first frame to legacy column for back-compat
     } else {
-      update.face_descriptor = incomingArray[0]
-      // also append to the array if it's empty so future verifies use the new path
       const { data: existing } = await supabase
         .from("humans")
         .select("face_descriptors")
         .eq("id", targetId)
         .single()
-      const current = Array.isArray(existing?.face_descriptors) ? (existing!.face_descriptors as Descriptor[]) : []
-      if (current.length === 0) update.face_descriptors = [incomingArray[0]]
+      const current = Array.isArray(existing?.face_descriptors)
+        ? (existing!.face_descriptors as unknown[]).filter(isValidDescriptor)
+        : []
+      const next = [...current, incomingArray[0]]
+      if (next.length > MAX_STORED_DESCRIPTORS) {
+        // Keep the most recent MAX frames — old ones drift further out of date.
+        next.splice(0, next.length - MAX_STORED_DESCRIPTORS)
+      }
+      update.face_descriptors = next
+      update.face_descriptor = incomingArray[0]
     }
 
     const { error: updateError } = await supabase.from("humans").update(update).eq("id", targetId)

@@ -193,12 +193,18 @@ export default function PinPage() {
           </span>
         </button>
 
-        <div className="mt-6 text-center">
+        <div className="mt-6 flex flex-col items-center gap-2">
           <a
             href="/auth/face"
             className="text-xs text-muted-foreground/70 hover:text-primary/80 transition-colors"
           >
             USE FACE INSTEAD →
+          </a>
+          <a
+            href="/auth/forgot"
+            className="text-xs text-muted-foreground/50 hover:text-primary/80 transition-colors"
+          >
+            FORGOT PIN?
           </a>
         </div>
       </div>
