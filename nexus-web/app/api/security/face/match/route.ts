@@ -79,8 +79,16 @@ async function loadFaceApi(): Promise<typeof import("@vladmandic/face-api")> {
     await tfjsWasm.setWasmPaths(
       `https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@${tfjsWasm.version_wasm}/dist/`,
     )
-    await faceapi.tf.setBackend("wasm")
-    await faceapi.tf.ready()
+    // `faceapi.tf` is re-exported from the bundle but typed as the bare
+    // tfjs-core surface here, which doesn't include the public backend
+    // helpers. Cast to access them — at runtime they exist on the same
+    // tfjs instance that face-api uses for inference.
+    const tf = faceapi.tf as unknown as {
+      setBackend: (name: string) => Promise<unknown>
+      ready: () => Promise<void>
+    }
+    await tf.setBackend("wasm")
+    await tf.ready()
     const modelPath = path.join(process.cwd(), "public", "models")
     await Promise.all([
       faceapi.nets.tinyFaceDetector.loadFromDisk(modelPath),
@@ -143,10 +151,15 @@ export async function POST(req: NextRequest) {
   }
 
   let faceapi: Awaited<ReturnType<typeof loadFaceApi>>
-  let sharp: typeof import("sharp").default
+  // sharp uses CJS `export = sharp;`. Its `.d.ts` doesn't declare a `default`
+  // export, but esModuleInterop synthesizes one at runtime. Cast through
+  // unknown so the runtime unwrap and the type stay aligned without leaning
+  // on `any`.
+  let sharp: typeof import("sharp")
   try {
     faceapi = await loadFaceApi()
-    sharp = (await import("sharp")).default
+    const sharpMod = await import("sharp")
+    sharp = ((sharpMod as unknown as { default: typeof import("sharp") }).default ?? sharpMod)
   } catch (err) {
     console.error("[nexus] face/match init failed:", err)
     return NextResponse.json({
@@ -176,8 +189,12 @@ export async function POST(req: NextRequest) {
     const tensor = faceapi.tf.tensor3d(rgb, [info.height, info.width, 3], "int32")
     try {
       const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 })
+      // detectSingleFace's first arg is TNetInput, exported by face-api. The
+      // type lives on the module namespace, not on the runtime value, so
+      // reach for it via Parameters<> instead of `faceapi.TNetInput`.
+      type FaceInput = Parameters<typeof faceapi.detectSingleFace>[0]
       const result = await faceapi
-        .detectSingleFace(tensor as unknown as faceapi.TNetInput, options)
+        .detectSingleFace(tensor as unknown as FaceInput, options)
         .withFaceLandmarks(true)
         .withFaceDescriptor()
       if (result) descriptor = Array.from(result.descriptor) as number[]
