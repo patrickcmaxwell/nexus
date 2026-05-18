@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import {
   UserPlus, Users, Copy, Check, Trash2, Loader2,
   Shield, ShieldCheck, ShieldAlert, Upload, X, RefreshCw,
-  Scan, CheckCircle2, Link2, KeyRound, Lock, Unlock, RotateCcw, ScrollText, ScanFace,
+  Scan, CheckCircle2, Link2, KeyRound, Lock, Unlock, RotateCcw, ScrollText, ScanFace, Send,
 } from "lucide-react"
 import { UserAvatar } from "@/components/ui/UserAvatar"
 
@@ -705,7 +705,7 @@ function KeyHolderActions({ member, onChanged }: {
   member: Member
   onChanged: () => void
 }) {
-  const [busy, setBusy] = useState<"lock" | "unlock" | "reset" | "face" | null>(null)
+  const [busy, setBusy] = useState<"lock" | "unlock" | "reset" | "face" | "resend" | null>(null)
   const [resetResult, setResetResult] = useState<{ inviteUrl: string; targetDisplayName: string } | null>(null)
   const [error, setError] = useState("")
 
@@ -793,10 +793,42 @@ function KeyHolderActions({ member, onChanged }: {
     }
   }
 
+  async function resend(e: React.MouseEvent) {
+    stop(e)
+    setBusy("resend"); setError("")
+    try {
+      const res = await fetch("/api/admin/resend-invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetHumanId: member.id }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(data.error ?? "Resend failed")
+      } else {
+        setResetResult({ inviteUrl: data.inviteUrl, targetDisplayName: data.targetDisplayName })
+        onChanged()
+      }
+    } finally {
+      setBusy(null)
+    }
+  }
+
   const locked = member.status === "disabled"
+  const invited = member.status === "invited"
 
   return (
     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      {invited && (
+        <button
+          onClick={resend}
+          disabled={busy !== null}
+          className="p-2 text-muted-foreground/40 hover:text-primary transition-all rounded-lg disabled:opacity-30"
+          title="Resend invite email (does NOT churn their setup)"
+        >
+          {busy === "resend" ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+        </button>
+      )}
       {locked ? (
         <button
           onClick={unlock}

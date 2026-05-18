@@ -8,7 +8,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import {
   Mail, Shield, Calendar, Lock, RotateCcw, Trash2, AlertTriangle,
-  CheckCircle2, Loader2, MessageSquare, Workflow, Unlock, ScanFace, Link2, Copy, Check,
+  CheckCircle2, Loader2, MessageSquare, Workflow, Unlock, ScanFace, Link2, Copy, Check, Send, X,
 } from "lucide-react"
 import { UserAvatar } from "@/components/ui/UserAvatar"
 import { Card, Button, Pill, Section, Tabs, EmptyState } from "@/components/ui/primitives"
@@ -53,6 +53,8 @@ export default function HumanDetailClient({
   const [acting, setActing] = useState(false)
   const [resetLink, setResetLink] = useState<{ url: string; name: string } | null>(null)
   const [linkCopied, setLinkCopied] = useState(false)
+  const [showDelete, setShowDelete] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState("")
 
   async function lockMember() {
     if (!confirm(`Lock ${member.display_name}? They'll be signed out and unable to sign back in until you unlock them.`)) return
@@ -144,6 +146,51 @@ export default function HumanDetailClient({
     setTimeout(() => setLinkCopied(false), 2000)
   }
 
+  async function resendInvite(rotate: boolean) {
+    setActing(true)
+    setActionMsg(null)
+    try {
+      const res = await fetch("/api/admin/resend-invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetHumanId: member.id, rotate }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setResetLink({ url: data.inviteUrl, name: data.targetDisplayName })
+        const emailNote = data.email?.sent ? "Email re-sent." : `Email NOT sent (${data.email?.reason ?? "unknown"}). Copy the link below.`
+        const rotateNote = data.rotated ? " Token rotated." : ""
+        setActionMsg({ ok: true, text: `${emailNote}${rotateNote}` })
+      } else {
+        setActionMsg({ ok: false, text: data.error ?? `HTTP ${res.status}` })
+      }
+    } finally {
+      setActing(false)
+    }
+  }
+
+  async function confirmDelete() {
+    setActing(true)
+    setActionMsg(null)
+    try {
+      const res = await fetch("/api/admin/delete-human", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetHumanId: member.id, confirmDisplayName: deleteConfirmText }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setShowDelete(false)
+        // Row is gone — bounce back to the list.
+        router.push("/dashboard/humans")
+      } else {
+        setActionMsg({ ok: false, text: data.error ?? `HTTP ${res.status}` })
+      }
+    } finally {
+      setActing(false)
+    }
+  }
+
   return (
     <>
       {/* Header */}
@@ -195,8 +242,18 @@ export default function HumanDetailClient({
 
           {canManage && !member.is_owner && !isSelf && (
             <Card tone="danger">
-              <Section title="Admin actions" description="Lock blocks sign-in. Unlock restores. Reset issues a fresh invite link (new PIN + face). Clear face keeps the PIN but wipes the stored face data.">
+              <Section title="Admin actions" description="Resend invite re-emails an existing setup link without touching their PIN or face. Lock blocks sign-in; unlock restores. Reset PIN + face issues a brand-new invite link. Clear face keeps the PIN. Delete removes the human entirely.">
                 <div className="flex flex-wrap gap-2 mt-4">
+                  {member.status === "invited" && (
+                    <>
+                      <Button variant="secondary" size="sm" iconLeft={<Send size={13} />} onClick={() => resendInvite(false)} loading={acting}>
+                        Resend invite email
+                      </Button>
+                      <Button variant="secondary" size="sm" iconLeft={<RotateCcw size={13} />} onClick={() => resendInvite(true)} loading={acting}>
+                        Rotate + resend
+                      </Button>
+                    </>
+                  )}
                   {member.status === "disabled" ? (
                     <Button variant="secondary" size="sm" iconLeft={<Unlock size={13} />} onClick={unlockMember} loading={acting}>
                       Unlock account
@@ -211,6 +268,9 @@ export default function HumanDetailClient({
                   </Button>
                   <Button variant="secondary" size="sm" iconLeft={<ScanFace size={13} />} onClick={clearFace} loading={acting}>
                     Clear face only
+                  </Button>
+                  <Button variant="danger" size="sm" iconLeft={<Trash2 size={13} />} onClick={() => { setShowDelete(true); setDeleteConfirmText(""); setActionMsg(null) }} loading={acting}>
+                    Delete user
                   </Button>
                 </div>
                 {actionMsg && (
@@ -300,6 +360,68 @@ export default function HumanDetailClient({
               )}
             </Section>
           </Card>
+        </div>
+      )}
+
+      {showDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          onClick={() => !acting && setShowDelete(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-2xl bg-card border border-destructive/40 p-6 flex flex-col gap-4"
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-bold text-destructive flex items-center gap-2">
+                <Trash2 size={16} /> Delete {member.display_name}
+              </h2>
+              <button type="button" onClick={() => !acting && setShowDelete(false)} className="text-muted-foreground hover:text-foreground" aria-label="Close">
+                <X size={16} />
+              </button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              This permanently removes the user, all active sessions, and registered push devices.
+              Conversations and operations they touched stay in place. This cannot be undone.
+            </p>
+            <div>
+              <label className="block text-xs font-medium text-foreground mb-1.5">
+                Type <span className="font-mono text-destructive">{member.display_name}</span> to confirm
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                autoFocus
+                className="w-full px-3 py-2.5 rounded-lg bg-background border border-border text-sm focus:outline-none focus:border-destructive"
+              />
+            </div>
+            {actionMsg && !actionMsg.ok && (
+              <p className="text-xs text-destructive">
+                <AlertTriangle size={12} className="inline mr-1" />
+                {actionMsg.text}
+              </p>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowDelete(false)}
+                disabled={acting}
+                className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:text-foreground transition-all disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                disabled={acting || deleteConfirmText.trim().toLowerCase() !== member.display_name.trim().toLowerCase()}
+                className="flex-1 py-2.5 rounded-xl bg-destructive text-destructive-foreground text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-40 flex items-center justify-center gap-2"
+              >
+                {acting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                Delete permanently
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </>
