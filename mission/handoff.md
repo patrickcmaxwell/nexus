@@ -2,9 +2,19 @@
 
 **For the next session that picks this up cold.**
 
-Updated: 2026-05-13 ~23:30. The May 12 entry below is still accurate as a snapshot of where the multi-day Lumen + iOS buildout landed. Today's deltas:
+Updated: 2026-05-18. The May 13 entry below remains accurate as a snapshot of where audit + face-auto-learn + portability work landed. Newer:
 
-## TL;DR (current — 2026-05-13)
+## TL;DR (current — 2026-05-18)
+
+- **Auth is fully looped end-to-end.** Self-service forgot-PIN with email recovery (`/auth/forgot`), self-service face photo upload, admin lifecycle complete: invite → resend (non-destructive) → rotate-and-resend → lock ↔ unlock → reset PIN+face → clear face only → delete (with type-name confirm). Owner self-recovery remains env-var passphrase only (intentional). New endpoints: `/api/admin/unlock-user`, `/api/admin/clear-face`, `/api/admin/resend-invite`, `/api/admin/delete-human`, `/api/auth/forgot-pin`. Helper: `lib/auth/origin.ts` (request origin wins over env var; `*.vercel.app` env values rejected). All shipped to `portal.maxnexus.io`.
+- **Push notification pipeline shipped (server + iOS).** `lib/push/dispatch.ts` does APNs HTTP/2 + ES256 JWT, prunes dead tokens, no-ops gracefully when envs aren't set. Hooked into agent.done, schedule.fired, research.done, terminal.alert. iOS has `@UIApplicationDelegateAdaptor` + `NexusPushClient` + Settings UI with "Send test push." **Patrick still needs to set APN cert envs on Vercel** (`APNS_TEAM_ID`/`APNS_KEY_ID`/`APNS_KEY_PEM`/`APNS_TOPIC`); until then every dispatch records `skipped/APNS_NOT_CONFIGURED` in `push_log` so the trail is preserved.
+- **Eve terminal watcher v1 shipped (heuristic).** Minute cron pulls active `terminal_sessions`, classifies the snapshot (blocker / confirm / done / idle), dedups via SHA1 + 30-min cooldown, dispatches `terminal.alert` push. LLM upgrade is the v2 follow-up.
+- **iOS double-message bug fixed.** Re-entrancy guard on `EveVoiceManager.askHomeBrain` + UUID-based bubble tracking for streaming chunks. The "send while Eve is streaming" path that was creating phantom bubbles is closed.
+- **nexus-web mobile composer responsiveness pass (first round).** `MaxwellClient` + `EveCommand` composers now collapse cleanly under 640px. Verify on iPad portrait + iPhone SE when convenient.
+- **Migrations 027 (push_devices + push_log) + 028 (terminal_watch_state + terminal_watch_log) applied to Supabase project `rtkzvsqulliaoizutsqz`.** Production deploys live.
+- **Working tree clean as of this session close.** All work committed and shipped (`abb7f37` is the latest).
+
+## TL;DR (snapshot — 2026-05-13)
 
 - **Repo is portable.** Launchd plists / Vera CLI / `Claude-Vera.command` no longer hardcode `/Users/shadow/...`. Templates with placeholders are sed-substituted at `vera install` time. `.env.example` files for nexus-web + arena added. Bootstrap section in README. Committed as `b949b81`. Result: a friend can clone `patrickcmaxwell/nexus` anywhere and run `vera install` to get a working setup.
 - **B-1 (Vercel/o-nexus) decision logged: Option A.** Patrick to repoint `nexus-web` Vercel project Git source from `patrickcmaxwell/o-nexus` → `patrickcmaxwell/nexus`, root `nexus-web/`. Dashboard work only; no code change. Until done, prod deploys still come from `o-nexus`.
@@ -63,9 +73,10 @@ Read in order:
 
 ### Other pending Patrick items
 
-- Commit + push working tree (suggested groupings in `pending-changes.md`)
+- **Wire APN cert envs on Vercel** (`APNS_TEAM_ID`/`APNS_KEY_ID`/`APNS_KEY_PEM`/`APNS_TOPIC=com.maxwell.nexus-ios`, optionally `APNS_USE_SANDBOX=1`). Until set, push delivery records `skipped/APNS_NOT_CONFIGURED` in `push_log` — useful for audit, useless for actually buzzing.
+- **Rebuild + install iOS app** to pick up: double-message fix, `NexusPushClient`, Settings UI updates, push registration.
+- **Optional: re-flip `NEXT_PUBLIC_APP_URL` on Vercel** to `https://portal.maxnexus.io`. Not strictly required after the `publicOrigin` rewrite — request origin wins now — but tidiness.
 - Rebuild Lumen.app (server-side face-api fix is live; Swift work uncommitted)
-- Rebuild iOS app (multi-user code in tree)
 - Send invites to remaining decade-energy people
 
 ## What got shipped overnight (2026-05-07 evening → 2026-05-08 02:45)
@@ -110,6 +121,9 @@ See `mission/nexus-web-polish-2026-05.md` for the full file inventory.
 - **Q1 (NEW)** — Stripe OAuth: activate or keep manual?
 
 ### Things Vera can resume building
+- **Local memory recall (Path B)** — Patrick's pick before close. Embed `eve_memory` rows, route simple recall queries through cosine-similarity lookup before falling back to Grok. Goal: meaningfully reduce API spend while making Eve genuinely "learn on her own."
+- **LLM upgrade for terminal watcher** — heuristics are v1. Feed snapshots to grok-3-mini for "alert? y/n + reason" classification. Catches off-script behavior the regex can't.
+- **Server-side memory distillation (Path A)** — cron job uses grok-3-mini once a day to auto-propose memories from recent conversations. Pairs with Path B.
 - Per-provider HMAC signature verification on Arena webhooks (foundation exists)
 - Connection-test cron (auto-flip status before next Eve call discovers breakage)
 - External calendar sync (Google / Apple) as Arena providers

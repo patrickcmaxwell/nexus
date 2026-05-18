@@ -392,3 +392,82 @@ Saved to `~/.claude/projects/-Users-shadow/memory/`:
 **Still open as critical:** 0-NEW-B (SHA256 PIN hash — needs bcrypt migration).
 
 **Working tree:** 11 modified files + 2 new files (`lib/auth/pin.ts`, `lib/auth/ratelimit.ts`). Not committed, not pushed. Patrick to decide whether to commit + push (and let Vercel deploy after he repoints Stage 1).
+
+---
+
+## 2026-05-16 — Auth pass, push pipeline, terminal watcher (multi-feature push)
+
+**Trigger:** "nexus needs full pin and reset and allowing users to upload their own face pic. I need to be able to manage their access to so it does not fail." Followed by "auth is becomng a pain, i need you to do full auth. even the invite code didn't ise the actual domain."
+
+**Shipped — auth overhaul:**
+- `nexus-web/lib/auth/origin.ts` — new helper that derives the canonical public origin for emailed/clipboard'd URLs. Initially had env var winning; later corrected (2026-05-17) so request origin wins, env is fallback, hard-coded `portal.maxnexus.io` is last resort. Rejects `*.vercel.app` env defaults so stale preview URLs can't poison invite emails.
+- `nexus-web/lib/email/sendPinReset.ts` — Nexus-styled HTML + plain-text reset email template mirroring `sendInvite.ts`.
+- `nexus-web/app/api/admin/unlock-user/route.ts` — restore `disabled → active` without forcing a full credential reset.
+- `nexus-web/app/api/admin/clear-face/route.ts` — wipe face descriptors only, keep PIN. Refuses on owner.
+- `nexus-web/app/api/auth/forgot-pin/route.ts` — self-service "I forgot my PIN" by email. Refuses for owner (root of trust); no email enumeration on response.
+- `nexus-web/app/auth/forgot/page.tsx` — entry point UI; "Forgot PIN?" link added to `/auth/pin`.
+- `nexus-web/components/security/FacePhotoUploadModal.tsx` — Settings → Face recognition → "Upload a photo." Extracts the descriptor client-side via face-api, optionally sets the same image as avatar.
+- `nexus-web/app/api/security/face/route.ts` single-frame enroll fixed to APPEND to `face_descriptors[]` (capped at 20) instead of writing only the legacy `face_descriptor` column. Previous behavior silently dropped uploaded photos.
+- `nexus-web/app/dashboard/humans/[id]/HumanDetailClient.tsx` — payload field-name mismatch fixed (`humanId` → `targetHumanId`) so admin actions stopped silently 400-ing. Unlock + Clear-face buttons surfaced; inline reset-link copy box added.
+- `nexus-web/app/dashboard/humans/page.tsx` — list row gets Lock↔Unlock toggle + Clear-face button + `e.stopPropagation()` so action clicks no longer navigate mid-fetch.
+- `.env.local` placeholder `https://your-vercel-domain.vercel.app` corrected to `https://portal.maxnexus.io`.
+
+**Shipped — composer responsiveness (web):**
+- `MaxwellClient` composer: buttons shrink to 36×36 under 640px, Tag hidden under 640px, `min-w-0` on input so it actually shrinks, tighter gaps.
+- `EveCommand` session-mode header: `px-8` → `px-4` on small, footer wraps.
+
+**Shipped — iOS double-message fix:**
+- `EveVoiceManager.askHomeBrain` adds re-entrancy guard returning early with "Eve is still responding…" when a second send fires mid-stream.
+- Streaming chunks now track the bubble by UUID (`messages.firstIndex(where: { $0.id == bubbleId })`) instead of `messages.indices.last`, so concurrent mutations can't make chunks land in the wrong row.
+- `ContentView.submitTypedMessage` adds UI-level guard with haptic error when `voice.isAwaitingReply` is true.
+
+**Shipped — push notification pipeline:**
+- Migration `027_push_devices.sql` — `push_devices` (per-(human,token) with per-event preference columns + bookkeeping for failed-delivery pruning) and `push_log` (append-only audit of every dispatch attempt).
+- `lib/push/dispatch.ts` — `sendPush(humanId, event, payload)` + `sendPushToAuthUser(authId, …)` resolver. APNs HTTP/2 with ES256 JWT signing (cached 45min). Automatic row pruning on 410 / BadDeviceToken / consecutive-failure threshold (10). No-op gracefully when APNs envs not set — records `skipped/APNS_NOT_CONFIGURED` so audit trail is preserved.
+- `/api/push/devices` POST/GET/DELETE — device registration with upsert on `(human_id, token)` and per-toggle preference sync.
+- `/api/push/test` — single-button end-to-end probe for Settings UI.
+- Hooked into: `app/api/agents/process/route.ts` `finalize()` → `agent.done`, `app/api/schedules/runner/route.ts` after success → `schedule.fired`, `lib/operations/research-runner.ts` after completion → `research.done`.
+- iOS: `nexus_iosApp.swift` rewritten with `@UIApplicationDelegateAdaptor` to receive the APNs device token (pure SwiftUI Apps can't). `NexusPushClient.swift` (singleton ObservableObject) handles `enable()`/`sendTestPush()`/`syncPreferences()`/`unregister()` plus persists the token. Settings → Notifications gets a "Send test push" button + token preview + last-error display; every toggle calls `syncPreferences()` on change.
+
+**Shipped — Eve terminal watcher v1:**
+- Migration `028_terminal_watcher.sql` — `terminal_watch_state` (per-session dedup state) + `terminal_watch_log` (audit).
+- `lib/terminal/classify.ts` — heuristic classifier returning `{kind, signature, excerpt}` where kind ∈ {blocker, confirm, done, idle}. Inspects last 800 chars of snapshot. Confirm patterns anchored on the last non-empty line so historical `(y/n)` prompts don't re-fire. ANSI strip (CSI + OSC + charset selection) anchored on ESC byte. SHA1-based snapshot hash for cheap unchanged-skip.
+- `/api/cron/terminal-watcher` — bulk-loads active sessions + watch state, classifies the changed ones, dedups against `(kind, signature)` with a 30-min cooldown, fires `sendPushToAuthUser(userId, "terminal.alert", …)`, logs each fire.
+- `vercel.json` cron at `* * * * *`.
+- Smoke-tested classifier on `blocker`/`confirm`/`done`/`none` inputs — all four classified correctly.
+
+**Shipped — TS error cleanup:**
+- `app/api/security/face/match/route.ts` three pre-existing TS errors fixed: `tf.setBackend`/`ready` cast through a narrow interface, `sharp` default-import via `as unknown` coerce that respects esModuleInterop runtime, `faceapi.TNetInput` replaced with `Parameters<typeof faceapi.detectSingleFace>[0]`.
+
+**Operational:**
+- Migrations 027 + 028 applied to Supabase project `rtkzvsqulliaoizutsqz` via MCP `apply_migration`.
+- Production deploys: `dpl_EXufEzsjoRFgX9TkHJnKqcd3Wtgd` (preview), `dpl_DyCNf3xHzJQNMi9t8g2WRxF4QBPu` (prod, first batch), `dpl_CcW6qG7XeTffwCZ8ytPRj2LEdkfE` (prod, second batch with push + terminal watcher).
+- Patrick committed all of the above in `09083c7 "new updates"` (his consolidated commit on top of my work).
+
+---
+
+## 2026-05-17 — User management completion + invite URL precedence fix
+
+**Trigger:** "the invite user code in nexus is the wrong url. it should be portal.maxnexus.io let's make sure user management features are fully there for nexus web"
+
+**Diagnosed:** `publicOrigin` precedence had env var winning over request origin. If Vercel `NEXT_PUBLIC_APP_URL` was a valid-looking but stale URL (preview URL etc.), my "isUsableEnvUrl" check passed it and beat the actual portal origin. Inverted the precedence.
+
+**Shipped:**
+- `lib/auth/origin.ts` precedence inverted — request origin first, env second (with `*.vercel.app` filter), hard fallback `portal.maxnexus.io` last. URL parse moved inside try/catch so a malformed env doesn't throw.
+- `app/api/admin/resend-invite/route.ts` — re-email an existing invite without churning the user's PIN/face. `rotate: true` optionally regenerates the token. Refuses on owner / non-invited status.
+- `app/api/admin/delete-human/route.ts` — hard-delete with type-the-name confirm. Invalidates sessions first; cascades to push_devices + terminal_watch_state. Refuses on owner / self. Conversations + operations + memory survive (they FK to `auth.users`, not `humans`).
+- `HumanDetailClient.tsx` admin card — invited users see "Resend invite" + "Rotate + resend"; non-self non-owner users see "Delete user" with a type-name confirm modal. Loops the lifecycle.
+- `humans/page.tsx` list row — invited rows get a Send (resend) icon.
+
+**Operational:**
+- Commit `abb7f37 "nexus-web: fix invite URL + resend/delete admin actions"`.
+- Production deploy `dpl_AnJ3QMpPS66VndkDDaVscbu2PKMh` to `portal.maxnexus.io`.
+- Smoke-tested: `/api/admin/resend-invite` and `/api/admin/delete-human` both return 401 unauth (gates intact).
+
+**User management surface is now complete loop end-to-end:**
+- Add (invite) → Resend (lost email) → Rotate + resend (link leaked)
+- Forgot PIN → user self-serves at `/auth/forgot`
+- Locked out → Clear face / Reset PIN+face / Unlock
+- Departure → Delete (with name-typed confirm)
+
+Owner self-recovery remains env-var passphrase only (intentional — root of trust).

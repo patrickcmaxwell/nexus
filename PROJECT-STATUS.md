@@ -1,6 +1,82 @@
 # Nexus Project Status
 
-**Last Updated:** May 4, 2026
+**Last Updated:** May 18, 2026
+
+---
+
+## May 16-18, 2026 — Auth completion, push notifications, terminal watcher, user mgmt
+
+Three-day push consolidating Operation Keyholder + iOS observability. All shipped to `portal.maxnexus.io`.
+
+### Auth — full lifecycle loop ✅
+
+Self-service + admin paths cover every credential failure mode short of "owner forgets everything." User-visible:
+
+- **Self-service forgot PIN** at `/auth/forgot` → emails a one-time reset link (Resend-powered via `lib/email/sendPinReset.ts`). Refuses for owner. Hardened against email enumeration.
+- **Self-service face photo upload** in Settings → Face recognition → "Upload a photo." Browser-side face-api extracts the descriptor; server appends to `face_descriptors[]` (cap 20). Optional "set as avatar" in same flow.
+- **`publicOrigin` helper** (`lib/auth/origin.ts`) — derives canonical URLs for all emailed/clipboard'd links. Request origin beats stale env. `*.vercel.app` env values rejected.
+
+Admin (added on top of existing lock/reset/audit):
+
+- `POST /api/admin/unlock-user` — disabled → active without churning credentials
+- `POST /api/admin/clear-face` — wipe face data only, keep PIN
+- `POST /api/admin/resend-invite` — non-destructive re-email of an existing invite; `rotate: true` regenerates token
+- `POST /api/admin/delete-human` — hard delete with type-the-name confirm; cascades to push_devices + terminal_watch_state; conversations + ops survive (they FK to auth.users)
+
+All surfaced in `/dashboard/humans` list + `/dashboard/humans/[id]` detail page. Field-name mismatch (`humanId` → `targetHumanId`) that was silently 400-ing admin actions is fixed.
+
+### Push notifications ✅ (server + iOS)
+
+End-to-end pipeline shipped. Patrick still needs to set APN cert envs on Vercel; until then dispatches record `skipped/APNS_NOT_CONFIGURED` in `push_log` so the audit trail is preserved.
+
+- Migration `027_push_devices.sql` — `push_devices` (per-(human, token) with per-event preference toggles + bookkeeping) and `push_log` (append-only audit).
+- `lib/push/dispatch.ts` — `sendPush(humanId, event, payload)` + `sendPushToAuthUser(authId, …)` resolver. APNs HTTP/2 with ES256 JWT signing (45-min token cache). Automatic dead-token pruning on 410 / BadDeviceToken / consecutive-failure threshold.
+- `/api/push/devices` POST/GET/DELETE — device registration with upsert on `(human_id, token)`.
+- `/api/push/test` — one-button end-to-end probe.
+- Hooked into `agents/process` finalize → `agent.done`, `schedules/runner` success → `schedule.fired`, `research-runner` completion → `research.done`.
+- iOS: `nexus_iosApp.swift` rewritten with `@UIApplicationDelegateAdaptor` (pure SwiftUI apps don't see the device token otherwise). `NexusPushClient.swift` handles enable / sendTestPush / syncPreferences / unregister. Settings → Notifications shows token preview + "Send test push" + last-error display; every toggle calls `syncPreferences()` on change.
+
+**Envs Patrick needs on Vercel:**
+- `APNS_TEAM_ID` — Apple Developer team ID
+- `APNS_KEY_ID` — APNs auth key ID
+- `APNS_KEY_PEM` — .p8 contents with newlines escaped as `\n`
+- `APNS_TOPIC=com.maxwell.nexus-ios`
+- `APNS_USE_SANDBOX=1` for development builds (omit for prod)
+
+### Eve terminal watcher v1 ✅ (heuristic)
+
+Minute-cadence cron that classifies every active terminal session's snapshot and pings Patrick via push when something interesting happens. Built on top of the push pipeline above.
+
+- Migration `028_terminal_watcher.sql` — `terminal_watch_state` (per-session dedup) + `terminal_watch_log` (audit).
+- `lib/terminal/classify.ts` — heuristic classifier returning `{kind, signature, excerpt}` where kind ∈ {blocker, confirm, done, idle}. Inspects last 800 chars of snapshot. Confirm patterns anchored on the last non-empty line. ANSI strip (CSI + OSC + charset selection) anchored on ESC byte.
+- `/api/cron/terminal-watcher` — bulk-loads active sessions + watch state, SHA1-hashes snapshots to skip unchanged, classifies, dedups via `(kind, signature)` + 30-min cooldown, dispatches `terminal.alert` push, logs to `terminal_watch_log`.
+- `vercel.json` cron at `* * * * *`.
+
+LLM-classifier upgrade is the v2 follow-up — feed snapshots to grok-3-mini for "alert? y/n + reason." Catches off-script behavior the regex can't.
+
+### iOS double-message bug ✅ fixed
+
+Symptom: every Eve chat showed messages duplicated. Root cause: re-entrant `askHomeBrain` calls during streaming would append a second user bubble + second empty Eve bubble, and the first stream's still-arriving chunks would land on the wrong (newly-appended) bubble.
+
+Fix:
+1. Re-entrancy guard at top of `askHomeBrain` — second send returns early with "Eve is still responding…" status instead of running the full append sequence.
+2. Streaming chunks track the Eve bubble by UUID (`messages.firstIndex(where: { $0.id == bubbleId })`) instead of `messages.indices.last`, so concurrent mutations can't poison the wrong row.
+3. `ContentView.submitTypedMessage` adds a UI-level guard with haptic-error feedback when `voice.isAwaitingReply` is true.
+
+### nexus-web composer responsiveness ✅ (round 1)
+
+`MaxwellClient` + `EveCommand` composers now collapse cleanly under 640px (iPhone widths). Buttons shrink to 36×36, Tag hidden, `min-w-0` on input so it actually shrinks instead of overflowing. EveCommand session-mode header padding drops from `px-8` to `px-4`, footer wraps. Verify on iPad portrait + iPhone SE when convenient.
+
+### Schema state
+
+Supabase project `rtkzvsqulliaoizutsqz` now at migrations 019-028. 027 + 028 applied via MCP `apply_migration` on 2026-05-16.
+
+### Outstanding (not blocking close)
+
+- Wire APN cert envs on Vercel
+- Rebuild + install iOS app to pick up double-message fix + push client
+- Verify composer fixes on iPad / iPhone SE in real browser
+- Path B (local memory recall via embedding) — Patrick's pick before close
 
 ---
 

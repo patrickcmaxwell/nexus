@@ -126,17 +126,29 @@ Concrete user-experience guarantees the system should make for non-builders:
 ### Phase A — Admin redundancy ✅ (shipped 2026-05-05)
 Lock / Reset / Audit endpoints + UI. See "What's shipped" above.
 
+### Phase A.5 — Lifecycle completion ✅ (shipped 2026-05-16/17)
+The full admin loop for non-owners is now end-to-end. Added on top of Phase A:
+- `POST /api/admin/unlock-user` — restore `disabled → active` without churning credentials. Mirror of lock-user.
+- `POST /api/admin/clear-face` — wipe face descriptors only; PIN stays. Use when face has drifted but the user still knows their PIN.
+- `POST /api/admin/resend-invite` — re-email an existing invite without resetting PIN/face. `rotate: true` regenerates the token if the old link leaked.
+- `POST /api/admin/delete-human` — hard delete with type-the-name confirmation. Invalidates sessions first; cascades to push_devices + terminal_watch_state. Owner protected.
+- `POST /api/auth/forgot-pin` + `/auth/forgot` page — self-service reset by email. Issues a fresh invite_token, invalidates live sessions, refuses for owner, no email enumeration on response. Powered by `lib/email/sendPinReset.ts`.
+- `lib/auth/origin.ts` — canonical public origin helper. Request origin wins over env var (so invite emails always match the admin's domain). `*.vercel.app` env values rejected. Hard fallback `portal.maxnexus.io`.
+- Settings → Face recognition gets a "Upload a photo" path (`FacePhotoUploadModal`) — user picks an image, face-api extracts the descriptor client-side, server appends to `face_descriptors[]` (cap 20), optional "set as avatar" in same flow.
+- `HumanDetailClient` + humans list UI surface every action. Field-name mismatch (`humanId` → `targetHumanId`) fixed so admin actions stopped silently 400-ing.
+
 ### Phase B — Owner recovery (next, blocking more invites)
-Pick from the 3 proposed options above. Build the chosen path. Test by simulating Patrick's lockout.
+Pick from the 3 proposed options above. Build the chosen path. Test by simulating Patrick's lockout. **Still blocked on N2 decision.**
 
 ### Phase C — Hardened defaults
 - PIN length policy (6+ for non-owners, friendly error for weak choices)
 - Bad-PIN dictionary (reject `0000`, `1234`, birthdays?, repeating digits)
 - Owner can be force-required to set both face *and* PIN (no single-factor accounts at the top of trust)
 
-### Phase D — Friendly errors + recovery UI
-Every auth error message gets a "what to try next" line.
-"I can't get in" link from every auth screen.
+### Phase D — Friendly errors + recovery UI ✅ (partial, 2026-05-16)
+- `/auth/forgot` page shipped — every auth screen now has a "Forgot PIN?" route out.
+- Phase 1 face enroll bug fixed — uploaded photos actually persist and become matchable.
+- Still pending: "what to try next" footer text on each auth error; "I can't get in" link from `/auth/face`.
 
 ### Phase E — Audit log polish
 Plain-English event labels.

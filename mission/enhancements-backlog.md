@@ -106,3 +106,25 @@ Pass 6 — Foundations
 ```
 
 Update this file as items land. When something gets built, move its checkbox to `[x]` and link to the commit/journal entry.
+
+---
+
+## Recent landings (2026-05-16 → 2026-05-18)
+
+Items that shipped this push but didn't have explicit checkboxes here:
+
+- [x] **★ Push notification pipeline (server + iOS)** — APNs HTTP/2 + JWT signing, device registry, dispatch hooked into agent/schedule/research/terminal events. iOS `NexusPushClient` + `@UIApplicationDelegateAdaptor`. Settings UI with "Send test push." See `lib/push/dispatch.ts`, `/api/push/*`, journal 2026-05-16.
+- [x] **★ Eve terminal watcher v1** — minute cron classifies snapshots for blocker/confirm/done/idle and dispatches alerts. See `lib/terminal/classify.ts`, `/api/cron/terminal-watcher`, journal 2026-05-16.
+- [x] **Self-service face photo upload** — `FacePhotoUploadModal` in Settings. Extracts descriptor client-side, appends to enrolled set, optional avatar update in same flow.
+- [x] **Self-service forgot-PIN flow** — `/auth/forgot` + email reset link via `lib/email/sendPinReset.ts`.
+- [x] **Admin user lifecycle complete loop** — unlock, clear-face, resend-invite (non-destructive), rotate-and-resend, delete-human (type-name confirm). All surfaced in humans list + detail.
+- [x] **iOS double-message bug fix** — re-entrancy guard + UUID-based bubble tracking in `EveVoiceManager`.
+- [x] **nexus-web composer responsiveness (round 1)** — `MaxwellClient` + `EveCommand` collapse cleanly under 640px.
+
+## Outstanding follow-ups (next pass candidates)
+
+- **Path B — local memory recall** — embed `eve_memory` rows, route recall queries through cosine-similarity before falling back to Grok. Patrick's pick before session close. Genuinely eliminates API spend for recall.
+- **Path A — server-side memory distillation** — daily grok-3-mini job over recent conversations to propose memories. Pairs with Path B.
+- **Terminal watcher LLM upgrade (v2)** — feed snapshots to grok-3-mini for "alert? y/n + reason" classification. Catches off-script behavior the regex can't.
+- **APN cert envs on Vercel** — Patrick still needs to set `APNS_TEAM_ID`/`APNS_KEY_ID`/`APNS_KEY_PEM`/`APNS_TOPIC` before push actually delivers.
+- **Composer responsiveness round 2** — verify iPad portrait + iPhone SE; audit the remaining chat surfaces called out in the "audit all chat surfaces" memory note.

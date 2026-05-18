@@ -1,6 +1,21 @@
 # Current State
 
-**Snapshot:** 2026-05-13 ~23:30. Patrick is active.
+**Snapshot:** 2026-05-18. Patrick is active.
+
+## Latest delta (2026-05-16 → 2026-05-18)
+
+Three-day push consolidating auth, push notifications, terminal supervision, and user management. Everything below is committed and live on `portal.maxnexus.io`.
+
+| Area | Status |
+|---|---|
+| **Auth overhaul (full)** | ✅ Shipped 2026-05-16. Invite-link domain bug (placeholder env var) fixed via new `lib/auth/origin.ts` — request origin wins over env. Field-name mismatch in `HumanDetailClient` admin actions fixed (`humanId` → `targetHumanId`). New endpoints: `/api/admin/unlock-user`, `/api/admin/clear-face`, `/api/admin/resend-invite`, `/api/admin/delete-human`, `/api/auth/forgot-pin`. New pages: `/auth/forgot` + "Forgot PIN?" link on `/auth/pin`. New helpers: `lib/email/sendPinReset.ts`. New UI: self-service face photo upload (`FacePhotoUploadModal`) in Settings (extracts descriptor client-side via face-api, optional "set as avatar"). Single-frame face enroll now APPENDS to `face_descriptors[]` (capped at 20) instead of writing only the legacy column — uploaded photos are actually matchable now. |
+| **User management (complete loop)** | ✅ Shipped 2026-05-17. Humans list + detail page now expose every lifecycle action: invite → resend (non-destructive) → rotate-and-resend → lock ↔ unlock → reset PIN+face → clear face only → delete (type-name confirm). Owner self-recovery still via env-var passphrase only (intentional). |
+| **`publicOrigin` precedence fix** | ✅ Shipped 2026-05-17. Inverted ordering — request origin beats `NEXT_PUBLIC_APP_URL`. `*.vercel.app` env values rejected so stale preview URLs can't poison invite emails. Hard fallback `https://portal.maxnexus.io` only when no request object available. |
+| **Push notification pipeline** | ✅ Shipped 2026-05-16. Migration `027_push_devices.sql` (push_devices + push_log). `lib/push/dispatch.ts` — `sendPush(humanId, event, payload)` + `sendPushToAuthUser(authId, …)`, APNs HTTP/2 + ES256 JWT signing (cached 45min), automatic 410/BadDeviceToken row pruning, no-op `skipped/APNS_NOT_CONFIGURED` log when envs absent. `/api/push/devices` POST/GET/DELETE + `/api/push/test`. Hooked into `agents/process` finalize, `schedules/runner` success, `operations/research-runner` completion. iOS: `AppDelegate` via `@UIApplicationDelegateAdaptor`, `NexusPushClient` (enable/sendTestPush/syncPreferences/unregister), Settings UI with "Send test push" + token preview. **Patrick still needs to wire APN cert envs on Vercel** (`APNS_TEAM_ID`/`APNS_KEY_ID`/`APNS_KEY_PEM`/`APNS_TOPIC`); until then every dispatch records `skipped/APNS_NOT_CONFIGURED` in `push_log` so the audit trail is preserved. |
+| **Eve terminal watcher v1** | ✅ Shipped 2026-05-16. Migration `028_terminal_watcher.sql` (terminal_watch_state + terminal_watch_log). `lib/terminal/classify.ts` — heuristic classifier returning `{kind, signature, excerpt}` where kind ∈ {blocker, confirm, done, idle}. Anchored confirm patterns on last non-empty line so old `(y/n)?` prompts don't re-fire. ANSI strip (CSI + OSC + charset). `/api/cron/terminal-watcher` bulk-loads active sessions, SHA1-hashes snapshots to skip unchanged, classifies, dedups against `(kind, signature)` with 30-min cooldown, fires `sendPushToAuthUser(userId, "terminal.alert", …)`, logs to `terminal_watch_log`. `vercel.json` cron at `* * * * *`. LLM upgrade is the v2 follow-up. |
+| **iOS double-message bug** | ✅ Fixed 2026-05-16. Re-entrancy guard added to `EveVoiceManager.askHomeBrain` — second send during a streaming reply returns early with "Eve is still responding…" instead of running the full append-user → append-empty-eve → stream sequence again. Streaming chunks now track the bubble by UUID (`messages.firstIndex(where: { $0.id == bubbleId })`) instead of `messages.indices.last`, so concurrent mutations can't make chunks land in the wrong row. `submitTypedMessage` adds a UI-level haptic-error guard when `voice.isAwaitingReply` is true. |
+| **nexus-web mobile/iPad composer responsiveness** | ✅ First pass shipped 2026-05-16. `MaxwellClient` composer: buttons shrink to 36×36 under 640px, Tag hidden under 640px, `min-w-0` on input so it actually shrinks, tighter gaps and padding. `EveCommand` session-mode header: `px-8`→`px-4` on small, footer wraps. Verify on iPad portrait + iPhone SE when convenient. |
+| **`api/security/face/match` TS cleanup** | ✅ Shipped 2026-05-16. Three pre-existing TS errors fixed: `tf.setBackend`/`ready` cast through wide type, `sharp` default-import via `as unknown` coerce that respects esModuleInterop runtime, `faceapi.TNetInput` replaced with `Parameters<typeof faceapi.detectSingleFace>[0]`. Smoke-tested live: endpoint returns 400 on missing body (correct). |
 
 ## Latest delta (2026-05-13)
 
@@ -32,14 +47,14 @@
 | nexus-web (dev) | port 3000 | Hot-reload local |
 | **Lumen.app** | `/Applications/Lumen.app` | Native face capture working since 2026-05-07 server-side wasm fix. Multi-user code committed |
 | **Lumen on iPhone** (formerly nexus-ios) | Source updated 2026-05-12; needs Xcode rebuild + install on Patrick's iPhone | Renamed app to "Lumen". 11 tabs, full CRUD on Ops/Agents/Schedules, Brain tab (Memory+Directives), Map graph, Quick Capture FAB, Global Search palette, Streaming TTS, Team list. |
-| Supabase | `rtkzvsqulliaoizutsqz` | Schema migrations 019-024 applied |
+| Supabase | `rtkzvsqulliaoizutsqz` | Schema migrations 019-028 applied (027 push_devices + 028 terminal_watcher landed 2026-05-16) |
 
 ## Active operations
 
 | Op | Status | Notes |
 |---|---|---|
 | **Operation Multi-User** | ✅ Shipped end-to-end | Phases 0-7 + 4b complete |
-| **Operation Keyholder** | 🟡 Phase A shipped; B-G pending decisions | Lock/Reset/Audit live; recovery codes blocked on N2 |
+| **Operation Keyholder** | 🟢 Phase A + non-blocking follow-ups shipped | Lock/Unlock/Reset/Clear-face/Resend-invite/Rotate-resend/Delete-human + forgot-PIN email recovery all live (2026-05-16/17). Phase B owner-recovery codes still blocked on N2 decision. |
 | **Arena Platform** | ✅ Shipped + 4-of-5 providers OAuth | See `mission/arena-platform.md` |
 | **Operation Calendar** | ✅ Shipped 2026-05-07 evening | Native scheduling, 4 target dispatchers, Eve `schedule_create` tool, full `/dashboard/calendar` UI |
 | **Operation: Apple/Linear design baseline** | ✅ Shipped overnight 2026-05-08 | Theme lock, design system primitives, full HUD scrub, DashboardHome rebuild, auth pages, all dashboard widgets unified. See `mission/nexus-web-polish-2026-05.md` |
@@ -53,12 +68,16 @@
 | Project | URL | Last deployed |
 |---|---|---|
 | maxnexus-public | `maxnexus.io` | 2026-05-07 (splash with passphrase doorway) |
-| nexus-web | `portal.maxnexus.io` (latest preview `nexus-jtryta5mc`) | 2026-05-08 ~02:30 (per-entity detail routes) |
+| nexus-web | `portal.maxnexus.io` (latest prod `dpl_AnJ3QMpPS66VndkDDaVscbu2PKMh`) | 2026-05-17 (resend/delete admin actions + invite URL precedence fix) |
 | arena-web | `arena.maxnexus.io` (latest preview `arena-9ry0tsszd`) | 2026-05-08 ~02:42 (Slack OAuth shipped) |
 
 ## What's deployed and verified working
 
-- **Multi-user auth** (face + PIN + email) — end-to-end
+- **Multi-user auth** (face + PIN + email) — end-to-end with full lifecycle (invite → resend → reset → unlock → delete)
+- **Self-service PIN recovery** — `/auth/forgot` mints a reset token, emails via Resend, refuses on owner
+- **Self-service face upload** — Settings → Face recognition → "Upload a photo" extracts descriptor client-side and appends to enrolled set
+- **Push notification pipeline** — schema + dispatch + cron-event hooks live; APNs delivery awaits cert envs
+- **Eve terminal watcher** — minute-cadence cron, heuristic classifier (blocker/confirm/done/idle), 30-min dedup cooldown, audit log
 - **Cross-subdomain cookie auth** — sign in at portal, carries to arena (`SESSION_COOKIE_DOMAIN=.maxnexus.io` on both Vercel projects)
 - **Lumen native face login** — server-side face-api uses node-wasm path
 - **Splash passphrase doorway** — type lumen/lucy → portal redirect (1-char typo tolerance)
@@ -102,11 +121,12 @@ Remote: `https://github.com/patrickcmaxwell/nexus.git`. Branch: `main`.
 
 In rough sequence (none blocking the rest):
 
-1. **Commit + push** — substantial uncommitted work; suggested grouping in `pending-changes.md`
-2. **Activate any of the 4 OAuth providers** by registering the app + setting Vercel env vars. Each `/connect/{provider}` page has the inline guide.
-3. **Test end-to-end** with the test plan in `pending-changes.md` "Provider OAuth bring-up"
-4. **Rebuild Lumen.app** — pulls in server-side face-api fix + uncommitted Swift work
-5. **Rebuild iOS app** — multi-user code in tree
+1. **Wire APN cert envs on Vercel** to actually deliver push notifications. Set `APNS_TEAM_ID` (Apple Developer team ID), `APNS_KEY_ID` (APNs auth key ID), `APNS_KEY_PEM` (.p8 contents — newlines as `\n`), `APNS_TOPIC=com.maxwell.nexus-ios`, optionally `APNS_USE_SANDBOX=1` for development builds. Until set, every dispatch records `skipped/APNS_NOT_CONFIGURED` in `push_log`.
+2. **Rebuild + install iOS app** to pick up double-message fix + push client + Settings UI updates.
+3. **Activate any of the 4 OAuth providers** by registering the app + setting Vercel env vars. Each `/connect/{provider}` page has the inline guide.
+4. **Test end-to-end** with the test plan in `pending-changes.md` "Provider OAuth bring-up"
+5. **Rebuild Lumen.app** — pulls in server-side face-api fix + uncommitted Swift work
+6. **Apply N2 decision** (owner self-recovery model) to unblock Keyholder Phase B
 
 ## Foundational framings (still active)
 
